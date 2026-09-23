@@ -4,22 +4,18 @@ from dotenv import load_dotenv
 import json
 import sqlite3
 import requests
+import re
 from datetime import datetime, timedelta
 
 load_dotenv()
 
 app = Flask(__name__)
 
-# ==============================================================================
-# TEMPORAL: Fallback por si Railway no carga la variable (SINTAXIS CORRECTA)
-# Reemplaza "89f88b93d0634e1ab94c3a5fd018bc1a" con tu clave REAL de NewsAPI
-# ¡MANTÉN LAS COMILLAS DOBLES ""!
-# ==============================================================================
+# Fallback temporal si Railway no carga NEWSAPI_KEY
 if not os.getenv('NEWSAPI_KEY'):
-    os.environ['NEWSAPI_KEY'] = "89f88b93d0634e1ab94c3a5fd018bc1a"  # <-- PEGA TU KEY AQUÍ ENTRE COMILLAS
-    print("⚠️ AVISO: Usando NEWSAPI_KEY hardcodeada porque Railway no la cargó.")
+    os.environ['NEWSAPI_KEY'] = "89f88b93d0634e1ab94c3a5fd018bc1a"
+    print("⚠️ Usando NEWSAPI_KEY hardcodeada")
 
-# ==================== BASE DE DATOS ====================
 DB_PATH = os.path.join(os.path.dirname(__file__), 'trends.db')
 
 def get_db():
@@ -46,7 +42,6 @@ def init_db():
 
 init_db()
 
-# ==================== CONFIGURACIÓN ====================
 CATEGORIES = [
     {'name': 'Eléctrico', 'icon': '⚡'},
     {'name': 'Automotriz', 'icon': '🚗'},
@@ -79,16 +74,11 @@ def get_trends_for_category(category):
     random.shuffle(all_trends)
     return all_trends[:5]
 
-# ==================== BÚSQUEDA DE NOTICIAS ====================
-
 def search_news(topic, max_results=5):
     print(f"[DEBUG] Buscando noticias para: {topic}")
-    
     newsapi_key = os.getenv('NEWSAPI_KEY')
-    print(f"[DEBUG] NEWSAPI_KEY detectada, longitud: {len(newsapi_key) if newsapi_key else 0}")
     
     if newsapi_key and len(newsapi_key) > 10:
-        print(f"[DEBUG] Intentando NewsAPI...")
         try:
             url = 'https://newsapi.org/v2/everything'
             params = {
@@ -101,8 +91,6 @@ def search_news(topic, max_results=5):
                 'apiKey': newsapi_key
             }
             response = requests.get(url, params=params, timeout=10)
-            print(f"[DEBUG] NewsAPI status: {response.status_code}")
-            
             if response.status_code == 200:
                 data = response.json()
                 news_items = []
@@ -120,17 +108,11 @@ def search_news(topic, max_results=5):
                     if len(news_items) >= max_results:
                         break
                 if news_items:
-                    print(f"[DEBUG] NewsAPI encontró {len(news_items)} noticias")
                     return news_items
-                else:
-                    print("[DEBUG] NewsAPI no devolvió artículos válidos")
-            else:
-                print(f"[DEBUG] NewsAPI error: {response.text[:200]}")
         except Exception as e:
             print(f"[DEBUG] NewsAPI error: {str(e)}")
     
-    # Fallback a GDELT
-    print("[DEBUG] Fallback a GDELT...")
+    # Fallback GDELT
     try:
         url = 'https://api.gdeltproject.org/api/v2/doc/doc'
         params = {
@@ -165,47 +147,96 @@ def search_news(topic, max_results=5):
     
     return []
 
-# ==================== ANÁLISIS CON IA ====================
-
 def analyze_with_qwen(topic, category, region, news):
     api_key = os.getenv('QWEN_API_KEY')
     if not api_key:
         return None, "QWEN_API_KEY no configurada"
     
-    news_text = "\n\nNoticias:\n" + "\n".join([f"- {n['titulo']}" for n in news[:3]]) if news else ""
+    news_text = "\n\nNoticias encontradas:\n" + "\n".join([f"- {n['titulo']}" for n in news[:3]]) if news else ""
     
-    prompt = f"""Analiza esta tendencia:
-TEMA: {topic}
-CATEGORÍA: {category or 'General'}
-REGIÓN: {region or 'Chile'}{news_text}
+    # Prompt simplificado y más directo para asegurar JSON
+    prompt = f"""Eres un analista de datos. Responde SOLO con un objeto JSON válido, sin texto adicional, sin markdown.
 
-Responde SOLO con JSON válido:
 {{
   "puntaje_relevancia": 7,
-  "justificacion_puntaje": "Explicación breve",
+  "justificacion_puntaje": "Breve explicación",
   "hipotesis": "Hipótesis de 2-3 oraciones",
   "senales_clave": ["Señal 1", "Señal 2"],
   "angulos_periodisticos": ["Ángulo 1", "Ángulo 2"],
   "fuentes_sugeridas": ["Fuente 1", "Fuente 2"],
   "titulares_ejemplo": ["Titular 1", "Titular 2"],
   "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}
-}}"""
+}}
 
+TEMA: {topic}
+CATEGORÍA: {category or 'General'}
+REGIÓN: {region or 'Chile'}{news_text}"""
+
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json'
+    }
+    
+    payload = {
+        'model': 'qwen-plus',
+        'input': {'messages': [{'role': 'user', 'content': prompt}]},
+        'parameters': {'temperature': 0.1, 'max_tokens': 1500} # Temperatura baja para más precisión JSON
+    }
+    
     try:
         response = requests.post(
             'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
-            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
-            json={'model': 'qwen-plus', 'input': {'messages': [{'role': 'user', 'content': prompt}]}, 'parameters': {'temperature': 0.7, 'max_tokens': 1500}},
+            headers=headers,
+            json=payload,
             timeout=60
         )
+        
+        print(f"[DEBUG] Qwen status: {response.status_code}")
+        
         if response.status_code == 200:
             result = response.json()
-            text = result.get('output', {}).get('choices', [{}])[0].get('message', {}).get('content', '')
-            text = text.replace('```json', '').replace('```', '').strip()
-            return json.loads(text), None
-        return None, f"Error HTTP {response.status_code}"
+            
+            # Extraer texto de cualquier formato posible
+            analysis_text = None
+            try:
+                analysis_text = result['output']['choices'][0]['message']['content']
+            except:
+                try:
+                    analysis_text = result['output']['text']
+                except:
+                    try:
+                        analysis_text = result['output']['result']
+                    except:
+                        pass
+            
+            if not analysis_text or not isinstance(analysis_text, str):
+                return None, f"Respuesta vacía o inválida de Qwen. Result: {str(result)[:300]}"
+            
+            print(f"[DEBUG] Texto crudo recibido ({len(analysis_text)} chars)")
+            
+            # TRUCO ROBUSTO: Buscar el primer '{' y el último '}'
+            match = re.search(r'\{.*\}', analysis_text, re.DOTALL)
+            if match:
+                json_str = match.group(0)
+            else:
+                # Si no hay {}, intentar limpiar markdown
+                json_str = analysis_text.replace('```json', '').replace('```', '').strip()
+            
+            try:
+                analysis = json.loads(json_str)
+                print(f"[DEBUG] JSON parseado exitosamente!")
+                return analysis, None
+            except json.JSONDecodeError as e:
+                print(f"[DEBUG] Error parseando JSON: {e}")
+                print(f"[DEBUG] String que falló: {json_str[:500]}")
+                return None, f"Error parseando JSON: {str(e)}"
+        else:
+            return None, f"Error HTTP {response.status_code}: {response.text[:300]}"
+            
+    except requests.exceptions.Timeout:
+        return None, "Timeout de Qwen API"
     except Exception as e:
-        return None, str(e)
+        return None, f"Error de conexión: {str(e)}"
 
 def generate_simple_analysis(topic, category, region, news):
     return {
@@ -218,8 +249,6 @@ def generate_simple_analysis(topic, category, region, news):
         'titulares_ejemplo': [f"Análisis: {topic}", f"Las claves de {topic}"],
         'noticias_reales': news if news else []
     }
-
-# ==================== RUTAS ====================
 
 @app.route('/')
 def index():
@@ -283,14 +312,21 @@ def analyze():
         if not topic:
             return jsonify({'error': 'Falta el tema'}), 400
         
+        print(f"\n{'='*60}")
+        print(f"[ANALYZE] Topic: {topic}")
+        
         news = search_news(topic, max_results=5)
+        print(f"[ANALYZE] Noticias: {len(news)}")
+        
         analysis, error = analyze_with_qwen(topic, category, region, news)
         
         used_fallback = False
         if error or not analysis:
-            print(f"[DEBUG] Fallback activado: {error}")
+            print(f"[ANALYZE] Qwen falló: {error}")
             analysis = generate_simple_analysis(topic, category, region, news)
             used_fallback = True
+        else:
+            print(f"[ANALYZE] Qwen OK!")
         
         if 'noticias_reales' not in analysis:
             analysis['noticias_reales'] = news if news else []
@@ -302,6 +338,9 @@ def analyze():
                               (topic, category, region, json.dumps(analysis, ensure_ascii=False), score))
         conn.commit()
         conn.close()
+        
+        print(f"[ANALYZE] Completado. Fallback: {used_fallback}")
+        print(f"{'='*60}\n")
         
         return jsonify({
             'topic': topic, 'category': category, 'region': region,
