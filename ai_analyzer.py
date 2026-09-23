@@ -1,15 +1,14 @@
 import requests
 import os
+import json
 from datetime import datetime
 
 def analyze_trend_with_qwen(topic):
-    """
-    Analizar una tendencia usando la API de Qwen
-    """
+    """Analizar una tendencia usando la API de Qwen"""
     api_key = os.getenv('QWEN_API_KEY')
     
     if not api_key:
-        return {'error': 'API key not configured'}
+        return {'error': 'API key no configurada'}
     
     prompt = f"""Eres un analista de inteligencia informativa experto. Analiza la siguiente tendencia periodística:
 
@@ -50,7 +49,6 @@ Sé específico y práctico. Formato JSON puro."""
             result = response.json()
             analysis_text = result['output']['text']
             
-            import json
             try:
                 analysis = json.loads(analysis_text)
             except:
