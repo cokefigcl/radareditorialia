@@ -189,6 +189,14 @@
             border-radius: 8px;
             margin-top: 15px;
         }
+        .no-news {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+            margin: 20px 0;
+        }
+        .no-news p { margin: 0; color: #856404; }
         .footer {
             margin-top: 40px;
             padding: 20px;
@@ -212,7 +220,7 @@
     
     <div class="container">
         <div class="trending-section">
-            <h3>🔥 Tendencias en Chile</h3>
+            <h3> Tendencias en Chile</h3>
             <div id="trendingList"><p>Cargando...</p></div>
         </div>
     </div>
@@ -225,10 +233,10 @@
             <select id="regionSelect"><option value="Chile">Chile</option></select>
         </div>
         <button onclick="analyzeTrend()" id="analyzeBtn">Analizar Tendencia</button>
-        <div class="loading" id="loading"><p>🤖 Analizando y buscando datos históricos...</p></div>
+        <div class="loading" id="loading"><p> Analizando...</p></div>
         <div class="error" id="error"></div>
         <div class="result" id="result">
-            <h3> Análisis: <span id="resultTopic"></span></h3>
+            <h3>📊 Análisis: <span id="resultTopic"></span></h3>
             <div id="analysisContent"></div>
         </div>
     </div>
@@ -240,7 +248,7 @@
     
     <div class="footer">
         <div>Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - <a href="https://ltv.cl" target="_blank">LTV.cl</a></div>
-        <div class="version">Versión 3.0.0 | Última actualización: Septiembre 2026</div>
+        <div class="version">Versión 3.1.0 | Última actualización: Septiembre 2026</div>
     </div>
 
     <script>
@@ -256,7 +264,7 @@
                 loadTrending();
                 loadHistory();
             } catch (err) {
-                console.error('Error cargando filtros:', err);
+                console.error('Error:', err);
             }
         }
 
@@ -358,7 +366,7 @@
             if (score >= 9) return '🔴 CRÍTICA';
             if (score >= 7) return '✅ ALTA';
             if (score >= 4) return '⚠️ MEDIA';
-            return '🔵 BAJA';
+            return ' BAJA';
         }
 
         function renderEvolutionChart(evolution, topic) {
@@ -414,14 +422,11 @@
         }
 
         function displayResult(data) {
-            // FIX: Validaciones robustas para evitar errores
             document.getElementById('resultTopic').textContent = data.topic || 'Tema desconocido';
-            
             const a = data.analysis || {};
-            const score = data.score || (a.puntaje_relevancia) || 0;
+            const score = data.score || a.puntaje_relevancia || 0;
             let html = '';
             
-            // Puntaje de relevancia
             if (score > 0) {
                 html += '<div style="margin-bottom: 20px;">';
                 html += '<span class="score-badge ' + getScoreClass(score) + '">' + score + '/10 - ' + getScoreLabel(score) + '</span>';
@@ -431,10 +436,10 @@
                 html += '</div>';
             }
             
-            // Evolución temporal con gráfico
+            // Evolución temporal
             if (data.evolution && Array.isArray(data.evolution) && data.evolution.length > 0) {
                 html += '<div class="evolution-section">';
-                html += '<h4>📈 Evolución del Interés (últimas 4 semanas)</h4>';
+                html += '<h4>📈 Evolución del Interés (últimas 2 semanas)</h4>';
                 
                 const direction = data.trend_direction || 'estable';
                 const percent = data.trend_percent || 0;
@@ -475,6 +480,11 @@
                     html += '</div></div>';
                 });
                 html += '</div>';
+            } else {
+                html += '<div class="no-news">';
+                html += '<p><strong>⚠️ No se encontraron noticias recientes</strong></p>';
+                html += '<p style="margin-top: 8px; font-size: 13px;">Esto puede deberse a: es un tema muy específico, muy nuevo, o los medios locales no están indexados en GDELT.</p>';
+                html += '</div>';
             }
             
             // Titulares
@@ -501,18 +511,16 @@
             // Fuentes
             if (a.fuentes_sugeridas && Array.isArray(a.fuentes_sugeridas) && a.fuentes_sugeridas.length > 0) {
                 html += '<h4>📚 Fuentes sugeridas</h4><ul>';
-                a.fuentes_sugeridas.forEach(function(f) { html += '<li>🔗 ' + f + '</li>'; });
+                a.fuentes_sugeridas.forEach(function(f) { html += '<li> ' + f + '</li>'; });
                 html += '</ul>';
             }
             
-            // Si no hay nada que mostrar
             if (html === '') {
                 html = '<p style="color: #666;">No se generó análisis. Intenta con otro tema.</p>';
             }
             
             document.getElementById('analysisContent').innerHTML = html;
             
-            // Renderizar gráfico después de insertar HTML
             if (data.evolution && Array.isArray(data.evolution) && data.evolution.length > 0) {
                 setTimeout(function() {
                     renderEvolutionChart(data.evolution, data.topic);
