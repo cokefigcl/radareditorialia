@@ -19,6 +19,7 @@
             margin-bottom: 20px;
         }
         h1 { color: #333; margin-top: 0; }
+        h2 { color: #333; margin-top: 0; }
         .filters {
             display: grid;
             grid-template-columns: 1fr;
@@ -149,6 +150,67 @@
             margin-top: 20px;
             display: none;
         }
+        
+        /* NUEVO: Estilos para el puntaje de relevancia */
+        .score-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        .score-low { background: #ffebee; color: #c62828; }
+        .score-medium { background: #fff8e1; color: #f57f17; }
+        .score-high { background: #e8f5e9; color: #2e7d32; }
+        .score-critical { background: #b71c1c; color: white; }
+        
+        /* NUEVO: Estilos para el historial */
+        .history-item {
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+            transition: all 0.2s;
+        }
+        .history-item:hover {
+            background: #e9ecef;
+        }
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .history-topic {
+            font-weight: 600;
+            font-size: 16px;
+            color: #333;
+        }
+        .history-meta {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .history-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 13px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-analyze { background: #007bff; color: white; }
+        .btn-analyze:hover { background: #0056b3; }
+        .btn-delete { background: #dc3545; color: white; }
+        .btn-delete:hover { background: #c82333; }
+        
         @media (max-width: 768px) {
             .filters { grid-template-columns: 1fr; }
         }
@@ -156,7 +218,7 @@
 </head>
 <body>
     <div class="container">
-        <h1> Radar Editorial con IA</h1>
+        <h1>📰 Radar Editorial con IA</h1>
         <div class="filters">
             <div class="filter-group">
                 <h3>📂 Categorías</h3>
@@ -177,7 +239,7 @@
     </div>
     
     <div class="container">
-        <h3>🔍 Análisis Personalizado</h3>
+        <h3> Análisis Personalizado</h3>
         <div class="input-group">
             <input type="text" id="topicInput" placeholder="Ej: Endeudamiento de jóvenes en Chile">
             <select id="categorySelect">
@@ -190,7 +252,7 @@
         <button onclick="analyzeTrend()" id="analyzeBtn">Analizar Tendencia</button>
         
         <div class="loading" id="loading">
-            <p> La IA está analizando...</p>
+            <p>🤖 La IA está analizando...</p>
         </div>
         
         <div class="error" id="error"></div>
@@ -198,6 +260,15 @@
         <div class="result" id="result">
             <h3>📊 Análisis: <span id="resultTopic"></span></h3>
             <div id="analysisContent"></div>
+        </div>
+    </div>
+    
+    <!-- NUEVO: Sección de Historial -->
+    <div class="container">
+        <h2> Historial de Análisis</h2>
+        <p style="color: #666; margin-top: -10px;">Tus análisis anteriores ordenados por fecha</p>
+        <div id="historyList">
+            <p>Cargando historial...</p>
         </div>
     </div>
 
@@ -212,6 +283,7 @@
                 
                 renderFilters();
                 loadTrending();
+                loadHistory();
             } catch (err) {
                 console.error('Error:', err);
             }
@@ -237,8 +309,6 @@
 
         function selectCategory(cat) {
             currentCategory = cat;
-            
-            // Actualizar botones activos
             const buttons = document.querySelectorAll('#categoryFilters .filter-btn');
             buttons.forEach(function(btn) {
                 btn.classList.remove('active');
@@ -248,8 +318,6 @@
                     btn.classList.add('active');
                 }
             });
-            
-            // Recargar tendencias con la nueva categoría
             loadTrending();
         }
 
@@ -271,7 +339,7 @@
                 trends.forEach(function(t, i) {
                     html += '<div class="trending-item" onclick="useTrend(\'' + t.topic.replace(/'/g, "\\'") + '\')">';
                     html += '<div class="trending-topic">' + (i + 1) + '. ' + t.topic + '</div>';
-                    html += '<div class="trending-source">📊 ' + t.source + ' | ' + t.region + '</div>';
+                    html += '<div class="trending-source"> ' + t.source + ' | ' + t.region + '</div>';
                     html += '</div>';
                 });
                 list.innerHTML = html;
@@ -282,6 +350,7 @@
 
         function useTrend(topic) {
             document.getElementById('topicInput').value = topic;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         async function analyzeTrend() {
@@ -312,6 +381,7 @@
 
                 displayResult(data);
                 document.getElementById('result').style.display = 'block';
+                loadHistory();
             } catch (err) {
                 document.getElementById('error').textContent = 'Error: ' + err.message;
                 document.getElementById('error').style.display = 'block';
@@ -321,21 +391,48 @@
             }
         }
 
+        function getScoreClass(score) {
+            if (score >= 9) return 'score-critical';
+            if (score >= 7) return 'score-high';
+            if (score >= 4) return 'score-medium';
+            return 'score-low';
+        }
+
+        function getScoreLabel(score) {
+            if (score >= 9) return ' CRÍTICA';
+            if (score >= 7) return '✅ ALTA';
+            if (score >= 4) return '⚠️ MEDIA';
+            return ' BAJA';
+        }
+
         function displayResult(data) {
             document.getElementById('resultTopic').textContent = data.topic;
             const a = data.analysis;
+            const score = data.score || a.puntaje_relevancia || 0;
             
             let html = '';
             
+            // NUEVO: Mostrar puntaje de relevancia
+            if (score > 0) {
+                html += '<div style="margin-bottom: 20px;">';
+                html += '<span class="score-badge ' + getScoreClass(score) + '">';
+                html += score + '/10 - ' + getScoreLabel(score);
+                html += '</span>';
+                if (a.justificacion_puntaje) {
+                    html += '<span style="color: #666; font-size: 14px;">' + a.justificacion_puntaje + '</span>';
+                }
+                html += '</div>';
+            }
+            
             if (a.hipotesis) {
                 html += '<div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3; margin-bottom: 20px;">';
-                html += '<h4 style="margin-top:0; color: #1565c0;">🎯 Hipótesis Editorial</h4>';
+                html += '<h4 style="margin-top:0; color: #1565c0;"> Hipótesis Editorial</h4>';
                 html += '<p style="margin-bottom:0; line-height: 1.6;">' + a.hipotesis + '</p>';
                 html += '</div>';
             }
             
             if (a.titulares_ejemplo && a.titulares_ejemplo.length) {
-                html += '<h4>📰 Posibles Titulares / Ángulos de Cobertura</h4><ul style="line-height: 1.8;">';
+                html += '<h4> Posibles Titulares / Ángulos de Cobertura</h4><ul style="line-height: 1.8;">';
                 a.titulares_ejemplo.forEach(function(titular) {
                     html += '<li>📌 ' + titular + '</li>';
                 });
@@ -351,7 +448,7 @@
             }
             
             if (a.angulos_periodisticos && a.angulos_periodisticos.length) {
-                html += '<h4>📝 Ángulos de investigación</h4><ul>';
+                html += '<h4> Ángulos de investigación</h4><ul>';
                 a.angulos_periodisticos.forEach(function(ang) {
                     html += '<li>' + ang + '</li>';
                 });
@@ -367,6 +464,73 @@
             }
             
             document.getElementById('analysisContent').innerHTML = html;
+        }
+
+        // NUEVO: Cargar historial
+        async function loadHistory() {
+            const list = document.getElementById('historyList');
+            list.innerHTML = '<p>Cargando historial...</p>';
+            
+            try {
+                const res = await fetch('/api/history?limit=20');
+                const history = await res.json();
+                
+                if (history.length === 0) {
+                    list.innerHTML = '<p style="color: #666;">Aún no hay análisis en el historial. ¡Haz tu primer análisis arriba!</p>';
+                    return;
+                }
+                
+                let html = '';
+                history.forEach(function(item) {
+                    const score = item.score || (item.analysis && item.analysis.puntaje_relevancia) || 0;
+                    const category = item.category || 'General';
+                    const date = item.created_at ? new Date(item.created_at).toLocaleString('es-CL') : '';
+                    
+                    html += '<div class="history-item">';
+                    html += '<div class="history-header">';
+                    html += '<div>';
+                    html += '<div class="history-topic">' + item.topic + '</div>';
+                    html += '<div class="history-meta"> ' + category + ' |  ' + date + '</div>';
+                    html += '</div>';
+                    if (score > 0) {
+                        html += '<span class="score-badge ' + getScoreClass(score) + '">' + score + '/10</span>';
+                    }
+                    html += '</div>';
+                    html += '<div class="history-actions">';
+                    html += '<button class="btn-small btn-analyze" onclick="reAnalyze(\'' + item.topic.replace(/'/g, "\\'") + '\', \'' + (item.category || '') + '\')">🔄 Re-analizar</button>';
+                    html += '<button class="btn-small btn-delete" onclick="deleteAnalysis(' + item.id + ')">️ Eliminar</button>';
+                    html += '</div>';
+                    html += '</div>';
+                });
+                
+                list.innerHTML = html;
+            } catch (err) {
+                list.innerHTML = '<p>Error cargando historial</p>';
+            }
+        }
+
+        // NUEVO: Re-analizar un tema del historial
+        function reAnalyze(topic, category) {
+            document.getElementById('topicInput').value = topic;
+            if (category) {
+                document.getElementById('categorySelect').value = category;
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setTimeout(function() { analyzeTrend(); }, 500);
+        }
+
+        // NUEVO: Eliminar análisis del historial
+        async function deleteAnalysis(id) {
+            if (!confirm('¿Eliminar este análisis del historial?')) return;
+            
+            try {
+                const res = await fetch('/api/history/' + id, { method: 'DELETE' });
+                if (res.ok) {
+                    loadHistory();
+                }
+            } catch (err) {
+                alert('Error al eliminar');
+            }
         }
 
         loadFilters();
