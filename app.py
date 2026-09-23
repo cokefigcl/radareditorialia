@@ -10,6 +10,15 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# ==============================================================================
+# TEMPORAL: Fallback por si Railway no carga la variable (SINTAXIS CORRECTA)
+# Reemplaza "89f88b93d0634e1ab94c3a5fd018bc1a" con tu clave REAL de NewsAPI
+# ¡MANTÉN LAS COMILLAS DOBLES ""!
+# ==============================================================================
+if not os.getenv('NEWSAPI_KEY'):
+    os.environ['NEWSAPI_KEY'] = "89f88b93d0634e1ab94c3a5fd018bc1a"  # <-- PEGA TU KEY AQUÍ ENTRE COMILLAS
+    print("⚠️ AVISO: Usando NEWSAPI_KEY hardcodeada porque Railway no la cargó.")
+
 # ==================== BASE DE DATOS ====================
 DB_PATH = os.path.join(os.path.dirname(__file__), 'trends.db')
 
@@ -75,10 +84,11 @@ def get_trends_for_category(category):
 def search_news(topic, max_results=5):
     print(f"[DEBUG] Buscando noticias para: {topic}")
     
-    # 1. Intentar con NewsAPI (desde variable de entorno)
     newsapi_key = os.getenv('NEWSAPI_KEY')
+    print(f"[DEBUG] NEWSAPI_KEY detectada, longitud: {len(newsapi_key) if newsapi_key else 0}")
+    
     if newsapi_key and len(newsapi_key) > 10:
-        print(f"[DEBUG] Usando NewsAPI (longitud: {len(newsapi_key)})")
+        print(f"[DEBUG] Intentando NewsAPI...")
         try:
             url = 'https://newsapi.org/v2/everything'
             params = {
@@ -110,11 +120,16 @@ def search_news(topic, max_results=5):
                     if len(news_items) >= max_results:
                         break
                 if news_items:
+                    print(f"[DEBUG] NewsAPI encontró {len(news_items)} noticias")
                     return news_items
+                else:
+                    print("[DEBUG] NewsAPI no devolvió artículos válidos")
+            else:
+                print(f"[DEBUG] NewsAPI error: {response.text[:200]}")
         except Exception as e:
             print(f"[DEBUG] NewsAPI error: {str(e)}")
     
-    # 2. Fallback a GDELT
+    # Fallback a GDELT
     print("[DEBUG] Fallback a GDELT...")
     try:
         url = 'https://api.gdeltproject.org/api/v2/doc/doc'
