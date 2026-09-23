@@ -121,30 +121,27 @@ def get_trends_for_category(category):
         random.shuffle(all_trends)
         return all_trends[:5]
 
-# ==================== GDELT: NOTICIAS Y EVOLUCIÓN ====================
+# ==================== GDELT: VERSIÓN RÁPIDA ====================
 
-def search_gdelt_news(query, max_results=5, days_back=7):
+def search_gdelt_news(query, max_results=3, days_back=7):
+    """Búsqueda rápida de noticias"""
     try:
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days_back)
         
-        start_str = start_date.strftime('%Y%m%d%H%M%S')
-        end_str = end_date.strftime('%Y%m%d%H%M%S')
-        
         url = 'https://api.gdeltproject.org/api/v2/doc/doc'
-        
         params = {
             'query': query,
             'mode': 'artlist',
             'format': 'json',
-            'startdatetime': start_str,
-            'enddatetime': end_str,
-            'maxrecords': max_results * 3,
+            'startdatetime': start_date.strftime('%Y%m%d%H%M%S'),
+            'enddatetime': end_date.strftime('%Y%m%d%H%M%S'),
+            'maxrecords': max_results * 2,
             'sourcelang': 'spa',
             'sort': 'DateDesc'
         }
         
-        response = requests.get(url, params=params, timeout=10)
+        response = requests.get(url, params=params, timeout=8)
         
         if response.status_code == 200:
             data = response.json()
@@ -155,40 +152,30 @@ def search_gdelt_news(query, max_results=5, days_back=7):
             
             for article in articles:
                 title = article.get('title', '').strip()
-                url_article = article.get('url', '')
-                source = article.get('domain', '')
-                date = article.get('seendate', '')
-                
                 if title and title not in seen_titles and len(title) > 10:
                     seen_titles.add(title)
                     news_items.append({
                         'titulo': title,
-                        'fuente': source,
-                        'url': url_article,
-                        'fecha': date[:10] if date else ''
+                        'fuente': article.get('domain', ''),
+                        'url': article.get('url', ''),
+                        'fecha': article.get('seendate', '')[:10]
                     })
-                
                 if len(news_items) >= max_results:
                     break
             
             return news_items
-        else:
-            return []
-            
-    except Exception as e:
-        print(f"Error GDELT: {str(e)}")
+        return []
+    except:
         return []
 
-def get_trend_evolution(query, weeks=2):
+def get_trend_evolution_fast(query):
+    """Evolución rápida: solo 2 semanas, 1 llamada"""
     evolution = []
     end_date = datetime.now()
     
-    for i in range(weeks, 0, -1):
+    for i in range(2, 0, -1):
         week_end = end_date - timedelta(weeks=i-1)
         week_start = week_end - timedelta(days=7)
-        
-        start_str = week_start.strftime('%Y%m%d%H%M%S')
-        end_str = week_end.strftime('%Y%m%d%H%M%S')
         
         try:
             url = 'https://api.gdeltproject.org/api/v2/doc/doc'
@@ -196,24 +183,23 @@ def get_trend_evolution(query, weeks=2):
                 'query': query,
                 'mode': 'artlist',
                 'format': 'json',
-                'startdatetime': start_str,
-                'enddatetime': end_str,
-                'maxrecords': 100,
+                'startdatetime': week_start.strftime('%Y%m%d%H%M%S'),
+                'enddatetime': week_end.strftime('%Y%m%d%H%M%S'),
+                'maxrecords': 50,
                 'sourcelang': 'spa'
             }
             
-            response = requests.get(url, params=params, timeout=8)
+            response = requests.get(url, params=params, timeout=6)
             
             if response.status_code == 200:
-                data = response.json()
-                count = len(data.get('articles', []))
+                count = len(response.json().get('articles', []))
             else:
                 count = 0
         except:
             count = 0
         
         evolution.append({
-            'semana': f'Semana {weeks - i + 1}',
+            'semana': f'Semana {2 - i + 1}',
             'fecha_inicio': week_start.strftime('%d/%m'),
             'fecha_fin': week_end.strftime('%d/%m'),
             'articulos': count
@@ -245,39 +231,15 @@ def get_trending():
         for t in trends[:limit]
     ])
 
-@app.route('/api/news', methods=['GET'])
-def get_news():
-    query = request.args.get('q', '')
-    limit = int(request.args.get('limit', 5))
-    
-    if not query:
-        return jsonify({'error': 'Falta el query'}), 400
-    
-    news = search_gdelt_news(query, limit)
-    return jsonify(news)
-
-@app.route('/api/evolution', methods=['GET'])
-def get_evolution():
-    query = request.args.get('q', '')
-    weeks = int(request.args.get('weeks', 2))
-    
-    if not query:
-        return jsonify({'error': 'Falta el query'}), 400
-    
-    evolution = get_trend_evolution(query, weeks)
-    return jsonify(evolution)
-
 @app.route('/api/history', methods=['GET'])
 def get_history():
     limit = int(request.args.get('limit', 20))
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('''
-        SELECT id, topic, category, region, analysis, score, created_at 
-        FROM trends 
-        ORDER BY created_at DESC 
-        LIMIT ?
-    ''', (limit,))
+    cursor.execute(
+        'SELECT id, topic, category, region, analysis, score, created_at FROM trends ORDER BY created_at DESC LIMIT ?',
+        (limit,)
+    )
     rows = cursor.fetchall()
     conn.close()
     
@@ -296,7 +258,6 @@ def get_history():
             'score': row['score'] if row['score'] else 0,
             'created_at': row['created_at']
         })
-    
     return jsonify(history)
 
 @app.route('/api/history/<int:analysis_id>', methods=['DELETE'])
@@ -311,56 +272,45 @@ def delete_history(analysis_id):
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
     try:
-        print(f"Iniciando análisis...")
         data = request.json
         topic = data.get('topic', '')
         category = data.get('category')
         region = data.get('region')
         
-        print(f"Tema: {topic}, Categoría: {category}, Región: {region}")
-        
         if not topic:
             return jsonify({'error': 'Falta el tema'}), 400
         
         api_key = os.getenv('QWEN_API_KEY')
-        print(f"API Key configurada: {api_key is not None}")
-        
         if not api_key:
-            return jsonify({'error': 'API key de Qwen no configurada'}), 500
+            return jsonify({'error': 'API key no configurada'}), 500
         
-        # Buscar noticias reales (rápido)
-        print("Buscando noticias en GDELT...")
+        # 1. Noticias rápidas (timeout 8s)
         real_news = search_gdelt_news(topic, max_results=3, days_back=7)
-        print(f"Noticias encontradas: {len(real_news)}")
         
-        # Obtener evolución (rápido, solo 2 semanas)
-        print("Obteniendo evolución...")
-        evolution = get_trend_evolution(topic, weeks=2)
-        print(f"Semanas de evolución: {len(evolution)}")
+        # 2. Evolución rápida (timeout 6s x 2 = 12s)
+        evolution = get_trend_evolution_fast(topic)
         
-        # Calcular tendencia
+        # 3. Calcular tendencia
         if len(evolution) >= 2:
-            first_week = evolution[0]['articulos']
-            last_week = evolution[-1]['articulos']
-            if last_week > first_week:
+            first = evolution[0]['articulos']
+            last = evolution[-1]['articulos']
+            if last > first:
                 trend_direction = 'subiendo'
-                trend_percent = round(((last_week - first_week) / max(first_week, 1)) * 100)
-            elif last_week < first_week:
+                trend_percent = round(((last - first) / max(first, 1)) * 100)
+            elif last < first:
                 trend_direction = 'bajando'
-                trend_percent = round(((first_week - last_week) / max(first_week, 1)) * 100)
+                trend_percent = round(((first - last) / max(first, 1)) * 100)
             else:
                 trend_direction = 'estable'
                 trend_percent = 0
         else:
-            trend_direction = 'sin datos'
+            trend_direction = 'estable'
             trend_percent = 0
         
-        # Construir prompt simplificado
+        # 4. Prompt simplificado
         news_context = ""
         if real_news:
-            news_context = "\n\nNOTICIAS RECIENTES:\n"
-            for i, news in enumerate(real_news[:3], 1):
-                news_context += f"{i}. {news['titulo']}\n"
+            news_context = "\nNoticias recientes:\n" + "\n".join([f"- {n['titulo']}" for n in real_news])
         
         prompt = f"""Analiza esta tendencia periodística:
 
@@ -372,17 +322,16 @@ REGIÓN: {region or 'Chile'}
 Responde SOLO con JSON válido:
 {{
   "puntaje_relevancia": 7,
-  "justificacion_puntaje": "Explicación breve",
+  "justificacion_puntaje": "Breve explicación",
   "hipotesis": "Hipótesis de 2-3 oraciones",
   "senales_clave": ["Señal 1", "Señal 2"],
   "angulos_periodisticos": ["Ángulo 1", "Ángulo 2"],
   "fuentes_sugeridas": ["Fuente 1", "Fuente 2"],
   "titulares_ejemplo": ["Titular 1", "Titular 2"],
-  "noticias_reales": {json.dumps(real_news[:3], ensure_ascii=False)}
+  "noticias_reales": {json.dumps(real_news, ensure_ascii=False)}
 }}"""
 
-        print("Llamando a API de Qwen...")
-        
+        # 5. Llamada a Qwen (timeout 45s)
         headers = {
             'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json'
@@ -390,25 +339,16 @@ Responde SOLO con JSON válido:
         
         payload = {
             'model': 'qwen-plus',
-            'input': {
-                'messages': [
-                    {'role': 'user', 'content': prompt}
-                ]
-            },
-            'parameters': {
-                'temperature': 0.7,
-                'max_tokens': 1000
-            }
+            'input': {'messages': [{'role': 'user', 'content': prompt}]},
+            'parameters': {'temperature': 0.7, 'max_tokens': 1000}
         }
         
         response = requests.post(
             'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
             headers=headers,
             json=payload,
-            timeout=30
+            timeout=45
         )
-        
-        print(f"Respuesta de Qwen: {response.status_code}")
         
         if response.status_code == 200:
             result = response.json()
@@ -423,32 +363,26 @@ Responde SOLO con JSON válido:
             except:
                 analysis_text = str(result)
             
-            print(f"Texto de análisis recibido: {len(analysis_text)} caracteres")
-            
             analysis_text = analysis_text.replace('```json', '').replace('```', '').strip()
             
             try:
                 analysis = json.loads(analysis_text)
-                print("JSON parseado correctamente")
-            except json.JSONDecodeError as e:
-                print(f"Error parseando JSON: {e}")
+            except:
                 analysis = {
                     'puntaje_relevancia': 5,
-                    'justificacion_puntaje': 'Análisis generado automáticamente',
-                    'hipotesis': f'La tendencia "{topic}" muestra relevancia en el contexto {region or "chileno"}.',
-                    'senales_clave': ['Aumento de menciones en medios', 'Nuevas regulaciones'],
+                    'justificacion_puntaje': 'Análisis generado',
+                    'hipotesis': f'La tendencia "{topic}" es relevante en {region or "Chile"}.',
+                    'senales_clave': ['Aumento de menciones', 'Nuevas regulaciones'],
                     'angulos_periodisticos': ['Impacto económico', 'Perspectivas de expertos'],
-                    'fuentes_sugeridas': ['Organismos oficiales', 'Expertos del sector'],
-                    'titulares_ejemplo': [f"Análisis: {topic}", f"Las claves de {topic}"],
+                    'fuentes_sugeridas': ['Organismos oficiales', 'Expertos'],
+                    'titulares_ejemplo': [f"Análisis: {topic}"],
                     'noticias_reales': real_news
                 }
         else:
-            print(f"Error de Qwen: {response.status_code} - {response.text}")
             return jsonify({'error': f'Error API Qwen: {response.status_code}'}), 500
         
         score = analysis.get('puntaje_relevancia', 5)
         
-        # Guardar en BD
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute(
@@ -457,8 +391,6 @@ Responde SOLO con JSON válido:
         )
         conn.commit()
         conn.close()
-        
-        print("Análisis completado y guardado")
         
         return jsonify({
             'topic': topic,
@@ -474,9 +406,7 @@ Responde SOLO con JSON válido:
         })
         
     except Exception as e:
-        print(f"Error en analyze: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        print(f"Error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
