@@ -28,6 +28,7 @@ def init_db():
             category TEXT,
             region TEXT,
             analysis TEXT,
+            score INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -41,16 +42,15 @@ CATEGORIES = [
     {'name': 'Eléctrico', 'icon': '⚡'},
     {'name': 'Automotriz', 'icon': '🚗'},
     {'name': 'Belleza', 'icon': '💄'},
-    {'name': 'Minería', 'icon': '⛏️'},
+    {'name': 'Minería', 'icon': '️'},
     {'name': 'IA', 'icon': '🤖'},
-    {'name': 'Tendencias', 'icon': '📈'},
+    {'name': 'Tendencias', 'icon': ''},
     {'name': 'Tecnología', 'icon': '💻'},
     {'name': 'Economía', 'icon': '💰'}
 ]
 
 REGIONS = ['Chile']
 
-# TENDENCIAS POR CATEGORÍA
 TRENDS_BY_CATEGORY = {
     'Eléctrico': [
         "Subsidios a la electromovilidad en Chile 2026",
@@ -111,15 +111,12 @@ TRENDS_BY_CATEGORY = {
 }
 
 def get_trends_for_category(category):
-    """Devuelve tendencias según la categoría"""
     if category and category != 'all' and category in TRENDS_BY_CATEGORY:
         return TRENDS_BY_CATEGORY[category]
     else:
-        # Si es 'all' o no existe, devolver mezcla de todas
         all_trends = []
         for trends in TRENDS_BY_CATEGORY.values():
             all_trends.extend(trends)
-        # Mezclar y tomar 5
         import random
         random.shuffle(all_trends)
         return all_trends[:5]
@@ -141,13 +138,54 @@ def get_regions():
 def get_trending():
     category = request.args.get('category', 'all')
     limit = int(request.args.get('limit', 5))
-    
     trends = get_trends_for_category(category)
-    
     return jsonify([
         {'topic': t, 'source': 'Tendencias ' + (category if category != 'all' else 'Chile'), 'region': 'Chile'}
         for t in trends[:limit]
     ])
+
+# NUEVO: Endpoint para obtener el historial de análisis
+@app.route('/api/history', methods=['GET'])
+def get_history():
+    limit = int(request.args.get('limit', 20))
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, topic, category, region, analysis, score, created_at 
+        FROM trends 
+        ORDER BY created_at DESC 
+        LIMIT ?
+    ''', (limit,))
+    rows = cursor.fetchall()
+    conn.close()
+    
+    history = []
+    for row in rows:
+        try:
+            analysis = json.loads(row['analysis']) if row['analysis'] else {}
+        except:
+            analysis = {}
+        history.append({
+            'id': row['id'],
+            'topic': row['topic'],
+            'category': row['category'],
+            'region': row['region'],
+            'analysis': analysis,
+            'score': row['score'] if row['score'] else 0,
+            'created_at': row['created_at']
+        })
+    
+    return jsonify(history)
+
+# NUEVO: Endpoint para eliminar un análisis del historial
+@app.route('/api/history/<int:analysis_id>', methods=['DELETE'])
+def delete_history(analysis_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM trends WHERE id = ?', (analysis_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
@@ -164,20 +202,29 @@ def analyze():
         if not api_key:
             return jsonify({'error': 'API key de Qwen no configurada'}), 500
         
+        # MODIFICADO: Prompt con puntaje de relevancia
         prompt = f"""Eres un editor jefe y analista de inteligencia informativa. Analiza esta tendencia:
 
 TEMA: {topic}
 CATEGORÍA: {category or 'General'}
 REGIÓN: {region or 'Chile'}
 
-Responde SOLO con JSON válido (sin markdown) con esta estructura:
+Responde SOLO con JSON válido (sin markdown) con esta estructura exacta:
 {{
+  "puntaje_relevancia": 8,
+  "justificacion_puntaje": "Breve explicación de por qué este puntaje",
   "hipotesis": "Hipótesis de 2-3 oraciones",
   "senales_clave": ["Señal 1", "Señal 2", "Señal 3"],
   "angulos_periodisticos": ["Ángulo 1", "Ángulo 2", "Ángulo 3"],
   "fuentes_sugeridas": ["Fuente 1", "Fuente 2", "Fuente 3"],
   "titulares_ejemplo": ["Titular 1", "Titular 2", "Titular 3"]
-}}"""
+}}
+
+El puntaje_relevancia debe ser un número del 1 al 10 donde:
+- 1-3: Baja relevancia (tema niche o muy específico)
+- 4-6: Relevancia media (interesa a un sector)
+- 7-8: Alta relevancia (impacto amplio)
+- 9-10: Relevancia crítica (tema de portada)"""
 
         headers = {
             'Authorization': f'Bearer {api_key}',
@@ -193,7 +240,7 @@ Responde SOLO con JSON válido (sin markdown) con esta estructura:
             },
             'parameters': {
                 'temperature': 0.7,
-                'max_tokens': 1000
+                'max_tokens': 1200
             }
         }
         
@@ -207,7 +254,6 @@ Responde SOLO con JSON válido (sin markdown) con esta estructura:
         if response.status_code == 200:
             result = response.json()
             
-            # Manejar diferentes formatos de respuesta
             try:
                 if 'output' in result and 'choices' in result['output']:
                     analysis_text = result['output']['choices'][0]['message']['content']
@@ -226,36 +272,25 @@ Responde SOLO con JSON válido (sin markdown) con esta estructura:
                 analysis = json.loads(analysis_text)
             except json.JSONDecodeError:
                 analysis = {
+                    'puntaje_relevancia': 5,
+                    'justificacion_puntaje': 'Análisis generado con fallback',
                     'hipotesis': f'La tendencia "{topic}" muestra relevancia en el contexto {region or "chileno"}.',
-                    'senales_clave': [
-                        f'Aumento de menciones sobre "{topic}" en medios',
-                        'Nuevas propuestas legislativas',
-                        'Cambio en el comportamiento del sector'
-                    ],
-                    'angulos_periodisticos': [
-                        f'Impacto económico y social de "{topic}"',
-                        'Perspectivas de expertos',
-                        'Casos de éxito y fracaso'
-                    ],
-                    'fuentes_sugeridas': [
-                        'Organismos oficiales',
-                        'Expertos del sector',
-                        'Datos estadísticos'
-                    ],
-                    'titulares_ejemplo': [
-                        f"Análisis: {topic} - ¿Qué está pasando?",
-                        f"Las claves de {topic} en Chile",
-                        f"Expertos advierten sobre {topic}"
-                    ]
+                    'senales_clave': ['Aumento de menciones', 'Nuevas regulaciones', 'Cambio en el sector'],
+                    'angulos_periodisticos': ['Impacto económico', 'Perspectivas de expertos', 'Casos de éxito'],
+                    'fuentes_sugeridas': ['Organismos oficiales', 'Expertos', 'Datos estadísticos'],
+                    'titulares_ejemplo': [f"Análisis: {topic}", f"Las claves de {topic}", f"Expertos sobre {topic}"]
                 }
         else:
             return jsonify({'error': f'Error API Qwen: {response.status_code}'}), 500
         
+        # Obtener puntaje para guardar en BD
+        score = analysis.get('puntaje_relevancia', 5)
+        
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute(
-            'INSERT INTO trends (topic, category, region, analysis) VALUES (?, ?, ?, ?)',
-            (topic, category, region, json.dumps(analysis))
+            'INSERT INTO trends (topic, category, region, analysis, score) VALUES (?, ?, ?, ?, ?)',
+            (topic, category, region, json.dumps(analysis), score)
         )
         conn.commit()
         conn.close()
@@ -265,6 +300,7 @@ Responde SOLO con JSON válido (sin markdown) con esta estructura:
             'category': category,
             'region': region,
             'analysis': analysis,
+            'score': score,
             'timestamp': datetime.now().isoformat()
         })
         
