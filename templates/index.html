@@ -21,7 +21,7 @@
         h1 { color: #333; margin-top: 0; }
         .filters {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 20px;
             margin-bottom: 20px;
         }
@@ -156,7 +156,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📰 Radar Editorial con IA</h1>
+        <h1> Radar Editorial con IA</h1>
         <div class="filters">
             <div class="filter-group">
                 <h3>📂 Categorías</h3>
@@ -164,18 +164,12 @@
                     <button class="filter-btn active" onclick="selectCategory('all')">Todas</button>
                 </div>
             </div>
-            <div class="filter-group">
-                <h3>🌍 Regiones</h3>
-                <div class="filter-buttons" id="regionFilters">
-                    <button class="filter-btn active" onclick="selectRegion('all')">Chile</button>
-                </div>
-            </div>
         </div>
     </div>
     
     <div class="container">
         <div class="trending-section">
-            <h3>🔥 Tendencias en Tiempo Real</h3>
+            <h3>🔥 Tendencias en Chile</h3>
             <div id="trendingList">
                 <p>Cargando tendencias...</p>
             </div>
@@ -183,20 +177,20 @@
     </div>
     
     <div class="container">
-        <h3> Análisis Personalizado</h3>
+        <h3>🔍 Análisis Personalizado</h3>
         <div class="input-group">
             <input type="text" id="topicInput" placeholder="Ej: Endeudamiento de jóvenes en Chile">
             <select id="categorySelect">
                 <option value="">Categoría</option>
             </select>
             <select id="regionSelect">
-                <option value="">Región</option>
+                <option value="Chile">Chile</option>
             </select>
         </div>
         <button onclick="analyzeTrend()" id="analyzeBtn">Analizar Tendencia</button>
         
         <div class="loading" id="loading">
-            <p>🤖 La IA está analizando...</p>
+            <p> La IA está analizando...</p>
         </div>
         
         <div class="error" id="error"></div>
@@ -209,19 +203,12 @@
 
     <script>
         let currentCategory = 'all';
-        let currentRegion = 'all';
         let categories = [];
-        let regions = [];
 
         async function loadFilters() {
             try {
-                const [catRes, regRes] = await Promise.all([
-                    fetch('/api/categories'),
-                    fetch('/api/regions')
-                ]);
-                
+                const catRes = await fetch('/api/categories');
                 categories = await catRes.json();
-                regions = await regRes.json();
                 
                 renderFilters();
                 loadTrending();
@@ -233,7 +220,7 @@
         function renderFilters() {
             const catContainer = document.getElementById('categoryFilters');
             catContainer.innerHTML = '<button class="filter-btn active" onclick="selectCategory(\'all\')">Todas</button>';
-            categories.forEach(cat => {
+            categories.forEach(function(cat) {
                 const btn = document.createElement('button');
                 btn.className = 'filter-btn';
                 btn.textContent = cat.icon + ' ' + cat.name;
@@ -241,48 +228,28 @@
                 catContainer.appendChild(btn);
             });
             
-            const regContainer = document.getElementById('regionFilters');
-            regContainer.innerHTML = '<button class="filter-btn active" onclick="selectRegion(\'all\')">Todas</button>';
-            regions.forEach(region => {
-                const btn = document.createElement('button');
-                btn.className = 'filter-btn';
-                btn.textContent = region;
-                btn.onclick = function() { selectRegion(region); };
-                regContainer.appendChild(btn);
-            });
-            
             const catSelect = document.getElementById('categorySelect');
             catSelect.innerHTML = '<option value="">Categoría</option>';
-            categories.forEach(cat => {
+            categories.forEach(function(cat) {
                 catSelect.innerHTML += '<option value="' + cat.name + '">' + cat.icon + ' ' + cat.name + '</option>';
-            });
-            
-            const regSelect = document.getElementById('regionSelect');
-            regSelect.innerHTML = '<option value="">Región</option>';
-            regions.forEach(region => {
-                regSelect.innerHTML += '<option value="' + region + '">' + region + '</option>';
             });
         }
 
         function selectCategory(cat) {
             currentCategory = cat;
-            document.querySelectorAll('#categoryFilters .filter-btn').forEach(btn => {
+            
+            // Actualizar botones activos
+            const buttons = document.querySelectorAll('#categoryFilters .filter-btn');
+            buttons.forEach(function(btn) {
                 btn.classList.remove('active');
-                if ((cat === 'all' && btn.textContent === 'Todas') || btn.textContent.includes(cat)) {
+                if (cat === 'all' && btn.textContent.trim() === 'Todas') {
+                    btn.classList.add('active');
+                } else if (btn.textContent.includes(cat)) {
                     btn.classList.add('active');
                 }
             });
-            loadTrending();
-        }
-
-        function selectRegion(region) {
-            currentRegion = region;
-            document.querySelectorAll('#regionFilters .filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if ((region === 'all' && btn.textContent === 'Todas') || btn.textContent === region) {
-                    btn.classList.add('active');
-                }
-            });
+            
+            // Recargar tendencias con la nueva categoría
             loadTrending();
         }
 
@@ -291,8 +258,8 @@
             list.innerHTML = '<p>Cargando tendencias...</p>';
             
             try {
-                const region = currentRegion !== 'all' ? currentRegion : 'Global';
-                const res = await fetch('/api/trending?region=' + encodeURIComponent(region) + '&limit=5');
+                const url = '/api/trending?category=' + encodeURIComponent(currentCategory) + '&limit=5';
+                const res = await fetch(url);
                 const trends = await res.json();
                 
                 if (trends.length === 0) {
@@ -304,7 +271,7 @@
                 trends.forEach(function(t, i) {
                     html += '<div class="trending-item" onclick="useTrend(\'' + t.topic.replace(/'/g, "\\'") + '\')">';
                     html += '<div class="trending-topic">' + (i + 1) + '. ' + t.topic + '</div>';
-                    html += '<div class="trending-source">📊 ' + t.source + (t.region ? ' | ' + t.region : '') + '</div>';
+                    html += '<div class="trending-source">📊 ' + t.source + ' | ' + t.region + '</div>';
                     html += '</div>';
                 });
                 list.innerHTML = html;
@@ -362,7 +329,7 @@
             
             if (a.hipotesis) {
                 html += '<div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3; margin-bottom: 20px;">';
-                html += '<h4 style="margin-top:0; color: #1565c0;"> Hipótesis Editorial</h4>';
+                html += '<h4 style="margin-top:0; color: #1565c0;">🎯 Hipótesis Editorial</h4>';
                 html += '<p style="margin-bottom:0; line-height: 1.6;">' + a.hipotesis + '</p>';
                 html += '</div>';
             }
@@ -392,7 +359,7 @@
             }
             
             if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) {
-                html += '<h4> Fuentes sugeridas</h4><ul>';
+                html += '<h4>📚 Fuentes sugeridas</h4><ul>';
                 a.fuentes_sugeridas.forEach(function(f) {
                     html += '<li>🔗 ' + f + '</li>';
                 });
