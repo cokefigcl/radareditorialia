@@ -144,7 +144,7 @@ def search_gdelt_news(query, max_results=5, days_back=7):
             'sort': 'DateDesc'
         }
         
-        response = requests.get(url, params=params, timeout=15)
+        response = requests.get(url, params=params, timeout=10)
         
         if response.status_code == 200:
             data = response.json()
@@ -179,11 +179,7 @@ def search_gdelt_news(query, max_results=5, days_back=7):
         print(f"Error GDELT: {str(e)}")
         return []
 
-def get_trend_evolution(query, weeks=4):
-    """
-    Obtiene la evolución del interés en un tema durante las últimas N semanas.
-    Consulta GDELT por cada semana y cuenta artículos.
-    """
+def get_trend_evolution(query, weeks=2):
     evolution = []
     end_date = datetime.now()
     
@@ -202,11 +198,11 @@ def get_trend_evolution(query, weeks=4):
                 'format': 'json',
                 'startdatetime': start_str,
                 'enddatetime': end_str,
-                'maxrecords': 200,
+                'maxrecords': 100,
                 'sourcelang': 'spa'
             }
             
-            response = requests.get(url, params=params, timeout=10)
+            response = requests.get(url, params=params, timeout=8)
             
             if response.status_code == 200:
                 data = response.json()
@@ -263,7 +259,7 @@ def get_news():
 @app.route('/api/evolution', methods=['GET'])
 def get_evolution():
     query = request.args.get('q', '')
-    weeks = int(request.args.get('weeks', 4))
+    weeks = int(request.args.get('weeks', 2))
     
     if not query:
         return jsonify({'error': 'Falta el query'}), 400
@@ -315,25 +311,34 @@ def delete_history(analysis_id):
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
     try:
+        print(f"Iniciando análisis...")
         data = request.json
         topic = data.get('topic', '')
         category = data.get('category')
         region = data.get('region')
         
+        print(f"Tema: {topic}, Categoría: {category}, Región: {region}")
+        
         if not topic:
             return jsonify({'error': 'Falta el tema'}), 400
         
         api_key = os.getenv('QWEN_API_KEY')
+        print(f"API Key configurada: {api_key is not None}")
+        
         if not api_key:
             return jsonify({'error': 'API key de Qwen no configurada'}), 500
         
-        # Buscar noticias reales
-        real_news = search_gdelt_news(topic, max_results=5, days_back=14)
+        # Buscar noticias reales (rápido)
+        print("Buscando noticias en GDELT...")
+        real_news = search_gdelt_news(topic, max_results=3, days_back=7)
+        print(f"Noticias encontradas: {len(real_news)}")
         
-        # Obtener evolución del tema
-        evolution = get_trend_evolution(topic, weeks=4)
+        # Obtener evolución (rápido, solo 2 semanas)
+        print("Obteniendo evolución...")
+        evolution = get_trend_evolution(topic, weeks=2)
+        print(f"Semanas de evolución: {len(evolution)}")
         
-        # Calcular tendencia (si está subiendo o bajando)
+        # Calcular tendencia
         if len(evolution) >= 2:
             first_week = evolution[0]['articulos']
             last_week = evolution[-1]['articulos']
@@ -350,36 +355,34 @@ def analyze():
             trend_direction = 'sin datos'
             trend_percent = 0
         
+        # Construir prompt simplificado
         news_context = ""
         if real_news:
             news_context = "\n\nNOTICIAS RECIENTES:\n"
-            for i, news in enumerate(real_news[:5], 1):
-                news_context += f"{i}. {news['titulo']} ({news['fuente']}, {news['fecha']})\n"
+            for i, news in enumerate(real_news[:3], 1):
+                news_context += f"{i}. {news['titulo']}\n"
         
-        evolution_context = f"\n\nEVOLUCIÓN (últimas 4 semanas): {trend_direction} {trend_percent}%\n"
-        for e in evolution:
-            evolution_context += f"- {e['semana']} ({e['fecha_inicio']}-{e['fecha_fin']}): {e['articulos']} artículos\n"
-        
-        prompt = f"""Eres un editor jefe y analista de inteligencia informativa. Analiza:
+        prompt = f"""Analiza esta tendencia periodística:
 
 TEMA: {topic}
 CATEGORÍA: {category or 'General'}
 REGIÓN: {region or 'Chile'}
-{evolution_context}{news_context}
-Responde SOLO con JSON válido con esta estructura:
+{news_context}
+
+Responde SOLO con JSON válido:
 {{
-  "puntaje_relevancia": 8,
+  "puntaje_relevancia": 7,
   "justificacion_puntaje": "Explicación breve",
   "hipotesis": "Hipótesis de 2-3 oraciones",
-  "senales_clave": ["Señal 1", "Señal 2", "Señal 3"],
-  "angulos_periodisticos": ["Ángulo 1", "Ángulo 2", "Ángulo 3"],
-  "fuentes_sugeridas": ["Fuente 1", "Fuente 2", "Fuente 3"],
-  "titulares_ejemplo": ["Titular 1", "Titular 2", "Titular 3"],
-  "noticias_reales": {json.dumps(real_news[:5], ensure_ascii=False) if real_news else '[]'}
-}}
+  "senales_clave": ["Señal 1", "Señal 2"],
+  "angulos_periodisticos": ["Ángulo 1", "Ángulo 2"],
+  "fuentes_sugeridas": ["Fuente 1", "Fuente 2"],
+  "titulares_ejemplo": ["Titular 1", "Titular 2"],
+  "noticias_reales": {json.dumps(real_news[:3], ensure_ascii=False)}
+}}"""
 
-Puntaje: 1-3 (Baja), 4-6 (Media), 7-8 (Alta), 9-10 (Crítica)"""
-
+        print("Llamando a API de Qwen...")
+        
         headers = {
             'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json'
@@ -394,7 +397,7 @@ Puntaje: 1-3 (Baja), 4-6 (Media), 7-8 (Alta), 9-10 (Crítica)"""
             },
             'parameters': {
                 'temperature': 0.7,
-                'max_tokens': 1500
+                'max_tokens': 1000
             }
         }
         
@@ -402,8 +405,10 @@ Puntaje: 1-3 (Baja), 4-6 (Media), 7-8 (Alta), 9-10 (Crítica)"""
             'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
             headers=headers,
             json=payload,
-            timeout=45
+            timeout=30
         )
+        
+        print(f"Respuesta de Qwen: {response.status_code}")
         
         if response.status_code == 200:
             result = response.json()
@@ -418,26 +423,32 @@ Puntaje: 1-3 (Baja), 4-6 (Media), 7-8 (Alta), 9-10 (Crítica)"""
             except:
                 analysis_text = str(result)
             
+            print(f"Texto de análisis recibido: {len(analysis_text)} caracteres")
+            
             analysis_text = analysis_text.replace('```json', '').replace('```', '').strip()
             
             try:
                 analysis = json.loads(analysis_text)
-            except:
+                print("JSON parseado correctamente")
+            except json.JSONDecodeError as e:
+                print(f"Error parseando JSON: {e}")
                 analysis = {
                     'puntaje_relevancia': 5,
-                    'justificacion_puntaje': 'Análisis generado',
+                    'justificacion_puntaje': 'Análisis generado automáticamente',
                     'hipotesis': f'La tendencia "{topic}" muestra relevancia en el contexto {region or "chileno"}.',
-                    'senales_clave': ['Aumento de menciones', 'Nuevas regulaciones', 'Cambio en el sector'],
-                    'angulos_periodisticos': ['Impacto económico', 'Perspectivas de expertos', 'Casos de éxito'],
-                    'fuentes_sugeridas': ['Organismos oficiales', 'Expertos', 'Datos estadísticos'],
+                    'senales_clave': ['Aumento de menciones en medios', 'Nuevas regulaciones'],
+                    'angulos_periodisticos': ['Impacto económico', 'Perspectivas de expertos'],
+                    'fuentes_sugeridas': ['Organismos oficiales', 'Expertos del sector'],
                     'titulares_ejemplo': [f"Análisis: {topic}", f"Las claves de {topic}"],
                     'noticias_reales': real_news
                 }
         else:
+            print(f"Error de Qwen: {response.status_code} - {response.text}")
             return jsonify({'error': f'Error API Qwen: {response.status_code}'}), 500
         
         score = analysis.get('puntaje_relevancia', 5)
         
+        # Guardar en BD
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute(
@@ -446,6 +457,8 @@ Puntaje: 1-3 (Baja), 4-6 (Media), 7-8 (Alta), 9-10 (Crítica)"""
         )
         conn.commit()
         conn.close()
+        
+        print("Análisis completado y guardado")
         
         return jsonify({
             'topic': topic,
@@ -461,7 +474,9 @@ Puntaje: 1-3 (Baja), 4-6 (Media), 7-8 (Alta), 9-10 (Crítica)"""
         })
         
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print(f"Error en analyze: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
