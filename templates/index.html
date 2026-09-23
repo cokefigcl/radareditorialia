@@ -197,7 +197,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📰 Radar Editorial con IA</h1>
+        <h1> Radar Editorial con IA</h1>
         <h3>📂 Categorías</h3>
         <div id="categoryFilters"></div>
     </div>
@@ -217,7 +217,7 @@
             <select id="regionSelect"><option value="Chile">Chile</option></select>
         </div>
         <button onclick="analyzeTrend()" id="analyzeBtn">Analizar Tendencia</button>
-        <div class="loading" id="loading"><p>🤖 Analizando...</p></div>
+        <div class="loading" id="loading"><p> Analizando...</p></div>
         <div class="error" id="error"></div>
         <div class="warning" id="warning"></div>
         <div class="result" id="result">
@@ -397,17 +397,17 @@
                     if (news.url) {
                         html += '<div class="news-title"><a href="' + news.url + '" target="_blank">📰 ' + news.titulo + '</a></div>';
                     } else {
-                        html += '<div class="news-title">📰 ' + news.titulo + '</div>';
+                        html += '<div class="news-title"> ' + news.titulo + '</div>';
                     }
                     html += '<div class="news-meta">';
                     if (news.fuente) html += '📡 ' + news.fuente;
-                    if (news.fecha) html += ' | 📅 ' + news.fecha;
+                    if (news.fecha) html += ' |  ' + news.fecha;
                     html += '</div></div>';
                 });
                 html += '</div>';
             } else {
                 html += '<div class="no-news">';
-                html += '<p><strong>️ No se encontraron noticias recientes</strong></p>';
+                html += '<p><strong>⚠️ No se encontraron noticias recientes</strong></p>';
                 html += '<p style="margin-top: 8px; font-size: 13px;">Esto puede deberse a: es un tema muy específico, muy nuevo, o los medios locales no están indexados.</p>';
                 html += '</div>';
             }
@@ -435,8 +435,8 @@
             
             // Fuentes
             if (a.fuentes_sugeridas && Array.isArray(a.fuentes_sugeridas) && a.fuentes_sugeridas.length > 0) {
-                html += '<h4> Fuentes sugeridas</h4><ul>';
-                a.fuentes_sugeridas.forEach(function(f) { html += '<li>🔗 ' + f + '</li>'; });
+                html += '<h4>📚 Fuentes sugeridas</h4><ul>';
+                a.fuentes_sugeridas.forEach(function(f) { html += '<li> ' + f + '</li>'; });
                 html += '</ul>';
             }
             
@@ -473,7 +473,7 @@
                     html += '</div>';
                     html += '<div class="history-actions">';
                     html += '<button class="btn-small btn-analyze" onclick="reAnalyze(\'' + item.topic.replace(/'/g, "\\'") + '\', \'' + (item.category || '') + '\')">🔄 Re-analizar</button>';
-                    html += '<button class="btn-small btn-delete" onclick="deleteAnalysis(' + item.id + ')">🗑️ Eliminar</button>';
+                    html += '<button class="btn-small btn-delete" onclick="deleteAnalysis(' + item.id + ')">️ Eliminar</button>';
                     html += '</div></div>';
                 });
                 list.innerHTML = html;
