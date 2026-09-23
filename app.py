@@ -39,11 +39,11 @@ init_db()
 
 # ==================== CONFIGURACIÓN ====================
 CATEGORIES = [
-    {'name': 'Eléctrico', 'icon': ''},
-    {'name': 'Automotriz', 'icon': ''},
+    {'name': 'Eléctrico', 'icon': '⚡'},
+    {'name': 'Automotriz', 'icon': '🚗'},
     {'name': 'Belleza', 'icon': '💄'},
-    {'name': 'Minería', 'icon': '️'},
-    {'name': 'IA', 'icon': ''},
+    {'name': 'Minería', 'icon': '⛏️'},
+    {'name': 'IA', 'icon': '🤖'},
     {'name': 'Tendencias', 'icon': '📈'},
     {'name': 'Tecnología', 'icon': '💻'},
     {'name': 'Economía', 'icon': '💰'}
@@ -124,11 +124,12 @@ def get_trends_for_category(category):
 # ==================== BÚSQUEDA DE NOTICIAS ====================
 
 def search_news(topic, max_results=5):
-    """Busca noticias usando NewsAPI o GDELT"""
+    print(f"[DEBUG] Buscando noticias para: {topic}")
     
-    # Intentar con NewsAPI primero (si está configurada)
+    # Intentar con NewsAPI primero
     newsapi_key = os.getenv('NEWSAPI_KEY')
     if newsapi_key:
+        print(f"[DEBUG] NewsAPI key encontrada: {newsapi_key[:8]}...")
         try:
             url = 'https://newsapi.org/v2/everything'
             params = {
@@ -142,10 +143,12 @@ def search_news(topic, max_results=5):
             }
             
             response = requests.get(url, params=params, timeout=10)
+            print(f"[DEBUG] NewsAPI status: {response.status_code}")
             
             if response.status_code == 200:
                 data = response.json()
                 articles = data.get('articles', [])
+                print(f"[DEBUG] NewsAPI artículos: {len(articles)}")
                 
                 news_items = []
                 seen = set()
@@ -164,11 +167,15 @@ def search_news(topic, max_results=5):
                         break
                 
                 if news_items:
+                    print(f"[DEBUG] NewsAPI encontró {len(news_items)} noticias")
                     return news_items
-        except:
-            pass
+            else:
+                print(f"[DEBUG] NewsAPI error: {response.text[:200]}")
+        except Exception as e:
+            print(f"[DEBUG] NewsAPI error: {str(e)}")
     
     # Fallback a GDELT
+    print("[DEBUG] Intentando GDELT...")
     try:
         url = 'https://api.gdeltproject.org/api/v2/doc/doc'
         params = {
@@ -182,10 +189,12 @@ def search_news(topic, max_results=5):
         }
         
         response = requests.get(url, params=params, timeout=10)
+        print(f"[DEBUG] GDELT status: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
             articles = data.get('articles', [])
+            print(f"[DEBUG] GDELT artículos: {len(articles)}")
             
             news_items = []
             seen = set()
@@ -203,95 +212,166 @@ def search_news(topic, max_results=5):
                 if len(news_items) >= max_results:
                     break
             
+            if news_items:
+                print(f"[DEBUG] GDELT encontró {len(news_items)} noticias")
             return news_items
-    except:
-        pass
+    except Exception as e:
+        print(f"[DEBUG] GDELT error: {str(e)}")
     
+    print("[DEBUG] No se encontraron noticias")
     return []
 
 # ==================== ANÁLISIS CON IA ====================
 
 def analyze_with_qwen(topic, category, region, news):
-    """Genera análisis usando Qwen"""
+    """Genera análisis usando Qwen con logs detallados"""
+    print(f"[DEBUG] Iniciando análisis con Qwen para: {topic}")
+    
     api_key = os.getenv('QWEN_API_KEY')
     
     if not api_key:
-        return None
+        print("[DEBUG] ERROR: QWEN_API_KEY no configurada")
+        return None, "API key no configurada"
+    
+    print(f"[DEBUG] QWEN_API_KEY encontrada: {api_key[:8]}...")
     
     news_text = ""
     if news:
         news_text = "\n\nNoticias encontradas:\n" + "\n".join([f"- {n['titulo']}" for n in news[:3]])
     
-    prompt = f"""Analiza esta tendencia:
+    prompt = f"""Analiza esta tendencia periodística:
 
 TEMA: {topic}
 CATEGORÍA: {category or 'General'}
 REGIÓN: {region or 'Chile'}{news_text}
 
-Responde SOLO con JSON:
+Responde SOLO con JSON válido (sin markdown):
 {{
   "puntaje_relevancia": 7,
-  "justificacion_puntaje": "Explicación breve",
-  "hipotesis": "Hipótesis de 2-3 oraciones",
-  "senales_clave": ["Señal 1", "Señal 2"],
-  "angulos_periodisticos": ["Ángulo 1", "Ángulo 2"],
-  "fuentes_sugeridas": ["Fuente 1", "Fuente 2"],
-  "titulares_ejemplo": ["Titular 1", "Titular 2"],
-  "noticias_reales": {json.dumps(news, ensure_ascii=False)}
-}}"""
+  "justificacion_puntaje": "Explicación breve del puntaje",
+  "hipotesis": "Hipótesis de 2-3 oraciones sobre cómo evolucionará",
+  "senales_clave": ["Señal 1", "Señal 2", "Señal 3"],
+  "angulos_periodisticos": ["Ángulo 1", "Ángulo 2", "Ángulo 3"],
+  "fuentes_sugeridas": ["Fuente 1", "Fuente 2", "Fuente 3"],
+  "titulares_ejemplo": ["Titular 1", "Titular 2", "Titular 3"],
+  "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}
+}}
 
+Sé específico y práctico. El puntaje debe ser 1-10."""
+
+    print(f"[DEBUG] Prompt length: {len(prompt)} caracteres")
+    
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json'
+    }
+    
+    payload = {
+        'model': 'qwen-plus',
+        'input': {'messages': [{'role': 'user', 'content': prompt}]},
+        'parameters': {'temperature': 0.7, 'max_tokens': 1500}
+    }
+    
+    print(f"[DEBUG] Llamando a Qwen API...")
+    
     try:
         response = requests.post(
             'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
-            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
-            json={
-                'model': 'qwen-plus',
-                'input': {'messages': [{'role': 'user', 'content': prompt}]},
-                'parameters': {'temperature': 0.7, 'max_tokens': 1000}
-            },
-            timeout=45
+            headers=headers,
+            json=payload,
+            timeout=60
         )
+        
+        print(f"[DEBUG] Qwen response status: {response.status_code}")
+        print(f"[DEBUG] Qwen response length: {len(response.text)}")
         
         if response.status_code == 200:
             result = response.json()
-            text = result.get('output', {}).get('choices', [{}])[0].get('message', {}).get('content', '')
-            text = text.replace('```json', '').replace('```', '').strip()
+            print(f"[DEBUG] Qwen result keys: {list(result.keys())}")
+            
+            # Extraer texto de la respuesta
+            analysis_text = None
+            
+            # Formato 1: output.choices[0].message.content
+            try:
+                analysis_text = result['output']['choices'][0]['message']['content']
+                print("[DEBUG] Formato 1 exitoso")
+            except (KeyError, IndexError, TypeError) as e:
+                print(f"[DEBUG] Formato 1 falló: {e}")
+            
+            # Formato 2: output.text
+            if not analysis_text:
+                try:
+                    analysis_text = result['output']['text']
+                    print("[DEBUG] Formato 2 exitoso")
+                except (KeyError, TypeError) as e:
+                    print(f"[DEBUG] Formato 2 falló: {e}")
+            
+            # Formato 3: output.result
+            if not analysis_text:
+                try:
+                    analysis_text = result['output']['result']
+                    print("[DEBUG] Formato 3 exitoso")
+                except (KeyError, TypeError) as e:
+                    print(f"[DEBUG] Formato 3 falló: {e}")
+            
+            if not analysis_text:
+                print(f"[DEBUG] No se pudo extraer texto. Response: {str(result)[:500]}")
+                return None, "No se pudo extraer texto de la respuesta"
+            
+            print(f"[DEBUG] Texto recibido: {len(analysis_text)} caracteres")
+            print(f"[DEBUG] Primeros 200 chars: {analysis_text[:200]}")
+            
+            # Limpiar
+            analysis_text = analysis_text.replace('```json', '').replace('```', '').strip()
             
             try:
-                return json.loads(text)
-            except:
-                return None
-    except:
-        pass
-    
-    return None
+                analysis = json.loads(analysis_text)
+                print(f"[DEBUG] JSON parseado exitosamente. Keys: {list(analysis.keys())}")
+                return analysis, None
+            except json.JSONDecodeError as e:
+                print(f"[DEBUG] Error parseando JSON: {e}")
+                print(f"[DEBUG] Texto completo: {analysis_text[:500]}")
+                return None, f"Error parseando JSON: {str(e)}"
+        else:
+            error_msg = f"Error HTTP {response.status_code}: {response.text[:300]}"
+            print(f"[DEBUG] {error_msg}")
+            return None, error_msg
+            
+    except requests.exceptions.Timeout:
+        print("[DEBUG] Timeout de Qwen API")
+        return None, "Timeout de la API"
+    except Exception as e:
+        print(f"[DEBUG] Error de conexión: {str(e)}")
+        return None, f"Error de conexión: {str(e)}"
 
 def generate_simple_analysis(topic, category, region, news):
     """Genera análisis simple cuando Qwen falla"""
     return {
         'puntaje_relevancia': 5,
-        'justificacion_puntaje': 'Análisis automático',
-        'hipotesis': f'La tendencia "{topic}" en {region or "Chile"} muestra relevancia. Se recomienda monitorear.',
+        'justificacion_puntaje': 'Análisis automático (IA no disponible)',
+        'hipotesis': f'La tendencia "{topic}" en la categoría {category or "General"} para {region or "Chile"} muestra relevancia periodística. Se recomienda monitorear su evolución.',
         'senales_clave': [
-            f'Aumento de menciones sobre "{topic}"',
-            'Nuevas regulaciones o propuestas',
-            'Cambios en el comportamiento'
+            f'Aumento de menciones sobre "{topic}" en medios',
+            'Nuevas propuestas o regulaciones',
+            'Cambios en el comportamiento del público'
         ],
         'angulos_periodisticos': [
-            f'Impacto en {region or "Chile"}',
-            'Perspectivas de expertos',
-            'Casos relevantes'
+            f'Impacto económico y social en {region or "Chile"}',
+            'Perspectivas de expertos y actores clave',
+            'Casos de éxito, fracaso o controversia'
         ],
         'fuentes_sugeridas': [
-            'Organismos oficiales',
-            'Expertos del sector',
-            'Datos estadísticos'
+            'Organismos oficiales y gubernamentales',
+            'Expertos y académicos del sector',
+            'Datos estadísticos y reportes'
         ],
         'titulares_ejemplo': [
-            f"Análisis: {topic}",
-            f"Las claves de {topic}"
+            f"Análisis en profundidad: {topic}",
+            f"Las claves de {topic} en {region or 'Chile'}",
+            f"Expertos advierten sobre {topic}"
         ],
-        'noticias_reales': news
+        'noticias_reales': news if news else []
     }
 
 # ==================== RUTAS ====================
@@ -317,6 +397,24 @@ def get_trending():
         {'topic': t, 'source': 'Tendencias ' + (category if category != 'all' else 'Chile'), 'region': 'Chile'}
         for t in trends[:limit]
     ])
+
+@app.route('/api/debug', methods=['GET'])
+def debug():
+    """Endpoint de debug para ver el estado del sistema"""
+    qwen_key = os.getenv('QWEN_API_KEY')
+    news_key = os.getenv('NEWSAPI_KEY')
+    
+    return jsonify({
+        'qwen_configured': qwen_key is not None,
+        'qwen_key_length': len(qwen_key) if qwen_key else 0,
+        'qwen_key_starts_with': qwen_key[:8] if qwen_key else 'N/A',
+        'newsapi_configured': news_key is not None,
+        'newsapi_key_length': len(news_key) if news_key else 0,
+        'python_version': '3.13',
+        'flask_version': '3.0.0',
+        'db_exists': os.path.exists(DB_PATH),
+        'timestamp': datetime.now().isoformat()
+    })
 
 @app.route('/api/history', methods=['GET'])
 def get_history():
@@ -359,31 +457,51 @@ def delete_history(analysis_id):
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
     try:
+        print(f"\n{'='*60}")
+        print(f"[ANALYZE] Iniciando análisis")
+        
         data = request.json
         topic = data.get('topic', '').strip()
         category = data.get('category')
         region = data.get('region')
         
+        print(f"[ANALYZE] Topic: '{topic}'")
+        print(f"[ANALYZE] Category: {category}")
+        print(f"[ANALYZE] Region: {region}")
+        
         if not topic:
             return jsonify({'error': 'Falta el tema'}), 400
         
         # 1. Buscar noticias
+        print("[ANALYZE] Paso 1: Buscando noticias...")
         news = search_news(topic, max_results=5)
+        print(f"[ANALYZE] Noticias encontradas: {len(news)}")
         
         # 2. Intentar análisis con IA
-        analysis = analyze_with_qwen(topic, category, region, news)
+        print("[ANALYZE] Paso 2: Intentando análisis con Qwen...")
+        analysis, error = analyze_with_qwen(topic, category, region, news)
         
-        # 3. Si falla, análisis simple
-        if not analysis:
+        if error:
+            print(f"[ANALYZE] Error de Qwen: {error}")
+            print("[ANALYZE] Usando análisis de fallback...")
             analysis = generate_simple_analysis(topic, category, region, news)
+            used_fallback = True
+        elif not analysis:
+            print("[ANALYZE] Análisis vacío, usando fallback...")
+            analysis = generate_simple_analysis(topic, category, region, news)
+            used_fallback = True
+        else:
+            print("[ANALYZE] Análisis de Qwen exitoso!")
+            used_fallback = False
         
-        # 4. Asegurar campos
+        # Asegurar campos
         if 'noticias_reales' not in analysis:
-            analysis['noticias_reales'] = news
+            analysis['noticias_reales'] = news if news else []
         
         score = analysis.get('puntaje_relevancia', 5)
         
-        # 5. Guardar
+        # 3. Guardar
+        print(f"[ANALYZE] Paso 3: Guardando en BD (score: {score})...")
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute(
@@ -393,17 +511,24 @@ def analyze():
         conn.commit()
         conn.close()
         
+        print(f"[ANALYZE] Análisis completado. Fallback: {used_fallback}")
+        print(f"{'='*60}\n")
+        
         return jsonify({
             'topic': topic,
             'category': category,
             'region': region,
             'analysis': analysis,
             'score': score,
+            'used_fallback': used_fallback if 'used_fallback' in dir() else False,
             'timestamp': datetime.now().isoformat()
         })
         
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print(f"[ANALYZE] Error crítico: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
         topic = request.json.get('topic', 'Tema') if request.json else 'Tema'
         analysis = generate_simple_analysis(topic, None, None, [])
         
@@ -411,7 +536,7 @@ def analyze():
             'topic': topic,
             'analysis': analysis,
             'score': 5,
-            'warning': 'Análisis básico por error técnico'
+            'warning': f'Análisis básico por error: {str(e)}'
         }), 200
 
 if __name__ == '__main__':
