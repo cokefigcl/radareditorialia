@@ -10,6 +10,13 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# TEMPORAL: Hardcode para test (ELIMINAR DESPUÉS)
+NEWSAPI_KEY_HARDCODE = '89f88...'  # Reemplaza con tu key completa
+
+if not os.getenv('NEWSAPI_KEY'):
+    os.environ['NEWSAPI_KEY'] = 89f88b93d0634e1ab94c3a5fd018bc1a
+    print("⚠️ NEWSAPI_KEY hardcodeada para test")
+
 # ==================== BASE DE DATOS ====================
 DB_PATH = os.path.join(os.path.dirname(__file__), 'trends.db')
 
@@ -126,10 +133,11 @@ def get_trends_for_category(category):
 def search_news(topic, max_results=5):
     print(f"[DEBUG] Buscando noticias para: {topic}")
     
-    # Intentar con NewsAPI primero
     newsapi_key = os.getenv('NEWSAPI_KEY')
-    if newsapi_key:
-        print(f"[DEBUG] NewsAPI key encontrada: {newsapi_key[:8]}...")
+    print(f"[DEBUG] NEWSAPI_KEY length: {len(newsapi_key) if newsapi_key else 0}")
+    
+    if newsapi_key and len(newsapi_key) > 10:
+        print(f"[DEBUG] Usando NewsAPI...")
         try:
             url = 'https://newsapi.org/v2/everything'
             params = {
@@ -169,27 +177,28 @@ def search_news(topic, max_results=5):
                 if news_items:
                     print(f"[DEBUG] NewsAPI encontró {len(news_items)} noticias")
                     return news_items
+                else:
+                    print("[DEBUG] NewsAPI no encontró artículos válidos")
             else:
                 print(f"[DEBUG] NewsAPI error: {response.text[:200]}")
         except Exception as e:
             print(f"[DEBUG] NewsAPI error: {str(e)}")
     
     # Fallback a GDELT
-    print("[DEBUG] Intentando GDELT...")
+    print("[DEBUG] Fallback a GDELT...")
     try:
         url = 'https://api.gdeltproject.org/api/v2/doc/doc'
         params = {
             'query': topic,
             'mode': 'artlist',
             'format': 'json',
-            'startdatetime': (datetime.now() - timedelta(days=7)).strftime('%Y%m%d%H%M%S'),
+            'startdatetime': (datetime.now() - timedelta(days=14)).strftime('%Y%m%d%H%M%S'),
             'enddatetime': datetime.now().strftime('%Y%m%d%H%M%S'),
-            'maxrecords': max_results * 3,
+            'maxrecords': max_results * 5,
             'sourcelang': 'spa'
         }
         
-        response = requests.get(url, params=params, timeout=10)
-        print(f"[DEBUG] GDELT status: {response.status_code}")
+        response = requests.get(url, params=params, timeout=15)
         
         if response.status_code == 200:
             data = response.json()
@@ -201,7 +210,7 @@ def search_news(topic, max_results=5):
             
             for article in articles:
                 title = article.get('title', '').strip()
-                if title and title not in seen and len(title) > 10:
+                if title and title not in seen and len(title) > 5:
                     seen.add(title)
                     news_items.append({
                         'titulo': title,
@@ -212,19 +221,15 @@ def search_news(topic, max_results=5):
                 if len(news_items) >= max_results:
                     break
             
-            if news_items:
-                print(f"[DEBUG] GDELT encontró {len(news_items)} noticias")
             return news_items
     except Exception as e:
         print(f"[DEBUG] GDELT error: {str(e)}")
     
-    print("[DEBUG] No se encontraron noticias")
     return []
 
 # ==================== ANÁLISIS CON IA ====================
 
 def analyze_with_qwen(topic, category, region, news):
-    """Genera análisis usando Qwen con logs detallados"""
     print(f"[DEBUG] Iniciando análisis con Qwen para: {topic}")
     
     api_key = os.getenv('QWEN_API_KEY')
@@ -259,8 +264,6 @@ Responde SOLO con JSON válido (sin markdown):
 
 Sé específico y práctico. El puntaje debe ser 1-10."""
 
-    print(f"[DEBUG] Prompt length: {len(prompt)} caracteres")
-    
     headers = {
         'Authorization': f'Bearer {api_key}',
         'Content-Type': 'application/json'
@@ -272,8 +275,6 @@ Sé específico y práctico. El puntaje debe ser 1-10."""
         'parameters': {'temperature': 0.7, 'max_tokens': 1500}
     }
     
-    print(f"[DEBUG] Llamando a Qwen API...")
-    
     try:
         response = requests.post(
             'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
@@ -283,55 +284,37 @@ Sé específico y práctico. El puntaje debe ser 1-10."""
         )
         
         print(f"[DEBUG] Qwen response status: {response.status_code}")
-        print(f"[DEBUG] Qwen response length: {len(response.text)}")
         
         if response.status_code == 200:
             result = response.json()
-            print(f"[DEBUG] Qwen result keys: {list(result.keys())}")
             
-            # Extraer texto de la respuesta
             analysis_text = None
             
-            # Formato 1: output.choices[0].message.content
             try:
                 analysis_text = result['output']['choices'][0]['message']['content']
-                print("[DEBUG] Formato 1 exitoso")
-            except (KeyError, IndexError, TypeError) as e:
-                print(f"[DEBUG] Formato 1 falló: {e}")
-            
-            # Formato 2: output.text
-            if not analysis_text:
+            except:
                 try:
                     analysis_text = result['output']['text']
-                    print("[DEBUG] Formato 2 exitoso")
-                except (KeyError, TypeError) as e:
-                    print(f"[DEBUG] Formato 2 falló: {e}")
-            
-            # Formato 3: output.result
-            if not analysis_text:
-                try:
-                    analysis_text = result['output']['result']
-                    print("[DEBUG] Formato 3 exitoso")
-                except (KeyError, TypeError) as e:
-                    print(f"[DEBUG] Formato 3 falló: {e}")
+                except:
+                    try:
+                        analysis_text = result['output']['result']
+                    except:
+                        pass
             
             if not analysis_text:
                 print(f"[DEBUG] No se pudo extraer texto. Response: {str(result)[:500]}")
-                return None, "No se pudo extraer texto de la respuesta"
+                return None, "No se pudo extraer texto"
             
             print(f"[DEBUG] Texto recibido: {len(analysis_text)} caracteres")
-            print(f"[DEBUG] Primeros 200 chars: {analysis_text[:200]}")
             
-            # Limpiar
             analysis_text = analysis_text.replace('```json', '').replace('```', '').strip()
             
             try:
                 analysis = json.loads(analysis_text)
-                print(f"[DEBUG] JSON parseado exitosamente. Keys: {list(analysis.keys())}")
+                print(f"[DEBUG] JSON parseado exitosamente")
                 return analysis, None
             except json.JSONDecodeError as e:
                 print(f"[DEBUG] Error parseando JSON: {e}")
-                print(f"[DEBUG] Texto completo: {analysis_text[:500]}")
                 return None, f"Error parseando JSON: {str(e)}"
         else:
             error_msg = f"Error HTTP {response.status_code}: {response.text[:300]}"
@@ -346,7 +329,6 @@ Sé específico y práctico. El puntaje debe ser 1-10."""
         return None, f"Error de conexión: {str(e)}"
 
 def generate_simple_analysis(topic, category, region, news):
-    """Genera análisis simple cuando Qwen falla"""
     return {
         'puntaje_relevancia': 5,
         'justificacion_puntaje': 'Análisis automático (IA no disponible)',
@@ -400,7 +382,6 @@ def get_trending():
 
 @app.route('/api/debug', methods=['GET'])
 def debug():
-    """Endpoint de debug para ver el estado del sistema"""
     qwen_key = os.getenv('QWEN_API_KEY')
     news_key = os.getenv('NEWSAPI_KEY')
     
@@ -410,8 +391,7 @@ def debug():
         'qwen_key_starts_with': qwen_key[:8] if qwen_key else 'N/A',
         'newsapi_configured': news_key is not None,
         'newsapi_key_length': len(news_key) if news_key else 0,
-        'python_version': '3.13',
-        'flask_version': '3.0.0',
+        'newsapi_key_starts_with': news_key[:8] if news_key else 'N/A',
         'db_exists': os.path.exists(DB_PATH),
         'timestamp': datetime.now().isoformat()
     })
@@ -466,8 +446,6 @@ def analyze():
         region = data.get('region')
         
         print(f"[ANALYZE] Topic: '{topic}'")
-        print(f"[ANALYZE] Category: {category}")
-        print(f"[ANALYZE] Region: {region}")
         
         if not topic:
             return jsonify({'error': 'Falta el tema'}), 400
@@ -481,20 +459,15 @@ def analyze():
         print("[ANALYZE] Paso 2: Intentando análisis con Qwen...")
         analysis, error = analyze_with_qwen(topic, category, region, news)
         
-        if error:
+        if error or not analysis:
             print(f"[ANALYZE] Error de Qwen: {error}")
             print("[ANALYZE] Usando análisis de fallback...")
-            analysis = generate_simple_analysis(topic, category, region, news)
-            used_fallback = True
-        elif not analysis:
-            print("[ANALYZE] Análisis vacío, usando fallback...")
             analysis = generate_simple_analysis(topic, category, region, news)
             used_fallback = True
         else:
             print("[ANALYZE] Análisis de Qwen exitoso!")
             used_fallback = False
         
-        # Asegurar campos
         if 'noticias_reales' not in analysis:
             analysis['noticias_reales'] = news if news else []
         
@@ -520,7 +493,7 @@ def analyze():
             'region': region,
             'analysis': analysis,
             'score': score,
-            'used_fallback': used_fallback if 'used_fallback' in dir() else False,
+            'used_fallback': used_fallback,
             'timestamp': datetime.now().isoformat()
         })
         
