@@ -5,6 +5,7 @@ import requests
 import json
 import sqlite3
 from datetime import datetime
+from pytrends.request import TrendReq
 
 load_dotenv()
 
@@ -22,7 +23,6 @@ def init_db():
     conn = get_db()
     cursor = conn.cursor()
     
-    # Tabla de tendencias
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS trends (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,16 +42,54 @@ init_db()
 # ==================== CATEGORÍAS Y REGIONES ====================
 CATEGORIES = [
     {'name': 'Eléctrico', 'icon': '⚡'},
-    {'name': 'Automotriz', 'icon': ''},
+    {'name': 'Automotriz', 'icon': '🚗'},
     {'name': 'Belleza', 'icon': '💄'},
-    {'name': 'Minería', 'icon': '️'},
-    {'name': 'IA', 'icon': '🤖'},
+    {'name': 'Minería', 'icon': '⛏️'},
+    {'name': 'IA', 'icon': ''},
     {'name': 'Tendencias', 'icon': '📈'},
     {'name': 'Tecnología', 'icon': '💻'},
     {'name': 'Economía', 'icon': '💰'}
 ]
 
 REGIONS = ['Chile', 'Sudamérica', 'Norteamérica', 'América Latina', 'Europa', 'Asia', 'Global']
+
+# Mapeo de regiones a códigos de Google Trends
+REGION_CODES = {
+    'Chile': 'CL',
+    'Sudamérica': '',  # Se maneja por país
+    'Norteamérica': 'US',
+    'América Latina': 'MX',
+    'Europa': 'GB',
+    'Asia': 'JP',
+    'Global': ''
+}
+
+# ==================== GOOGLE TRENDS ====================
+
+def get_google_trends(region='Global', limit=5):
+    """Obtener tendencias reales de Google Trends"""
+    try:
+        pytrends = TrendReq(hl='es', tz=360)
+        
+        # Determinar el código de región
+        geo = REGION_CODES.get(region, '')
+        
+        # Obtener trending searches
+        trending = pytrends.trending_searches(pn=geo if geo else 'united_states')
+        
+        # Convertir a lista de diccionarios
+        trends_list = []
+        for index, row in trending.head(limit).iterrows():
+            trends_list.append({
+                'topic': row[0],
+                'source': 'Google Trends',
+                'region': region
+            })
+        
+        return trends_list
+    except Exception as e:
+        print(f"Error obteniendo Google Trends: {e}")
+        return []
 
 # ==================== RUTAS ====================
 
@@ -67,9 +105,19 @@ def get_categories():
 def get_regions():
     return jsonify(REGIONS)
 
+@app.route('/api/trending', methods=['GET'])
+def get_trending():
+    """Obtener tendencias reales de Google Trends"""
+    region = request.args.get('region', 'Global')
+    limit = int(request.args.get('limit', 5))
+    
+    trends = get_google_trends(region, limit)
+    
+    return jsonify(trends)
+
 @app.route('/api/trends', methods=['GET'])
 def get_trends():
-    """Obtener últimas tendencias"""
+    """Obtener últimas tendencias analizadas por el usuario"""
     category = request.args.get('category')
     region = request.args.get('region')
     limit = int(request.args.get('limit', 3))
@@ -128,8 +176,7 @@ def analyze():
         if not api_key:
             return jsonify({'error': 'API key no configurada'}), 500
         
-        # Aquí iría la llamada real a Qwen (la agregamos en el Paso 3)
-        # Por ahora, respuesta de prueba
+        # Análisis de prueba (después integraremos Qwen real)
         analysis = {
             'hipotesis': f'Análisis de "{topic}" en categoría {category or "general"} y región {region or "global"}. La tendencia muestra crecimiento en el sector.',
             'senales_clave': [
