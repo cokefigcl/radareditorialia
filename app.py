@@ -33,8 +33,7 @@ def init_db():
             topic2 TEXT,
             category TEXT,
             region TEXT,
-            analysis_type TEXT,
-            lens TEXT,
+            mode TEXT,
             analysis TEXT,
             score INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -46,9 +45,9 @@ def init_db():
 init_db()
 
 CATEGORIES = [
-    {'name': 'Eléctrico', 'icon': '⚡'},
+    {'name': 'Eléctrico', 'icon': ''},
     {'name': 'Automotriz', 'icon': '🚗'},
-    {'name': 'Belleza', 'icon': '💄'},
+    {'name': 'Belleza', 'icon': ''},
     {'name': 'Minería', 'icon': '⛏️'},
     {'name': 'IA', 'icon': '🤖'},
     {'name': 'Tendencias', 'icon': '📈'},
@@ -150,106 +149,8 @@ def search_news(topic, max_results=5):
     
     return []
 
-def build_prompt(analysis_type, lens, topic, topic2, category, region, news):
-    """Construye el prompt según el tipo de análisis y lente"""
-    
-    news_text = "\n\nNoticias encontradas:\n" + "\n".join([f"- {n['titulo']}" for n in news[:5]]) if news else ""
-    
-    # Lente
-    lens_instructions = {
-        'datos': "Enfócate en datos duros, estadísticas, cifras verificables y fuentes oficiales.",
-        'polemico': "Busca controversias, conflictos, debates y posturas enfrentadas.",
-        'humano': "Prioriza el impacto en las personas, historias de vida y testimonios."
-    }
-    lens_text = lens_instructions.get(lens, "")
-    
-    if analysis_type == 'briefing':
-        prompt = f"""Eres un editor jefe. Genera un BRIEFING PERIODÍSTICO de 1 minuto sobre este tema.
-
-{lens_text}
-
-TEMA: {topic}
-CATEGORÍA: {category or 'General'}
-REGIÓN: {region or 'Chile'}{news_text}
-
-Responde SOLO con JSON válido:
-{{
-  "resumen_ejecutivo": "1 párrafo claro: qué está pasando y por qué importa ahora",
-  "preguntas_clave": ["Pregunta 1 que debes hacer a tu fuente", "Pregunta 2", "Pregunta 3"],
-  "datos_a_verificar": ["Dato 1 que debes confirmar antes de publicar", "Dato 2"],
-  "fuentes_prioritarias": ["Fuente 1", "Fuente 2", "Fuente 3"],
-  "titulares_sugeridos": ["Titular 1", "Titular 2"],
-  "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}
-}}"""
-    
-    elif analysis_type == 'devil':
-        prompt = f"""Eres el "Abogado del Diablo" periodístico. Tu trabajo es encontrar el ÁNGULO CIEGO que nadie está cubriendo.
-
-{lens_text}
-
-TEMA: {topic}
-CATEGORÍA: {category or 'General'}
-REGIÓN: {region or 'Chile'}{news_text}
-
-Responde SOLO con JSON válido:
-{{
-  "lo_que_todos_dicen": "Resumen de lo que ya están cubriendo otros medios",
-  "angulo_ciego": "El ángulo que NADIE está preguntando pero debería",
-  "pregunta_incomoda": "La pregunta incómoda que nadie se atreve a hacer",
-  "contradiccion": "Una contradicción o hipocresía en la narrativa actual",
-  "fuentes_alternativas": ["Fuente no convencional 1", "Fuente no convencional 2"],
-  "titular_contraintuitivo": "Un titular que vaya contra la narrativa dominante",
-  "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}
-}}"""
-    
-    elif analysis_type == 'compare' and topic2:
-        prompt = f"""Eres un analista editorial. Compara estos DOS temas y determina cuál tiene más recorrido periodístico.
-
-{lens_text}
-
-TEMA A: {topic}
-TEMA B: {topic2}
-CATEGORÍA: {category or 'General'}
-REGIÓN: {region or 'Chile'}{news_text}
-
-Responde SOLO con JSON válido:
-{{
-  "tema_a": "{topic}",
-  "tema_b": "{topic2}",
-  "ganador": "Tema A o Tema B (cuál tiene más recorrido ahora)",
-  "razon_ganador": "Por qué ese tema tiene más fuerza periodística ahora",
-  "puntos_en_comun": ["Punto en común 1", "Punto en común 2"],
-  "angulo_conector": "Un ángulo que conecte ambos temas en una sola nota",
-  "fuentes_compartidas": ["Fuente que sirve para ambos 1", "Fuente 2"],
-  "recomendacion": "Qué tema cubrir primero y por qué",
-  "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}
-}}"""
-    
-    else:
-        # Análisis estándar
-        prompt = f"""Analiza esta tendencia periodística.
-
-{lens_text}
-
-TEMA: {topic}
-CATEGORÍA: {category or 'General'}
-REGIÓN: {region or 'Chile'}{news_text}
-
-Responde SOLO con JSON válido:
-{{
-  "puntaje_relevancia": 7,
-  "justificacion_puntaje": "Explicación breve",
-  "hipotesis": "Hipótesis de 2-3 oraciones",
-  "senales_clave": ["Señal 1", "Señal 2"],
-  "angulos_periodisticos": ["Ángulo 1", "Ángulo 2"],
-  "fuentes_sugeridas": ["Fuente 1", "Fuente 2"],
-  "titulares_ejemplo": ["Titular 1", "Titular 2"],
-  "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}
-}}"""
-    
-    return prompt
-
-def analyze_with_qwen(prompt):
+def analyze_with_qwen(prompt, mode='standard'):
+    """Analiza con Qwen y retorna (analysis, error)"""
     api_key = os.getenv('QWEN_API_KEY')
     if not api_key:
         return None, "QWEN_API_KEY no configurada"
@@ -262,7 +163,7 @@ def analyze_with_qwen(prompt):
     payload = {
         'model': 'qwen-plus',
         'input': {'messages': [{'role': 'user', 'content': prompt}]},
-        'parameters': {'temperature': 0.1, 'max_tokens': 1500}
+        'parameters': {'temperature': 0.1 if mode == 'briefing' else 0.7, 'max_tokens': 2000}
     }
     
     try:
@@ -291,9 +192,11 @@ def analyze_with_qwen(prompt):
                         pass
             
             if not analysis_text or not isinstance(analysis_text, str):
-                return None, f"Respuesta vacía de Qwen"
+                return None, f"Respuesta vacía o inválida de Qwen"
             
-            # Extraer JSON con regex
+            print(f"[DEBUG] Texto recibido ({len(analysis_text)} chars)")
+            
+            # Buscar JSON con regex
             match = re.search(r'\{.*\}', analysis_text, re.DOTALL)
             if match:
                 json_str = match.group(0)
@@ -302,55 +205,140 @@ def analyze_with_qwen(prompt):
             
             try:
                 analysis = json.loads(json_str)
+                print(f"[DEBUG] JSON parseado exitosamente!")
                 return analysis, None
             except json.JSONDecodeError as e:
+                print(f"[DEBUG] Error parseando JSON: {e}")
                 return None, f"Error parseando JSON: {str(e)}"
         else:
-            return None, f"Error HTTP {response.status_code}"
+            return None, f"Error HTTP {response.status_code}: {response.text[:300]}"
             
     except requests.exceptions.Timeout:
         return None, "Timeout de Qwen API"
     except Exception as e:
-        return None, f"Error: {str(e)}"
+        return None, f"Error de conexión: {str(e)}"
 
-def generate_fallback(analysis_type, topic, topic2, lens, news):
-    """Fallback cuando Qwen falla"""
-    if analysis_type == 'briefing':
+def generate_analysis(topic, topic2, category, region, mode, lens, news):
+    """Genera el prompt según el modo seleccionado"""
+    
+    news_text = "\n\nNoticias encontradas:\n" + "\n".join([f"- {n['titulo']}" for n in news[:5]]) if news else ""
+    
+    if mode == 'briefing':
+        prompt = f"""Eres un editor periodístico experto. Genera un BRIEFING PERIODÍSTICO ejecutivo sobre:
+
+TEMA: {topic}
+CATEGORÍA: {category or 'General'}
+REGIÓN: {region or 'Chile'}{news_text}
+
+Responde SOLO con JSON válido:
+{{
+  "resumen_ejecutivo": "Un párrafo claro y directo sobre qué está pasando (3-4 oraciones)",
+  "preguntas_fuente": ["Pregunta 1 exacta para hacerle a tu fuente/experto", "Pregunta 2", "Pregunta 3"],
+  "datos_duros": ["Dato 1 que debes verificar antes de publicar", "Dato 2"],
+  "timeline_sugerido": "Cuándo publicar (ej: 'Esta semana', 'Urgente', 'Esperar 2 días')",
+  "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}
+}}"""
+    
+    elif mode == 'devil':
+        prompt = f"""Eres un editor crítico y provocador. Analiza este tema como ABOGADO DEL DIABLO:
+
+TEMA: {topic}
+CATEGORÍA: {category or 'General'}
+REGIÓN: {region or 'Chile'}{news_text}
+
+Responde SOLO con JSON válido:
+{{
+  "cobertura_mainstream": "Lo que todos los medios están diciendo (2-3 oraciones)",
+  "angulo_ciego": "Lo que NADIE está preguntando y podría ser la verdadera historia",
+  "riesgos_sesgos": ["Riesgo 1 o sesgo a evitar", "Riesgo 2"],
+  "pregunta_incomoda": "La pregunta incómoda que deberías hacer",
+  "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}
+}}"""
+    
+    elif mode == 'compare' and topic2:
+        prompt = f"""Eres un editor estratégico. COMPARA estos dos temas periodísticos:
+
+TEMA A: {topic}
+TEMA B: {topic2}
+CATEGORÍA: {category or 'General'}
+REGIÓN: {region or 'Chile'}{news_text}
+
+Responde SOLO con JSON válido:
+{{
+  "tema_a": "{topic}",
+  "tema_b": "{topic2}",
+  "mas_recorrido": "Cuál tema tiene más recorrido periodístico ahora y por qué",
+  "fuentes_comunes": ["Fuente 1 que sirve para ambos", "Fuente 2"],
+  "angulo_conector": "Un ángulo que conecte ambos temas",
+  "recomendacion": "Cuál cubrir primero y por qué",
+  "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}
+}}"""
+    
+    else:
+        # Modo estándar con lentes
+        lens_instruction = ""
+        if lens == 'data':
+            lens_instruction = "\nENFOQUE: Prioriza estadísticas, cifras, datos duros y fuentes oficiales."
+        elif lens == 'controversy':
+            lens_instruction = "\nENFOQUE: Busca conflictos, controversias, debates y posturas enfrentadas."
+        elif lens == 'human':
+            lens_instruction = "\nENFOQUE: Enfócate en cómo afecta a las personas, historias de vida, impacto humano."
+        elif lens == 'economic':
+            lens_instruction = "\nENFOQUE: Analiza impacto financiero, costos, oportunidades de negocio, mercado."
+        
+        prompt = f"""Analiza esta tendencia periodística:
+
+TEMA: {topic}
+CATEGORÍA: {category or 'General'}
+REGIÓN: {region or 'Chile'}{news_text}{lens_instruction}
+
+Responde SOLO con JSON válido:
+{{
+  "puntaje_relevancia": 7,
+  "justificacion_puntaje": "Explicación breve",
+  "hipotesis": "Hipótesis de 2-3 oraciones",
+  "senales_clave": ["Señal 1", "Señal 2"],
+  "angulos_periodisticos": ["Ángulo 1", "Ángulo 2"],
+  "fuentes_sugeridas": ["Fuente 1", "Fuente 2"],
+  "titulares_ejemplo": ["Titular 1", "Titular 2"],
+  "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}
+}}"""
+    
+    return prompt
+
+def generate_fallback(topic, topic2, category, region, mode, news):
+    """Genera análisis de fallback"""
+    if mode == 'briefing':
         return {
-            'resumen_ejecutivo': f'El tema "{topic}" requiere investigación adicional. Se recomienda consultar fuentes oficiales y expertos del sector.',
-            'preguntas_clave': ['¿Qué está pasando exactamente?', '¿Quiénes son los afectados?', '¿Cuál es el contexto histórico?'],
-            'datos_a_verificar': ['Cifras oficiales', 'Declaraciones de autoridades'],
-            'fuentes_prioritarias': ['Organismos oficiales', 'Expertos del sector'],
-            'titulares_sugeridos': [f"Análisis: {topic}", f"Las claves de {topic}"],
+            'resumen_ejecutivo': f'El tema "{topic}" en {region or "Chile"} requiere atención periodística.',
+            'preguntas_fuente': ['¿Qué está pasando exactamente?', '¿Quiénes son los afectados?', '¿Qué sigue?'],
+            'datos_duros': ['Verificar cifras oficiales', 'Confirmar fuentes primarias'],
+            'timeline_sugerido': 'Esta semana',
             'noticias_reales': news if news else []
         }
-    elif analysis_type == 'devil':
+    elif mode == 'devil':
         return {
-            'lo_que_todos_dicen': f'La narrativa dominante sobre "{topic}" se centra en aspectos superficiales.',
-            'angulo_ciego': 'Se necesita investigación profunda para encontrar el ángulo no cubierto.',
-            'pregunta_incomoda': '¿Qué intereses hay detrás de la narrativa actual?',
-            'contradiccion': 'Existen contradicciones entre lo que se dice y lo que muestran los datos.',
-            'fuentes_alternativas': ['Fuentes independientes', 'Testimonios directos'],
-            'titular_contraintuitivo': f"Lo que nadie te cuenta sobre {topic}",
+            'cobertura_mainstream': f'Los medios están cubriendo "{topic}" de forma convencional.',
+            'angulo_ciego': 'Nadie está preguntando sobre las consecuencias a largo plazo.',
+            'riesgos_sesgos': ['Sesgo de confirmación', 'Falta de fuentes diversas'],
+            'pregunta_incomoda': '¿Qué利益 hay detrás de esta narrativa?',
             'noticias_reales': news if news else []
         }
-    elif analysis_type == 'compare':
+    elif mode == 'compare' and topic2:
         return {
             'tema_a': topic,
-            'tema_b': topic2 or 'N/A',
-            'ganador': 'Requiere análisis manual',
-            'razon_ganador': 'Ambos temas requieren investigación periodística profunda.',
-            'puntos_en_comun': ['Ambos son relevantes para la audiencia', 'Requieren fuentes verificadas'],
-            'angulo_conector': 'Se puede crear una nota comparativa que analice ambos fenómenos.',
-            'fuentes_compartidas': ['Expertos en el tema', 'Datos oficiales'],
-            'recomendacion': 'Evaluar cuál tiene más actualidad y fuentes disponibles.',
+            'tema_b': topic2,
+            'mas_recorrido': f'{topic} tiene más recorrido inmediato.',
+            'fuentes_comunes': ['Expertos del sector', 'Organismos oficiales'],
+            'angulo_conector': 'Ambos temas reflejan cambios estructurales en la sociedad.',
+            'recomendacion': f'Cubrir {topic} primero por urgencia.',
             'noticias_reales': news if news else []
         }
     else:
         return {
             'puntaje_relevancia': 5,
-            'justificacion_puntaje': 'Análisis automático (IA no disponible)',
-            'hipotesis': f'El tema "{topic}" muestra relevancia. Se recomienda monitorear.',
+            'justificacion_puntaje': 'Análisis automático',
+            'hipotesis': f'La tendencia "{topic}" muestra relevancia.',
             'senales_clave': ['Aumento de menciones', 'Nuevas regulaciones'],
             'angulos_periodisticos': ['Impacto económico', 'Perspectivas de expertos'],
             'fuentes_sugeridas': ['Organismos oficiales', 'Expertos'],
@@ -380,7 +368,9 @@ def get_trending():
 def debug():
     return jsonify({
         'qwen_configured': bool(os.getenv('QWEN_API_KEY')),
+        'qwen_key_length': len(os.getenv('QWEN_API_KEY', '')),
         'newsapi_configured': bool(os.getenv('NEWSAPI_KEY')),
+        'newsapi_key_length': len(os.getenv('NEWSAPI_KEY', '')),
         'timestamp': datetime.now().isoformat()
     })
 
@@ -388,7 +378,7 @@ def debug():
 def get_history():
     limit = int(request.args.get('limit', 20))
     conn = get_db()
-    rows = conn.cursor().execute('SELECT id, topic, topic2, category, region, analysis_type, lens, analysis, score, created_at FROM trends ORDER BY created_at DESC LIMIT ?', (limit,)).fetchall()
+    rows = conn.cursor().execute('SELECT id, topic, topic2, category, region, mode, analysis, score, created_at FROM trends ORDER BY created_at DESC LIMIT ?', (limit,)).fetchall()
     conn.close()
     history = []
     for row in rows:
@@ -398,8 +388,7 @@ def get_history():
             analysis = {}
         history.append({
             'id': row['id'], 'topic': row['topic'], 'topic2': row['topic2'],
-            'category': row['category'], 'region': row['region'],
-            'analysis_type': row['analysis_type'], 'lens': row['lens'],
+            'category': row['category'], 'region': row['region'], 'mode': row['mode'],
             'analysis': analysis, 'score': row['score'] or 0, 'created_at': row['created_at']
         })
     return jsonify(history)
@@ -420,37 +409,25 @@ def analyze():
         topic2 = data.get('topic2', '').strip()
         category = data.get('category')
         region = data.get('region')
-        analysis_type = data.get('analysis_type', 'standard')
-        lens = data.get('lens', 'standard')
+        mode = data.get('mode', 'standard')  # standard, briefing, devil, compare
+        lens = data.get('lens', '')  # data, controversy, human, economic
         
         if not topic:
             return jsonify({'error': 'Falta el tema'}), 400
         
-        if analysis_type == 'compare' and not topic2:
-            return jsonify({'error': 'Para comparar necesitas dos temas'}), 400
-        
         print(f"\n{'='*60}")
-        print(f"[ANALYZE] Type: {analysis_type}, Lens: {lens}")
-        print(f"[ANALYZE] Topic: {topic}, Topic2: {topic2}")
+        print(f"[ANALYZE] Topic: {topic}, Mode: {mode}, Lens: {lens}")
         
-        # Buscar noticias
         news = search_news(topic, max_results=5)
-        if analysis_type == 'compare' and topic2:
-            news2 = search_news(topic2, max_results=3)
-            news = news + news2
-        
         print(f"[ANALYZE] Noticias: {len(news)}")
         
-        # Construir prompt
-        prompt = build_prompt(analysis_type, lens, topic, topic2, category, region, news)
-        
-        # Analizar con Qwen
-        analysis, error = analyze_with_qwen(prompt)
+        prompt = generate_analysis(topic, topic2, category, region, mode, lens, news)
+        analysis, error = analyze_with_qwen(prompt, mode)
         
         used_fallback = False
         if error or not analysis:
             print(f"[ANALYZE] Qwen falló: {error}")
-            analysis = generate_fallback(analysis_type, topic, topic2, lens, news)
+            analysis = generate_fallback(topic, topic2, category, region, mode, news)
             used_fallback = True
         else:
             print(f"[ANALYZE] Qwen OK!")
@@ -460,12 +437,9 @@ def analyze():
         
         score = analysis.get('puntaje_relevancia', 5)
         
-        # Guardar
         conn = get_db()
-        conn.cursor().execute('''INSERT INTO trends (topic, topic2, category, region, analysis_type, lens, analysis, score) 
-                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-                              (topic, topic2 if analysis_type == 'compare' else None, category, region, 
-                               analysis_type, lens, json.dumps(analysis, ensure_ascii=False), score))
+        conn.cursor().execute('INSERT INTO trends (topic, topic2, category, region, mode, analysis, score) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                              (topic, topic2 if mode == 'compare' else None, category, region, mode, json.dumps(analysis, ensure_ascii=False), score))
         conn.commit()
         conn.close()
         
@@ -474,14 +448,14 @@ def analyze():
         
         return jsonify({
             'topic': topic, 'topic2': topic2, 'category': category, 'region': region,
-            'analysis_type': analysis_type, 'lens': lens,
+            'mode': mode, 'lens': lens,
             'analysis': analysis, 'score': score, 'used_fallback': used_fallback,
             'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
         print(f"[ERROR] {str(e)}")
         topic = request.json.get('topic', 'Tema') if request.json else 'Tema'
-        return jsonify({'topic': topic, 'analysis': generate_fallback('standard', topic, None, 'standard', []), 'score': 5, 'warning': f'Error: {str(e)}'}), 200
+        return jsonify({'topic': topic, 'analysis': generate_fallback(topic, None, None, None, 'standard', []), 'score': 5, 'warning': f'Error: {str(e)}'}), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
