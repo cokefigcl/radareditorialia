@@ -5,7 +5,7 @@ import json
 import sqlite3
 import requests
 from datetime import datetime, timedelta
-import urllib.parse
+import time
 
 load_dotenv()
 
@@ -13,6 +13,7 @@ app = Flask(__name__)
 
 # ==================== BASE DE DATOS ====================
 DB_PATH = os.path.join(os.path.dirname(__file__), 'trends.db')
+COUNTER_PATH = os.path.join(os.path.dirname(__file__), 'api_counter.json')
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -44,7 +45,7 @@ CATEGORIES = [
     {'name': 'Automotriz', 'icon': ''},
     {'name': 'Belleza', 'icon': '💄'},
     {'name': 'Minería', 'icon': '️'},
-    {'name': 'IA', 'icon': ''},
+    {'name': 'IA', 'icon': '🤖'},
     {'name': 'Tendencias', 'icon': '📈'},
     {'name': 'Tecnología', 'icon': '💻'},
     {'name': 'Economía', 'icon': '💰'}
@@ -122,38 +123,127 @@ def get_trends_for_category(category):
         random.shuffle(all_trends)
         return all_trends[:5]
 
-# ==================== GDELT: BÚSQUEDA MEJORADA ====================
+# ==================== SISTEMA DE CONTADOR DE API ====================
+
+def load_counter():
+    """Cargar contador desde archivo"""
+    try:
+        if os.path.exists(COUNTER_PATH):
+            with open(COUNTER_PATH, 'r') as f:
+                data = json.load(f)
+            # Resetear si es un nuevo día
+            today = datetime.now().strftime('%Y-%m-%d')
+            if data.get('date') != today:
+                return {'count': 0, 'date': today, 'force_gdelt': False}
+            return data
+        else:
+            return {'count': 0, 'date': datetime.now().strftime('%Y-%m-%d'), 'force_gdelt': False}
+    except:
+        return {'count': 0, 'date': datetime.now().strftime('%Y-%m-%d'), 'force_gdelt': False}
+
+def save_counter(data):
+    """Guardar contador en archivo"""
+    try:
+        with open(COUNTER_PATH, 'w') as f:
+            json.dump(data, f)
+    except:
+        pass
+
+def increment_counter():
+    """Incrementar contador y devolver si debe usar GDELT"""
+    counter = load_counter()
+    counter['count'] += 1
+    
+    # Si llegamos al 90% del límite (90 de 100), forzar GDELT
+    if counter['count'] >= 90:
+        counter['force_gdelt'] = True
+    
+    save_counter(counter)
+    return counter
+
+def get_api_status():
+    """Obtener estado actual de la API"""
+    counter = load_counter()
+    remaining = max(0, 100 - counter['count'])
+    return {
+        'count': counter['count'],
+        'remaining': remaining,
+        'limit': 100,
+        'force_gdelt': counter.get('force_gdelt', False),
+        'date': counter.get('date', '')
+    }
+
+# ==================== NEWSAPI ====================
+
+def search_newsapi(topic, max_results=5, days_back=7):
+    """Buscar noticias en NewsAPI"""
+    api_key = os.getenv('NEWSAPI_KEY')
+    if not api_key:
+        return None  # Indica que no está configurada
+    
+    try:
+        # Calcular fechas
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days_back)
+        
+        url = 'https://newsapi.org/v2/everything'
+        params = {
+            'q': topic,
+            'from': start_date.strftime('%Y-%m-%d'),
+            'to': end_date.strftime('%Y-%m-%d'),
+            'sortBy': 'publishedAt',
+            'language': 'es',
+            'pageSize': max_results * 2,
+            'apiKey': api_key
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            articles = data.get('articles', [])
+            
+            news_items = []
+            seen_titles = set()
+            
+            for article in articles:
+                title = article.get('title', '').strip()
+                if title and title not in seen_titles and len(title) > 10:
+                    seen_titles.add(title)
+                    news_items.append({
+                        'titulo': title,
+                        'fuente': article.get('source', {}).get('name', ''),
+                        'url': article.get('url', ''),
+                        'fecha': article.get('publishedAt', '')[:10]
+                    })
+                if len(news_items) >= max_results:
+                    break
+            
+            return news_items
+        elif response.status_code == 429:
+            # Rate limit alcanzado
+            counter = load_counter()
+            counter['force_gdelt'] = True
+            save_counter(counter)
+            return 'rate_limit'
+        else:
+            return None
+            
+    except Exception as e:
+        print(f"Error NewsAPI: {str(e)}")
+        return None
+
+# ==================== GDELT ====================
 
 def search_gdelt_news(topic, max_results=5, days_back=7):
-    """
-    Búsqueda mejorada: intenta con el tema exacto y palabras clave
-    """
-    news_items = []
-    
-    # Intento 1: Búsqueda exacta
-    news_items = _search_gdelt_query(topic, max_results, days_back)
-    
-    # Si no encuentra nada, intentar con palabras clave
-    if len(news_items) == 0:
-        # Extraer palabras clave (quitar artículos, preposiciones)
-        keywords = _extract_keywords(topic)
-        if keywords:
-            for keyword in keywords[:3]:  # Probar con las 3 primeras palabras clave
-                news_items = _search_gdelt_query(keyword, max_results, days_back)
-                if len(news_items) > 0:
-                    break
-    
-    return news_items
-
-def _search_gdelt_query(query, max_results, days_back):
-    """Búsqueda individual en GDELT"""
+    """Buscar noticias en GDELT"""
     try:
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days_back)
         
         url = 'https://api.gdeltproject.org/api/v2/doc/doc'
         params = {
-            'query': query,
+            'query': topic,
             'mode': 'artlist',
             'format': 'json',
             'startdatetime': start_date.strftime('%Y%m%d%H%M%S'),
@@ -191,21 +281,40 @@ def _search_gdelt_query(query, max_results, days_back):
         print(f"Error GDELT: {str(e)}")
         return []
 
-def _extract_keywords(topic):
-    """Extraer palabras clave de un tema"""
-    # Palabras vacías en español
-    stop_words = {'de', 'la', 'el', 'en', 'y', 'a', 'los', 'del', 'las', 'por', 'para', 'con', 'una', 'su', 'sus', 'al', 'lo', 'se', 'los', 'las', 'un', 'una', 'unos', 'unas'}
+def search_news_smart(topic, max_results=5, days_back=7):
+    """
+    Sistema inteligente: intenta NewsAPI primero, fallback a GDELT
+    """
+    counter = load_counter()
     
-    # Dividir por espacios y puntuación
-    words = topic.lower().split()
+    # Si ya estamos forzando GDELT, usar directamente
+    if counter.get('force_gdelt', False):
+        print(f"Usando GDELT (límite NewsAPI alcanzado)")
+        return search_gdelt_news(topic, max_results, days_back)
     
-    # Filtrar palabras vacías y palabras cortas
-    keywords = [w for w in words if w not in stop_words and len(w) > 3]
+    # Intentar NewsAPI
+    print(f"Intentando NewsAPI (requests hoy: {counter['count']}/100)")
+    result = search_newsapi(topic, max_results, days_back)
     
-    return keywords
+    # Si NewsAPI no está configurada o falló, usar GDELT
+    if result is None:
+        print("NewsAPI no disponible, usando GDELT")
+        return search_gdelt_news(topic, max_results, days_back)
+    
+    # Si alcanzamos el rate limit
+    if result == 'rate_limit':
+        print("Rate limit de NewsAPI alcanzado, cambiando a GDELT")
+        counter = load_counter()
+        counter['force_gdelt'] = True
+        save_counter(counter)
+        return search_gdelt_news(topic, max_results, days_back)
+    
+    # Incrementar contador y devolver resultado
+    increment_counter()
+    return result
 
 def get_trend_evolution(topic, weeks=2):
-    """Evolución del interés"""
+    """Evolución del interés (usa GDELT porque es gratis e ilimitado)"""
     evolution = []
     end_date = datetime.now()
     
@@ -267,6 +376,11 @@ def get_trending():
         for t in trends[:limit]
     ])
 
+@app.route('/api/status', methods=['GET'])
+def get_status():
+    """Endpoint para ver el estado de las APIs"""
+    return jsonify(get_api_status())
+
 @app.route('/api/history', methods=['GET'])
 def get_history():
     limit = int(request.args.get('limit', 20))
@@ -320,10 +434,10 @@ def analyze():
         if not api_key:
             return jsonify({'error': 'API key no configurada'}), 500
         
-        # 1. Buscar noticias (con búsqueda mejorada)
-        real_news = search_gdelt_news(topic, max_results=5, days_back=14)
+        # 1. Buscar noticias con sistema inteligente
+        real_news = search_news_smart(topic, max_results=5, days_back=14)
         
-        # 2. Evolución
+        # 2. Evolución (siempre usa GDELT porque es gratis)
         evolution = get_trend_evolution(topic, weeks=2)
         
         # 3. Calcular tendencia
@@ -348,7 +462,7 @@ def analyze():
         if real_news:
             news_context = "\n\nNOTICIAS ENCONTRADAS:\n" + "\n".join([f"- {n['titulo']}" for n in real_news])
         else:
-            news_context = "\n\nNOTA: No se encontraron noticias recientes sobre este tema en medios internacionales."
+            news_context = "\n\nNOTA: No se encontraron noticias recientes sobre este tema."
         
         # 5. Prompt para Qwen
         prompt = f"""Analiza esta tendencia periodística:
@@ -367,7 +481,7 @@ Responde SOLO con JSON válido:
   "angulos_periodisticos": ["Ángulo 1", "Ángulo 2"],
   "fuentes_sugeridas": ["Fuente 1", "Fuente 2"],
   "titulares_ejemplo": ["Titular 1", "Titular 2"],
-  "noticias_reales": {json.dumps(real_news, ensure_ascii=False)}
+  "noticias_reales": {json.dumps(real_news if real_news else [], ensure_ascii=False)}
 }}"""
 
         # 6. Llamada a Qwen
@@ -415,7 +529,7 @@ Responde SOLO con JSON válido:
                     'angulos_periodisticos': ['Impacto económico', 'Perspectivas de expertos'],
                     'fuentes_sugeridas': ['Organismos oficiales', 'Expertos del sector'],
                     'titulares_ejemplo': [f"Análisis: {topic}"],
-                    'noticias_reales': real_news
+                    'noticias_reales': real_news if real_news else []
                 }
         else:
             return jsonify({'error': f'Error API Qwen: {response.status_code}'}), 500
@@ -432,6 +546,9 @@ Responde SOLO con JSON válido:
         conn.commit()
         conn.close()
         
+        # Obtener estado actual de APIs
+        api_status = get_api_status()
+        
         return jsonify({
             'topic': topic,
             'category': category,
@@ -441,7 +558,8 @@ Responde SOLO con JSON válido:
             'evolution': evolution,
             'trend_direction': trend_direction,
             'trend_percent': trend_percent,
-            'noticias_encontradas': len(real_news),
+            'noticias_encontradas': len(real_news) if real_news else 0,
+            'api_status': api_status,
             'timestamp': datetime.now().isoformat()
         })
         
