@@ -5,6 +5,7 @@ import json
 import sqlite3
 import requests
 from datetime import datetime, timedelta
+import urllib.parse
 
 load_dotenv()
 
@@ -40,10 +41,10 @@ init_db()
 # ==================== CONFIGURACIÓN ====================
 CATEGORIES = [
     {'name': 'Eléctrico', 'icon': '⚡'},
-    {'name': 'Automotriz', 'icon': '🚗'},
+    {'name': 'Automotriz', 'icon': ''},
     {'name': 'Belleza', 'icon': '💄'},
     {'name': 'Minería', 'icon': '️'},
-    {'name': 'IA', 'icon': '🤖'},
+    {'name': 'IA', 'icon': ''},
     {'name': 'Tendencias', 'icon': '📈'},
     {'name': 'Tecnología', 'icon': '💻'},
     {'name': 'Economía', 'icon': '💰'}
@@ -121,10 +122,31 @@ def get_trends_for_category(category):
         random.shuffle(all_trends)
         return all_trends[:5]
 
-# ==================== GDELT: VERSIÓN RÁPIDA ====================
+# ==================== GDELT: BÚSQUEDA MEJORADA ====================
 
-def search_gdelt_news(query, max_results=3, days_back=7):
-    """Búsqueda rápida de noticias"""
+def search_gdelt_news(topic, max_results=5, days_back=7):
+    """
+    Búsqueda mejorada: intenta con el tema exacto y palabras clave
+    """
+    news_items = []
+    
+    # Intento 1: Búsqueda exacta
+    news_items = _search_gdelt_query(topic, max_results, days_back)
+    
+    # Si no encuentra nada, intentar con palabras clave
+    if len(news_items) == 0:
+        # Extraer palabras clave (quitar artículos, preposiciones)
+        keywords = _extract_keywords(topic)
+        if keywords:
+            for keyword in keywords[:3]:  # Probar con las 3 primeras palabras clave
+                news_items = _search_gdelt_query(keyword, max_results, days_back)
+                if len(news_items) > 0:
+                    break
+    
+    return news_items
+
+def _search_gdelt_query(query, max_results, days_back):
+    """Búsqueda individual en GDELT"""
     try:
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days_back)
@@ -136,12 +158,12 @@ def search_gdelt_news(query, max_results=3, days_back=7):
             'format': 'json',
             'startdatetime': start_date.strftime('%Y%m%d%H%M%S'),
             'enddatetime': end_date.strftime('%Y%m%d%H%M%S'),
-            'maxrecords': max_results * 2,
+            'maxrecords': max_results * 3,
             'sourcelang': 'spa',
             'sort': 'DateDesc'
         }
         
-        response = requests.get(url, params=params, timeout=8)
+        response = requests.get(url, params=params, timeout=10)
         
         if response.status_code == 200:
             data = response.json()
@@ -165,31 +187,45 @@ def search_gdelt_news(query, max_results=3, days_back=7):
             
             return news_items
         return []
-    except:
+    except Exception as e:
+        print(f"Error GDELT: {str(e)}")
         return []
 
-def get_trend_evolution_fast(query):
-    """Evolución rápida: solo 2 semanas, 1 llamada"""
+def _extract_keywords(topic):
+    """Extraer palabras clave de un tema"""
+    # Palabras vacías en español
+    stop_words = {'de', 'la', 'el', 'en', 'y', 'a', 'los', 'del', 'las', 'por', 'para', 'con', 'una', 'su', 'sus', 'al', 'lo', 'se', 'los', 'las', 'un', 'una', 'unos', 'unas'}
+    
+    # Dividir por espacios y puntuación
+    words = topic.lower().split()
+    
+    # Filtrar palabras vacías y palabras cortas
+    keywords = [w for w in words if w not in stop_words and len(w) > 3]
+    
+    return keywords
+
+def get_trend_evolution(topic, weeks=2):
+    """Evolución del interés"""
     evolution = []
     end_date = datetime.now()
     
-    for i in range(2, 0, -1):
+    for i in range(weeks, 0, -1):
         week_end = end_date - timedelta(weeks=i-1)
         week_start = week_end - timedelta(days=7)
         
         try:
             url = 'https://api.gdeltproject.org/api/v2/doc/doc'
             params = {
-                'query': query,
+                'query': topic,
                 'mode': 'artlist',
                 'format': 'json',
                 'startdatetime': week_start.strftime('%Y%m%d%H%M%S'),
                 'enddatetime': week_end.strftime('%Y%m%d%H%M%S'),
-                'maxrecords': 50,
+                'maxrecords': 100,
                 'sourcelang': 'spa'
             }
             
-            response = requests.get(url, params=params, timeout=6)
+            response = requests.get(url, params=params, timeout=8)
             
             if response.status_code == 200:
                 count = len(response.json().get('articles', []))
@@ -199,7 +235,7 @@ def get_trend_evolution_fast(query):
             count = 0
         
         evolution.append({
-            'semana': f'Semana {2 - i + 1}',
+            'semana': f'Semana {weeks - i + 1}',
             'fecha_inicio': week_start.strftime('%d/%m'),
             'fecha_fin': week_end.strftime('%d/%m'),
             'articulos': count
@@ -284,11 +320,11 @@ def analyze():
         if not api_key:
             return jsonify({'error': 'API key no configurada'}), 500
         
-        # 1. Noticias rápidas (timeout 8s)
-        real_news = search_gdelt_news(topic, max_results=3, days_back=7)
+        # 1. Buscar noticias (con búsqueda mejorada)
+        real_news = search_gdelt_news(topic, max_results=5, days_back=14)
         
-        # 2. Evolución rápida (timeout 6s x 2 = 12s)
-        evolution = get_trend_evolution_fast(topic)
+        # 2. Evolución
+        evolution = get_trend_evolution(topic, weeks=2)
         
         # 3. Calcular tendencia
         if len(evolution) >= 2:
@@ -307,11 +343,14 @@ def analyze():
             trend_direction = 'estable'
             trend_percent = 0
         
-        # 4. Prompt simplificado
+        # 4. Construir contexto
         news_context = ""
         if real_news:
-            news_context = "\nNoticias recientes:\n" + "\n".join([f"- {n['titulo']}" for n in real_news])
+            news_context = "\n\nNOTICIAS ENCONTRADAS:\n" + "\n".join([f"- {n['titulo']}" for n in real_news])
+        else:
+            news_context = "\n\nNOTA: No se encontraron noticias recientes sobre este tema en medios internacionales."
         
+        # 5. Prompt para Qwen
         prompt = f"""Analiza esta tendencia periodística:
 
 TEMA: {topic}
@@ -331,7 +370,7 @@ Responde SOLO con JSON válido:
   "noticias_reales": {json.dumps(real_news, ensure_ascii=False)}
 }}"""
 
-        # 5. Llamada a Qwen (timeout 45s)
+        # 6. Llamada a Qwen
         headers = {
             'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json'
@@ -370,11 +409,11 @@ Responde SOLO con JSON válido:
             except:
                 analysis = {
                     'puntaje_relevancia': 5,
-                    'justificacion_puntaje': 'Análisis generado',
-                    'hipotesis': f'La tendencia "{topic}" es relevante en {region or "Chile"}.',
+                    'justificacion_puntaje': 'Análisis generado automáticamente',
+                    'hipotesis': f'La tendencia "{topic}" muestra relevancia en {region or "Chile"}.',
                     'senales_clave': ['Aumento de menciones', 'Nuevas regulaciones'],
                     'angulos_periodisticos': ['Impacto económico', 'Perspectivas de expertos'],
-                    'fuentes_sugeridas': ['Organismos oficiales', 'Expertos'],
+                    'fuentes_sugeridas': ['Organismos oficiales', 'Expertos del sector'],
                     'titulares_ejemplo': [f"Análisis: {topic}"],
                     'noticias_reales': real_news
                 }
@@ -383,6 +422,7 @@ Responde SOLO con JSON válido:
         
         score = analysis.get('puntaje_relevancia', 5)
         
+        # Guardar en BD
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute(
