@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import json
 import sqlite3
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 
 load_dotenv()
 
@@ -121,7 +121,76 @@ def get_trends_for_category(category):
         random.shuffle(all_trends)
         return all_trends[:5]
 
+# ==================== GDELT: BÚSQUEDA REAL DE NOTICIAS ====================
+
+def search_gdelt_news(query, max_results=5, days_back=7):
+    """
+    Busca noticias reales usando la API gratuita de GDELT
+    Documentación: https://blog.gdeltproject.org/gdelt-doc-2-0-api-debuts/
+    """
+    try:
+        # Calcular fechas
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days_back)
+        
+        # Formato de fechas para GDELT: YYYYMMDDHHMMSS
+        start_str = start_date.strftime('%Y%m%d%H%M%S')
+        end_str = end_date.strftime('%Y%m%d%H%M%S')
+        
+        # URL de la API GDELT DOC 2.0
+        url = 'https://api.gdeltproject.org/api/v2/doc/doc'
+        
+        params = {
+            'query': query,
+            'mode': 'artlist',
+            'format': 'json',
+            'startdatetime': start_str,
+            'enddatetime': end_str,
+            'maxrecords': max_results * 3,  # Pedimos más para filtrar después
+            'sourcelang': 'spa',  # Noticias en español
+            'sort': 'DateDesc'
+        }
+        
+        response = requests.get(url, params=params, timeout=15)
+        
+        if response.status_code == 200:
+            data = response.json()
+            articles = data.get('articles', [])
+            
+            # Filtrar y formatear artículos
+            news_items = []
+            seen_titles = set()
+            
+            for article in articles:
+                title = article.get('title', '').strip()
+                url_article = article.get('url', '')
+                source = article.get('domain', '')
+                date = article.get('seendate', '')
+                
+                # Evitar duplicados y títulos vacíos
+                if title and title not in seen_titles and len(title) > 10:
+                    seen_titles.add(title)
+                    news_items.append({
+                        'titulo': title,
+                        'fuente': source,
+                        'url': url_article,
+                        'fecha': date[:10] if date else ''
+                    })
+                
+                if len(news_items) >= max_results:
+                    break
+            
+            return news_items
+        else:
+            print(f"Error GDELT: {response.status_code}")
+            return []
+            
+    except Exception as e:
+        print(f"Error en búsqueda GDELT: {str(e)}")
+        return []
+
 # ==================== RUTAS ====================
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -144,7 +213,18 @@ def get_trending():
         for t in trends[:limit]
     ])
 
-# NUEVO: Endpoint para obtener el historial de análisis
+# NUEVO: Endpoint para buscar noticias reales con GDELT
+@app.route('/api/news', methods=['GET'])
+def get_news():
+    query = request.args.get('q', '')
+    limit = int(request.args.get('limit', 5))
+    
+    if not query:
+        return jsonify({'error': 'Falta el query'}), 400
+    
+    news = search_gdelt_news(query, limit)
+    return jsonify(news)
+
 @app.route('/api/history', methods=['GET'])
 def get_history():
     limit = int(request.args.get('limit', 20))
@@ -177,7 +257,6 @@ def get_history():
     
     return jsonify(history)
 
-# NUEVO: Endpoint para eliminar un análisis del historial
 @app.route('/api/history/<int:analysis_id>', methods=['DELETE'])
 def delete_history(analysis_id):
     conn = get_db()
@@ -202,13 +281,22 @@ def analyze():
         if not api_key:
             return jsonify({'error': 'API key de Qwen no configurada'}), 500
         
-        # MODIFICADO: Prompt con puntaje de relevancia
+        # NUEVO: Buscar noticias reales con GDELT primero
+        real_news = search_gdelt_news(topic, max_results=5, days_back=14)
+        
+        # Construir contexto de noticias reales para el prompt
+        news_context = ""
+        if real_news:
+            news_context = "\n\nNOTICIAS RECIENTES ENCONTRADAS SOBRE EL TEMA:\n"
+            for i, news in enumerate(real_news[:5], 1):
+                news_context += f"{i}. {news['titulo']} (Fuente: {news['fuente']}, {news['fecha']})\n"
+        
         prompt = f"""Eres un editor jefe y analista de inteligencia informativa. Analiza esta tendencia:
 
 TEMA: {topic}
 CATEGORÍA: {category or 'General'}
 REGIÓN: {region or 'Chile'}
-
+{news_context}
 Responde SOLO con JSON válido (sin markdown) con esta estructura exacta:
 {{
   "puntaje_relevancia": 8,
@@ -217,14 +305,17 @@ Responde SOLO con JSON válido (sin markdown) con esta estructura exacta:
   "senales_clave": ["Señal 1", "Señal 2", "Señal 3"],
   "angulos_periodisticos": ["Ángulo 1", "Ángulo 2", "Ángulo 3"],
   "fuentes_sugeridas": ["Fuente 1", "Fuente 2", "Fuente 3"],
-  "titulares_ejemplo": ["Titular 1", "Titular 2", "Titular 3"]
+  "titulares_ejemplo": ["Titular 1", "Titular 2", "Titular 3"],
+  "noticias_reales": {json.dumps(real_news[:5], ensure_ascii=False) if real_news else '[]'}
 }}
 
 El puntaje_relevancia debe ser un número del 1 al 10 donde:
 - 1-3: Baja relevancia (tema niche o muy específico)
 - 4-6: Relevancia media (interesa a un sector)
 - 7-8: Alta relevancia (impacto amplio)
-- 9-10: Relevancia crítica (tema de portada)"""
+- 9-10: Relevancia crítica (tema de portada)
+
+Si encontraste noticias reales, úsalas como contexto para hacer el análisis más preciso."""
 
         headers = {
             'Authorization': f'Bearer {api_key}',
@@ -240,7 +331,7 @@ El puntaje_relevancia debe ser un número del 1 al 10 donde:
             },
             'parameters': {
                 'temperature': 0.7,
-                'max_tokens': 1200
+                'max_tokens': 1500
             }
         }
         
@@ -248,7 +339,7 @@ El puntaje_relevancia debe ser un número del 1 al 10 donde:
             'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
             headers=headers,
             json=payload,
-            timeout=30
+            timeout=45
         )
         
         if response.status_code == 200:
@@ -278,19 +369,19 @@ El puntaje_relevancia debe ser un número del 1 al 10 donde:
                     'senales_clave': ['Aumento de menciones', 'Nuevas regulaciones', 'Cambio en el sector'],
                     'angulos_periodisticos': ['Impacto económico', 'Perspectivas de expertos', 'Casos de éxito'],
                     'fuentes_sugeridas': ['Organismos oficiales', 'Expertos', 'Datos estadísticos'],
-                    'titulares_ejemplo': [f"Análisis: {topic}", f"Las claves de {topic}", f"Expertos sobre {topic}"]
+                    'titulares_ejemplo': [f"Análisis: {topic}", f"Las claves de {topic}", f"Expertos sobre {topic}"],
+                    'noticias_reales': real_news
                 }
         else:
             return jsonify({'error': f'Error API Qwen: {response.status_code}'}), 500
         
-        # Obtener puntaje para guardar en BD
         score = analysis.get('puntaje_relevancia', 5)
         
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute(
             'INSERT INTO trends (topic, category, region, analysis, score) VALUES (?, ?, ?, ?, ?)',
-            (topic, category, region, json.dumps(analysis), score)
+            (topic, category, region, json.dumps(analysis, ensure_ascii=False), score)
         )
         conn.commit()
         conn.close()
@@ -301,6 +392,7 @@ El puntaje_relevancia debe ser un número del 1 al 10 donde:
             'region': region,
             'analysis': analysis,
             'score': score,
+            'noticias_encontradas': len(real_news),
             'timestamp': datetime.now().isoformat()
         })
         
