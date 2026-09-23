@@ -40,13 +40,13 @@ init_db()
 # ==================== CONFIGURACIÓN ====================
 CATEGORIES = [
     {'name': 'Eléctrico', 'icon': '⚡'},
-    {'name': 'Automotriz', 'icon': ''},
+    {'name': 'Automotriz', 'icon': '🚗'},
     {'name': 'Belleza', 'icon': '💄'},
     {'name': 'Minería', 'icon': '️'},
     {'name': 'IA', 'icon': '🤖'},
-    {'name': 'Tendencias', 'icon': ''},
+    {'name': 'Tendencias', 'icon': '📈'},
     {'name': 'Tecnología', 'icon': '💻'},
-    {'name': 'Economía', 'icon': ''}
+    {'name': 'Economía', 'icon': '💰'}
 ]
 
 REGIONS = ['Chile']
@@ -121,7 +121,7 @@ def get_trends_for_category(category):
         random.shuffle(all_trends)
         return all_trends[:5]
 
-# ==================== GDELT: BÚSQUEDA DE NOTICIAS ====================
+# ==================== GDELT: NOTICIAS Y EVOLUCIÓN ====================
 
 def search_gdelt_news(query, max_results=5, days_back=7):
     try:
@@ -129,7 +129,7 @@ def search_gdelt_news(query, max_results=5, days_back=7):
         start_date = end_date - timedelta(days=days_back)
         
         start_str = start_date.strftime('%Y%m%d%H%M%S')
-        end_str = end_date.strftime('%Y%m%d%H%MSS')
+        end_str = end_date.strftime('%Y%m%d%H%M%S')
         
         url = 'https://api.gdeltproject.org/api/v2/doc/doc'
         
@@ -179,6 +179,52 @@ def search_gdelt_news(query, max_results=5, days_back=7):
         print(f"Error GDELT: {str(e)}")
         return []
 
+def get_trend_evolution(query, weeks=4):
+    """
+    Obtiene la evolución del interés en un tema durante las últimas N semanas.
+    Consulta GDELT por cada semana y cuenta artículos.
+    """
+    evolution = []
+    end_date = datetime.now()
+    
+    for i in range(weeks, 0, -1):
+        week_end = end_date - timedelta(weeks=i-1)
+        week_start = week_end - timedelta(days=7)
+        
+        start_str = week_start.strftime('%Y%m%d%H%M%S')
+        end_str = week_end.strftime('%Y%m%d%H%M%S')
+        
+        try:
+            url = 'https://api.gdeltproject.org/api/v2/doc/doc'
+            params = {
+                'query': query,
+                'mode': 'artlist',
+                'format': 'json',
+                'startdatetime': start_str,
+                'enddatetime': end_str,
+                'maxrecords': 200,
+                'sourcelang': 'spa'
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                count = len(data.get('articles', []))
+            else:
+                count = 0
+        except:
+            count = 0
+        
+        evolution.append({
+            'semana': f'Semana {weeks - i + 1}',
+            'fecha_inicio': week_start.strftime('%d/%m'),
+            'fecha_fin': week_end.strftime('%d/%m'),
+            'articulos': count
+        })
+    
+    return evolution
+
 # ==================== RUTAS ====================
 
 @app.route('/')
@@ -213,6 +259,17 @@ def get_news():
     
     news = search_gdelt_news(query, limit)
     return jsonify(news)
+
+@app.route('/api/evolution', methods=['GET'])
+def get_evolution():
+    query = request.args.get('q', '')
+    weeks = int(request.args.get('weeks', 4))
+    
+    if not query:
+        return jsonify({'error': 'Falta el query'}), 400
+    
+    evolution = get_trend_evolution(query, weeks)
+    return jsonify(evolution)
 
 @app.route('/api/history', methods=['GET'])
 def get_history():
@@ -270,7 +327,28 @@ def analyze():
         if not api_key:
             return jsonify({'error': 'API key de Qwen no configurada'}), 500
         
+        # Buscar noticias reales
         real_news = search_gdelt_news(topic, max_results=5, days_back=14)
+        
+        # Obtener evolución del tema
+        evolution = get_trend_evolution(topic, weeks=4)
+        
+        # Calcular tendencia (si está subiendo o bajando)
+        if len(evolution) >= 2:
+            first_week = evolution[0]['articulos']
+            last_week = evolution[-1]['articulos']
+            if last_week > first_week:
+                trend_direction = 'subiendo'
+                trend_percent = round(((last_week - first_week) / max(first_week, 1)) * 100)
+            elif last_week < first_week:
+                trend_direction = 'bajando'
+                trend_percent = round(((first_week - last_week) / max(first_week, 1)) * 100)
+            else:
+                trend_direction = 'estable'
+                trend_percent = 0
+        else:
+            trend_direction = 'sin datos'
+            trend_percent = 0
         
         news_context = ""
         if real_news:
@@ -278,12 +356,16 @@ def analyze():
             for i, news in enumerate(real_news[:5], 1):
                 news_context += f"{i}. {news['titulo']} ({news['fuente']}, {news['fecha']})\n"
         
+        evolution_context = f"\n\nEVOLUCIÓN (últimas 4 semanas): {trend_direction} {trend_percent}%\n"
+        for e in evolution:
+            evolution_context += f"- {e['semana']} ({e['fecha_inicio']}-{e['fecha_fin']}): {e['articulos']} artículos\n"
+        
         prompt = f"""Eres un editor jefe y analista de inteligencia informativa. Analiza:
 
 TEMA: {topic}
 CATEGORÍA: {category or 'General'}
 REGIÓN: {region or 'Chile'}
-{news_context}
+{evolution_context}{news_context}
 Responde SOLO con JSON válido con esta estructura:
 {{
   "puntaje_relevancia": 8,
@@ -371,6 +453,9 @@ Puntaje: 1-3 (Baja), 4-6 (Media), 7-8 (Alta), 9-10 (Crítica)"""
             'region': region,
             'analysis': analysis,
             'score': score,
+            'evolution': evolution,
+            'trend_direction': trend_direction,
+            'trend_percent': trend_percent,
             'noticias_encontradas': len(real_news),
             'timestamp': datetime.now().isoformat()
         })
