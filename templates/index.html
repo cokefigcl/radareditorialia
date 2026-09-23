@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Radar Editorial con IA</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -204,36 +205,36 @@
 </head>
 <body>
     <div class="container">
-        <h1>Radar Editorial con IA</h1>
-        <h3>Categorías</h3>
+        <h1>📰 Radar Editorial con IA</h1>
+        <h3>📂 Categorías</h3>
         <div id="categoryFilters"></div>
     </div>
     
     <div class="container">
         <div class="trending-section">
-            <h3>Tendencias en Chile</h3>
+            <h3>🔥 Tendencias en Chile</h3>
             <div id="trendingList"><p>Cargando...</p></div>
         </div>
     </div>
     
     <div class="container">
-        <h3>Análisis Personalizado</h3>
+        <h3>🔍 Análisis Personalizado</h3>
         <div class="input-group">
             <input type="text" id="topicInput" placeholder="Ej: Endeudamiento de jóvenes en Chile">
             <select id="categorySelect"><option value="">Categoría</option></select>
             <select id="regionSelect"><option value="Chile">Chile</option></select>
         </div>
         <button onclick="analyzeTrend()" id="analyzeBtn">Analizar Tendencia</button>
-        <div class="loading" id="loading"><p>Analizando y buscando datos históricos...</p></div>
+        <div class="loading" id="loading"><p>🤖 Analizando y buscando datos históricos...</p></div>
         <div class="error" id="error"></div>
         <div class="result" id="result">
-            <h3>Análisis: <span id="resultTopic"></span></h3>
+            <h3> Análisis: <span id="resultTopic"></span></h3>
             <div id="analysisContent"></div>
         </div>
     </div>
     
     <div class="container">
-        <h2>Historial de Análisis</h2>
+        <h2>📚 Historial de Análisis</h2>
         <div id="historyList"><p>Cargando...</p></div>
     </div>
     
@@ -255,7 +256,7 @@
                 loadTrending();
                 loadHistory();
             } catch (err) {
-                console.error('Error:', err);
+                console.error('Error cargando filtros:', err);
             }
         }
 
@@ -301,7 +302,7 @@
                 trends.forEach(function(t, i) {
                     html += '<div class="trending-item" onclick="useTrend(\'' + t.topic.replace(/'/g, "\\'") + '\')">';
                     html += '<div class="trending-topic">' + (i + 1) + '. ' + t.topic + '</div>';
-                    html += '<div class="trending-source">' + t.source + ' | ' + t.region + '</div>';
+                    html += '<div class="trending-source">📊 ' + t.source + ' | ' + t.region + '</div>';
                     html += '</div>';
                 });
                 list.innerHTML = html;
@@ -354,24 +355,24 @@
         }
 
         function getScoreLabel(score) {
-            if (score >= 9) return 'CRITICA';
-            if (score >= 7) return 'ALTA';
-            if (score >= 4) return 'MEDIA';
-            return 'BAJA';
+            if (score >= 9) return '🔴 CRÍTICA';
+            if (score >= 7) return '✅ ALTA';
+            if (score >= 4) return '⚠️ MEDIA';
+            return '🔵 BAJA';
         }
 
         function renderEvolutionChart(evolution, topic) {
-            const container = document.getElementById('chartContainer');
-            if (!container) return;
-            
             if (evolutionChart) {
                 evolutionChart.destroy();
             }
             
+            const canvas = document.getElementById('evolutionChart');
+            if (!canvas) return;
+            
             const labels = evolution.map(function(e) { return e.semana; });
             const data = evolution.map(function(e) { return e.articulos; });
             
-            const ctx = document.getElementById('evolutionChart').getContext('2d');
+            const ctx = canvas.getContext('2d');
             evolutionChart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -413,28 +414,31 @@
         }
 
         function displayResult(data) {
-            document.getElementById('resultTopic').textContent = data.topic;
-            const a = data.analysis;
-            const score = data.score || a.puntaje_relevancia || 0;
+            // FIX: Validaciones robustas para evitar errores
+            document.getElementById('resultTopic').textContent = data.topic || 'Tema desconocido';
+            
+            const a = data.analysis || {};
+            const score = data.score || (a.puntaje_relevancia) || 0;
             let html = '';
             
+            // Puntaje de relevancia
             if (score > 0) {
                 html += '<div style="margin-bottom: 20px;">';
                 html += '<span class="score-badge ' + getScoreClass(score) + '">' + score + '/10 - ' + getScoreLabel(score) + '</span>';
                 if (a.justificacion_puntaje) {
-                    html += '<span style="color: #666; font-size: 14px;">' + a.justificacion_puntaje + '</span>';
+                    html += '<span style="color: #666; font-size: 14px; margin-left: 10px;">' + a.justificacion_puntaje + '</span>';
                 }
                 html += '</div>';
             }
             
-            // NUEVO: Sección de evolución temporal
-            if (data.evolution && data.evolution.length > 0) {
+            // Evolución temporal con gráfico
+            if (data.evolution && Array.isArray(data.evolution) && data.evolution.length > 0) {
                 html += '<div class="evolution-section">';
                 html += '<h4>📈 Evolución del Interés (últimas 4 semanas)</h4>';
                 
                 const direction = data.trend_direction || 'estable';
                 const percent = data.trend_percent || 0;
-                let arrow = '️';
+                let arrow = '➡️';
                 let directionText = 'Estable';
                 if (direction === 'subiendo') { arrow = '📈'; directionText = 'Subiendo +' + percent + '%'; }
                 else if (direction === 'bajando') { arrow = '📉'; directionText = 'Bajando -' + percent + '%'; }
@@ -446,59 +450,73 @@
                 html += '</div>';
             }
             
+            // Hipótesis
             if (a.hipotesis) {
                 html += '<div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3; margin: 20px 0;">';
-                html += '<h4 style="margin-top:0; color: #1565c0;">Hipótesis Editorial</h4>';
+                html += '<h4 style="margin-top:0; color: #1565c0;">🎯 Hipótesis Editorial</h4>';
                 html += '<p style="margin-bottom:0; line-height: 1.6;">' + a.hipotesis + '</p>';
                 html += '</div>';
             }
             
-            if (a.noticias_reales && a.noticias_reales.length > 0) {
+            // Noticias reales
+            if (a.noticias_reales && Array.isArray(a.noticias_reales) && a.noticias_reales.length > 0) {
                 html += '<div class="news-section">';
-                html += '<h4>Noticias Reales Encontradas (' + a.noticias_reales.length + ')</h4>';
+                html += '<h4>📰 Noticias Reales Encontradas (' + a.noticias_reales.length + ')</h4>';
                 a.noticias_reales.forEach(function(news) {
                     html += '<div class="news-item">';
                     if (news.url) {
-                        html += '<div class="news-title"><a href="' + news.url + '" target="_blank">' + news.titulo + '</a></div>';
+                        html += '<div class="news-title"><a href="' + news.url + '" target="_blank"> ' + news.titulo + '</a></div>';
                     } else {
                         html += '<div class="news-title">' + news.titulo + '</div>';
                     }
                     html += '<div class="news-meta">';
-                    if (news.fuente) html += news.fuente;
-                    if (news.fecha) html += ' | ' + news.fecha;
+                    if (news.fuente) html += '📡 ' + news.fuente;
+                    if (news.fecha) html += ' | 📅 ' + news.fecha;
                     html += '</div></div>';
                 });
                 html += '</div>';
             }
             
-            if (a.titulares_ejemplo && a.titulares_ejemplo.length) {
-                html += '<h4>Posibles Titulares</h4><ul>';
-                a.titulares_ejemplo.forEach(function(t) { html += '<li>' + t + '</li>'; });
+            // Titulares
+            if (a.titulares_ejemplo && Array.isArray(a.titulares_ejemplo) && a.titulares_ejemplo.length > 0) {
+                html += '<h4>📝 Posibles Titulares</h4><ul>';
+                a.titulares_ejemplo.forEach(function(t) { html += '<li>📌 ' + t + '</li>'; });
                 html += '</ul>';
             }
-            if (a.senales_clave && a.senales_clave.length) {
-                html += '<h4>Señales clave</h4><div>';
+            
+            // Señales clave
+            if (a.senales_clave && Array.isArray(a.senales_clave) && a.senales_clave.length > 0) {
+                html += '<h4>🔍 Señales clave</h4><div>';
                 a.senales_clave.forEach(function(s) { html += '<span class="tag">' + s + '</span>'; });
                 html += '</div>';
             }
-            if (a.angulos_periodisticos && a.angulos_periodisticos.length) {
-                html += '<h4>Angulos de investigación</h4><ul>';
+            
+            // Ángulos
+            if (a.angulos_periodisticos && Array.isArray(a.angulos_periodisticos) && a.angulos_periodisticos.length > 0) {
+                html += '<h4>📝 Ángulos de investigación</h4><ul>';
                 a.angulos_periodisticos.forEach(function(ang) { html += '<li>' + ang + '</li>'; });
                 html += '</ul>';
             }
-            if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) {
-                html += '<h4>Fuentes sugeridas</h4><ul>';
-                a.fuentes_sugeridas.forEach(function(f) { html += '<li>' + f + '</li>'; });
+            
+            // Fuentes
+            if (a.fuentes_sugeridas && Array.isArray(a.fuentes_sugeridas) && a.fuentes_sugeridas.length > 0) {
+                html += '<h4>📚 Fuentes sugeridas</h4><ul>';
+                a.fuentes_sugeridas.forEach(function(f) { html += '<li>🔗 ' + f + '</li>'; });
                 html += '</ul>';
+            }
+            
+            // Si no hay nada que mostrar
+            if (html === '') {
+                html = '<p style="color: #666;">No se generó análisis. Intenta con otro tema.</p>';
             }
             
             document.getElementById('analysisContent').innerHTML = html;
             
-            // Renderizar el gráfico después de insertar el HTML
-            if (data.evolution && data.evolution.length > 0) {
+            // Renderizar gráfico después de insertar HTML
+            if (data.evolution && Array.isArray(data.evolution) && data.evolution.length > 0) {
                 setTimeout(function() {
                     renderEvolutionChart(data.evolution, data.topic);
-                }, 100);
+                }, 200);
             }
         }
 
@@ -514,20 +532,21 @@
                 }
                 let html = '';
                 history.forEach(function(item) {
-                    const score = item.score || (item.analysis && item.analysis.puntaje_relevancia) || 0;
+                    const analysis = item.analysis || {};
+                    const score = item.score || analysis.puntaje_relevancia || 0;
                     const category = item.category || 'General';
                     const date = item.created_at ? new Date(item.created_at).toLocaleString('es-CL') : '';
                     html += '<div class="history-item">';
                     html += '<div class="history-header">';
                     html += '<div><div class="history-topic">' + item.topic + '</div>';
-                    html += '<div class="history-meta">' + category + ' | ' + date + '</div></div>';
+                    html += '<div class="history-meta">📂 ' + category + ' | 📅 ' + date + '</div></div>';
                     if (score > 0) {
                         html += '<span class="score-badge ' + getScoreClass(score) + '">' + score + '/10</span>';
                     }
                     html += '</div>';
                     html += '<div class="history-actions">';
-                    html += '<button class="btn-small btn-analyze" onclick="reAnalyze(\'' + item.topic.replace(/'/g, "\\'") + '\', \'' + (item.category || '') + '\')">Re-analizar</button>';
-                    html += '<button class="btn-small btn-delete" onclick="deleteAnalysis(' + item.id + ')">Eliminar</button>';
+                    html += '<button class="btn-small btn-analyze" onclick="reAnalyze(\'' + item.topic.replace(/'/g, "\\'") + '\', \'' + (item.category || '') + '\')">🔄 Re-analizar</button>';
+                    html += '<button class="btn-small btn-delete" onclick="deleteAnalysis(' + item.id + ')">🗑️ Eliminar</button>';
                     html += '</div></div>';
                 });
                 list.innerHTML = html;
