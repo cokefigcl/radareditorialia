@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Radar Editorial con IA</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             max-width: 1200px;
@@ -21,7 +20,7 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             margin-bottom: 20px;
         }
-        h1, h2, h3, h4 { color: #333; margin-top: 0; }
+        h1, h2, h3, h4 { color: #333; margin-bottom: 15px; }
         .filter-btn {
             padding: 8px 16px;
             border: 2px solid #ddd;
@@ -139,7 +138,7 @@
         .history-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             flex-wrap: wrap;
             gap: 10px;
         }
@@ -174,29 +173,6 @@
         .news-title a { color: white; text-decoration: none; }
         .news-title a:hover { text-decoration: underline; }
         .news-meta { font-size: 12px; opacity: 0.9; }
-        .evolution-section {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            padding: 25px;
-            border-radius: 12px;
-            color: white;
-            margin-top: 20px;
-        }
-        .evolution-section h4 { color: white; margin: 0 0 15px 0; }
-        .trend-indicator {
-            display: inline-block;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 14px;
-            margin-bottom: 15px;
-            background: rgba(255,255,255,0.25);
-        }
-        .chart-container {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-        }
         .no-news {
             background: #fff3cd;
             padding: 15px;
@@ -221,7 +197,7 @@
 </head>
 <body>
     <div class="container">
-        <h1> Radar Editorial con IA</h1>
+        <h1>📰 Radar Editorial con IA</h1>
         <h3>📂 Categorías</h3>
         <div id="categoryFilters"></div>
     </div>
@@ -241,7 +217,7 @@
             <select id="regionSelect"><option value="Chile">Chile</option></select>
         </div>
         <button onclick="analyzeTrend()" id="analyzeBtn">Analizar Tendencia</button>
-        <div class="loading" id="loading"><p> Analizando...</p></div>
+        <div class="loading" id="loading"><p>🤖 Analizando...</p></div>
         <div class="error" id="error"></div>
         <div class="warning" id="warning"></div>
         <div class="result" id="result">
@@ -257,13 +233,12 @@
     
     <div class="footer">
         <div>Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - <a href="https://ltv.cl" target="_blank">LTV.cl</a></div>
-        <div class="version">Versión 3.2.0 | Última actualización: Septiembre 2026</div>
+        <div class="version">Versión 4.0.0 | Última actualización: Septiembre 2026</div>
     </div>
 
     <script>
         let currentCategory = 'all';
         let categories = [];
-        let evolutionChart = null;
 
         async function loadFilters() {
             try {
@@ -353,7 +328,6 @@
                 });
                 const data = await res.json();
                 
-                // Mostrar warning si existe
                 if (data.warning) {
                     document.getElementById('warning').textContent = '⚠️ ' + data.warning;
                     document.getElementById('warning').style.display = 'block';
@@ -385,66 +359,13 @@
             return '🔵 BAJA';
         }
 
-        function renderEvolutionChart(evolution, topic) {
-            if (evolutionChart) {
-                evolutionChart.destroy();
-            }
-            
-            const canvas = document.getElementById('evolutionChart');
-            if (!canvas) return;
-            
-            const labels = evolution.map(function(e) { return e.semana; });
-            const data = evolution.map(function(e) { return e.articulos; });
-            
-            const ctx = canvas.getContext('2d');
-            evolutionChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Artículos sobre "' + topic + '"',
-                        data: data,
-                        borderColor: '#007bff',
-                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4,
-                        pointBackgroundColor: '#007bff',
-                        pointRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: true,
-                            labels: { color: '#333' }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { color: '#666' },
-                            grid: { color: '#e0e0e0' }
-                        },
-                        x: {
-                            ticks: { color: '#666' },
-                            grid: { color: '#e0e0e0' }
-                        }
-                    }
-                }
-            });
-        }
-
         function displayResult(data) {
-            // Validaciones robustas
             if (!data) {
                 document.getElementById('analysisContent').innerHTML = '<p>Error: No se recibieron datos</p>';
                 return;
             }
             
-            document.getElementById('resultTopic').textContent = data.topic || 'Tema desconocido';
+            document.getElementById('resultTopic').textContent = data.topic || 'Tema';
             const a = data.analysis || {};
             const score = data.score || a.puntaje_relevancia || 0;
             let html = '';
@@ -456,25 +377,6 @@
                 if (a.justificacion_puntaje) {
                     html += '<span style="color: #666; font-size: 14px; margin-left: 10px;">' + a.justificacion_puntaje + '</span>';
                 }
-                html += '</div>';
-            }
-            
-            // Evolución
-            if (data.evolution && Array.isArray(data.evolution) && data.evolution.length > 0) {
-                html += '<div class="evolution-section">';
-                html += '<h4> Evolución del Interés (últimas 2 semanas)</h4>';
-                
-                const direction = data.trend_direction || 'estable';
-                const percent = data.trend_percent || 0;
-                let arrow = '➡️';
-                let directionText = 'Estable';
-                if (direction === 'subiendo') { arrow = '📈'; directionText = 'Subiendo +' + percent + '%'; }
-                else if (direction === 'bajando') { arrow = '📉'; directionText = 'Bajando -' + percent + '%'; }
-                
-                html += '<div class="trend-indicator">' + arrow + ' Tendencia: ' + directionText + '</div>';
-                html += '<div class="chart-container" style="height: 250px;">';
-                html += '<canvas id="evolutionChart"></canvas>';
-                html += '</div>';
                 html += '</div>';
             }
             
@@ -505,7 +407,7 @@
                 html += '</div>';
             } else {
                 html += '<div class="no-news">';
-                html += '<p><strong>⚠️ No se encontraron noticias recientes</strong></p>';
+                html += '<p><strong>️ No se encontraron noticias recientes</strong></p>';
                 html += '<p style="margin-top: 8px; font-size: 13px;">Esto puede deberse a: es un tema muy específico, muy nuevo, o los medios locales no están indexados.</p>';
                 html += '</div>';
             }
@@ -519,7 +421,7 @@
             
             // Señales
             if (a.senales_clave && Array.isArray(a.senales_clave) && a.senales_clave.length > 0) {
-                html += '<h4> Señales clave</h4><div>';
+                html += '<h4>🔍 Señales clave</h4><div>';
                 a.senales_clave.forEach(function(s) { html += '<span class="tag">' + s + '</span>'; });
                 html += '</div>';
             }
@@ -533,7 +435,7 @@
             
             // Fuentes
             if (a.fuentes_sugeridas && Array.isArray(a.fuentes_sugeridas) && a.fuentes_sugeridas.length > 0) {
-                html += '<h4>📚 Fuentes sugeridas</h4><ul>';
+                html += '<h4> Fuentes sugeridas</h4><ul>';
                 a.fuentes_sugeridas.forEach(function(f) { html += '<li>🔗 ' + f + '</li>'; });
                 html += '</ul>';
             }
@@ -543,13 +445,6 @@
             }
             
             document.getElementById('analysisContent').innerHTML = html;
-            
-            // Renderizar gráfico
-            if (data.evolution && Array.isArray(data.evolution) && data.evolution.length > 0) {
-                setTimeout(function() {
-                    renderEvolutionChart(data.evolution, data.topic);
-                }, 200);
-            }
         }
 
         async function loadHistory() {
