@@ -2,7 +2,7 @@ from flask import Flask, render_template, jsonify, request
 from dotenv import load_dotenv
 import os
 import json
-import psycopg2
+import sqlite3
 from datetime import datetime
 from ai_analyzer import analyze_trend_with_qwen
 
@@ -10,23 +10,24 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Configurar base de datos PostgreSQL (Railway la provee)
-DATABASE_URL = os.getenv('DATABASE_URL')
+# Usar SQLite (archivo local)
+DB_PATH = os.path.join(os.path.dirname(__file__), 'trends.db')
 
 def get_db_connection():
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
-    """Inicializar base de datos"""
+    """Inicializar base de datos SQLite"""
     conn = get_db_connection()
     cursor = conn.cursor()
     
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS trends (
-            id SERIAL PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             topic TEXT NOT NULL,
-            analysis JSONB,
+            analysis TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -40,7 +41,7 @@ def save_trend(topic, analysis):
     cursor = conn.cursor()
     
     cursor.execute(
-        'INSERT INTO trends (topic, analysis) VALUES (%s, %s)',
+        'INSERT INTO trends (topic, analysis) VALUES (?, ?)',
         (topic, json.dumps(analysis))
     )
     
@@ -53,7 +54,7 @@ def get_trends(limit=20):
     cursor = conn.cursor()
     
     cursor.execute(
-        'SELECT topic, analysis, created_at FROM trends ORDER BY created_at DESC LIMIT %s',
+        'SELECT topic, analysis, created_at FROM trends ORDER BY created_at DESC LIMIT ?',
         (limit,)
     )
     
@@ -62,9 +63,9 @@ def get_trends(limit=20):
     
     return [
         {
-            'topic': row[0],
-            'analysis': row[1] if isinstance(row[1], dict) else json.loads(row[1]) if row[1] else {},
-            'created_at': row[2].isoformat() if row[2] else None
+            'topic': row['topic'],
+            'analysis': json.loads(row['analysis']) if row['analysis'] else {},
+            'created_at': row['created_at']
         }
         for row in rows
     ]
@@ -103,4 +104,5 @@ def trends():
     return jsonify(get_trends())
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
