@@ -38,17 +38,18 @@ init_db()
 
 # ==================== CONFIGURACIÓN ====================
 CATEGORIES = [
-    {'name': 'Eléctrico', 'icon': '⚡'},
+    {'name': 'Eléctrico', 'icon': ''},
     {'name': 'Automotriz', 'icon': '🚗'},
     {'name': 'Belleza', 'icon': '💄'},
-    {'name': 'Minería', 'icon': '️'},
+    {'name': 'Minería', 'icon': '⛏️'},
     {'name': 'IA', 'icon': '🤖'},
     {'name': 'Tendencias', 'icon': '📈'},
     {'name': 'Tecnología', 'icon': '💻'},
     {'name': 'Economía', 'icon': '💰'}
 ]
 
-REGIONS = ['Chile', 'Sudamérica', 'Norteamérica', 'América Latina', 'Europa', 'Asia', 'Global']
+# Solo Chile por defecto
+REGIONS = ['Chile']
 
 # ==================== RUTAS ====================
 @app.route('/')
@@ -65,21 +66,24 @@ def get_regions():
 
 @app.route('/api/trending', methods=['GET'])
 def get_trending():
-    region = request.args.get('region', 'Global')
+    region = request.args.get('region', 'Chile')  # Default Chile
     limit = int(request.args.get('limit', 5))
     
-    trends_db = {
-        'Chile': ["Reforma de pensiones y su impacto", "Precio del cobre alcanza máximos", "Sequía en la zona central", "Avance de la electromovilidad", "Nuevas regulaciones al comercio electrónico"],
-        'Sudamérica': ["Acuerdos comerciales en el Mercosur", "Crisis hídrica en la cuenca del Plata", "Crecimiento del sector tecnológico", "Elecciones regionales", "Exportaciones de litio"],
-        'Norteamérica': ["Tasas de interés de la Reserva Federal", "Avances en IA generativa", "Crisis en la cadena de suministro", "Elecciones y mercados", "Inversión en energías renovables"],
-        'América Latina': ["Inflación y políticas monetarias", "Crecimiento de la banca digital", "Migración laboral", "Desafíos de la educación", "Turismo sostenible"],
-        'Europa': ["Regulaciones de IA de la UE", "Crisis energética y transición verde", "Inflación en la eurozona", "Elecciones al Parlamento Europeo", "Innovación automotriz"],
-        'Asia': ["Crecimiento económico de India", "Tensiones comerciales", "Avances en semiconductores", "Envejecimiento poblacional", "Inversión en infraestructura"],
-        'Global': ["Cambio climático y cumbres internacionales", "IA y el futuro del trabajo", "Crisis de salud mental", "Economía digital", "Ciudades inteligentes"]
-    }
+    # Solo tendencias de Chile
+    trends_chile = [
+        "Reforma de pensiones y su impacto en jóvenes",
+        "Precio del cobre alcanza nuevos máximos históricos",
+        "Sequía en la zona central y nuevas medidas hídricas",
+        "Avance de la electromovilidad en transporte público",
+        "Nuevas regulaciones para el comercio electrónico",
+        "Deuda de los jóvenes y medios de pago digitales",
+        "Inteligencia Artificial en el sector minero",
+        "Crisis habitacional en Santiago",
+        "Transición energética y energías renovables",
+        "Educación superior y financiamiento estudiantil"
+    ]
     
-    region_trends = trends_db.get(region, trends_db['Global'])
-    return jsonify([{'topic': t, 'source': 'Tendencias ' + region, 'region': region} for t in region_trends[:limit]])
+    return jsonify([{'topic': t, 'source': 'Tendencias Chile', 'region': 'Chile'} for t in trends_chile[:limit]])
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
@@ -94,32 +98,28 @@ def analyze():
         
         api_key = os.getenv('QWEN_API_KEY')
         if not api_key:
-            return jsonify({'error': 'API key de Qwen no configurada en Railway'}), 500
+            return jsonify({'error': 'API key de Qwen no configurada'}), 500
         
-        # Prompt profesional para análisis periodístico
-        prompt = f"""Eres un editor jefe y analista de inteligencia informativa de un medio prestigioso. 
-Analiza la siguiente tendencia periodística:
+        prompt = f"""Eres un editor jefe y analista de inteligencia informativa. Analiza esta tendencia:
 
 TEMA: {topic}
 CATEGORÍA: {category or 'General'}
-REGIÓN: {region or 'Global'}
+REGIÓN: {region or 'Chile'}
 
-Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin texto extra) con esta estructura exacta:
+Responde SOLO con JSON válido (sin markdown) con esta estructura:
 {{
-  "hipotesis": "Tu hipótesis principal de 2-3 oraciones sobre cómo evolucionará este tema.",
+  "hipotesis": "Hipótesis de 2-3 oraciones",
   "senales_clave": ["Señal 1", "Señal 2", "Señal 3"],
   "angulos_periodisticos": ["Ángulo 1", "Ángulo 2", "Ángulo 3"],
   "fuentes_sugeridas": ["Fuente 1", "Fuente 2", "Fuente 3"],
-  "titulares_ejemplo": ["Ejemplo de titular 1", "Ejemplo de titular 2", "Ejemplo de titular 3"]
-}}
-Sé específico, práctico y con enfoque periodístico real."""
+  "titulares_ejemplo": ["Titular 1", "Titular 2", "Titular 3"]
+}}"""
 
         headers = {
             'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json'
         }
         
-        # FORMATO CORRECTO PARA DASHSCOPE (API de Qwen)
         payload = {
             'model': 'qwen-plus',
             'input': {
@@ -133,7 +133,6 @@ Sé específico, práctico y con enfoque periodístico real."""
             }
         }
         
-        # Llamada real a la API de Qwen (DashScope)
         response = requests.post(
             'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
             headers=headers,
@@ -144,27 +143,57 @@ Sé específico, práctico y con enfoque periodístico real."""
         if response.status_code == 200:
             result = response.json()
             
-            # DashScope devuelve la respuesta en output.choices[0].message.content
-            analysis_text = result['output']['choices'][0]['message']['content']
+            # Manejar diferentes formatos de respuesta de DashScope
+            try:
+                # Intentar formato nuevo: output.choices[0].message.content
+                if 'output' in result and 'choices' in result['output']:
+                    analysis_text = result['output']['choices'][0]['message']['content']
+                # Intentar formato antiguo: output.text
+                elif 'output' in result and 'text' in result['output']:
+                    analysis_text = result['output']['text']
+                # Fallback: buscar en output directamente
+                elif 'output' in result:
+                    analysis_text = str(result['output'])
+                else:
+                    analysis_text = str(result)
+            except (KeyError, IndexError, TypeError) as e:
+                print(f"Error parseando respuesta: {e}")
+                analysis_text = str(result)
             
-            # Limpiar el texto por si la IA agrega ```json
+            # Limpiar texto
             analysis_text = analysis_text.replace('```json', '').replace('```', '').strip()
             
             try:
                 analysis = json.loads(analysis_text)
             except json.JSONDecodeError:
-                # Fallback si el JSON falla
+                # Si no es JSON válido, crear análisis básico
                 analysis = {
-                    'hipotesis': analysis_text,
-                    'senales_clave': ['Verificar fuentes', 'Monitorear redes'],
-                    'angulos_periodisticos': ['Impacto local', 'Perspectiva global'],
-                    'fuentes_sugeridas': ['Expertos', 'Datos oficiales'],
-                    'titulares_ejemplo': [f"Análisis en profundidad: {topic}"]
+                    'hipotesis': f'La tendencia "{topic}" muestra relevancia en el contexto {region or "chileno"}. Se recomienda monitorear su evolución.',
+                    'senales_clave': [
+                        f'Aumento de menciones sobre "{topic}" en medios',
+                        'Nuevas propuestas legislativas relacionadas',
+                        'Cambio en el comportamiento del sector'
+                    ],
+                    'angulos_periodisticos': [
+                        f'Impacto económico y social de "{topic}"',
+                        'Perspectivas de expertos y actores clave',
+                        'Casos de éxito y fracaso'
+                    ],
+                    'fuentes_sugeridas': [
+                        'Organismos oficiales',
+                        'Expertos del sector',
+                        'Datos estadísticos'
+                    ],
+                    'titulares_ejemplo': [
+                        f"Análisis: {topic} - ¿Qué está pasando?",
+                        f"Las claves de {topic} en Chile",
+                        f"Expertos advierten sobre {topic}"
+                    ]
                 }
         else:
-            return jsonify({'error': f'Error en API de Qwen: {response.status_code} - {response.text}'}), 500
+            return jsonify({'error': f'Error API Qwen: {response.status_code}'}), 500
         
-        # Guardar en base de datos
+        # Guardar en BD
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute(
@@ -183,6 +212,7 @@ Sé específico, práctico y con enfoque periodístico real."""
         })
         
     except Exception as e:
+        print(f"Error en analyze: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
