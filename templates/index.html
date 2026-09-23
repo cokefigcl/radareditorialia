@@ -45,7 +45,7 @@
             cursor: pointer;
             font-size: 14px;
             transition: all 0.2s;
-            color: #333;  /* ← TEXTO VISIBLE */
+            color: #333;
             font-weight: 500;
         }
         .filter-btn:hover {
@@ -55,40 +55,42 @@
         }
         .filter-btn.active {
             background: #007bff;
-            color: white !important;  /* ← BLANCO CUANDO ACTIVO */
+            color: white !important;
             border-color: #007bff;
         }
         
-        /* Top tendencias */
-        .top-trends {
-            background: #fff3cd;
-            padding: 20px;
+        /* Tendencias reales */
+        .trending-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 25px;
+            border-radius: 12px;
+            color: white;
+        }
+        .trending-section h3 {
+            margin: 0 0 20px 0;
+            color: white;
+            font-size: 20px;
+        }
+        .trending-item {
+            padding: 15px;
+            margin: 10px 0;
+            background: rgba(255,255,255,0.15);
             border-radius: 8px;
-            border-left: 4px solid #ffc107;
-        }
-        .top-trends h3 {
-            margin: 0 0 15px 0;
-            color: #856404;
-        }
-        .trend-item {
-            padding: 12px;
-            margin: 8px 0;
-            background: white;
-            border-radius: 6px;
             cursor: pointer;
             transition: all 0.2s;
+            backdrop-filter: blur(10px);
         }
-        .trend-item:hover {
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        .trending-item:hover {
+            background: rgba(255,255,255,0.25);
             transform: translateX(5px);
         }
-        .trend-topic {
+        .trending-topic {
             font-weight: 600;
-            color: #333;
+            font-size: 16px;
         }
-        .trend-meta {
+        .trending-source {
             font-size: 12px;
-            color: #666;
+            opacity: 0.8;
             margin-top: 5px;
         }
         
@@ -183,11 +185,11 @@
         </div>
     </div>
     
-    <!-- Top Tendencias -->
+    <!-- Tendencias Reales de Google -->
     <div class="container">
-        <div class="top-trends">
-            <h3>🔥 Top 3 Tendencias</h3>
-            <div id="topTrendsList">
+        <div class="trending-section">
+            <h3>🔥 Tendencias en Tiempo Real - Google Trends</h3>
+            <div id="trendingList">
                 <p>Cargando tendencias...</p>
             </div>
         </div>
@@ -237,7 +239,7 @@
                 regions = await regRes.json();
                 
                 renderFilters();
-                loadTopTrends();
+                loadTrending();
             } catch (err) {
                 console.error('Error:', err);
             }
@@ -288,7 +290,7 @@
                     btn.classList.add('active');
                 }
             });
-            loadTopTrends();
+            loadTrending();
         }
 
         function selectRegion(region) {
@@ -299,36 +301,31 @@
                     btn.classList.add('active');
                 }
             });
-            loadTopTrends();
+            loadTrending();
         }
 
-        async function loadTopTrends() {
-            const list = document.getElementById('topTrendsList');
-            list.innerHTML = '<p>Cargando...</p>';
+        async function loadTrending() {
+            const list = document.getElementById('trendingList');
+            list.innerHTML = '<p>Cargando tendencias de Google...</p>';
             
             try {
-                let url = '/api/trends?limit=3';
-                if (currentCategory !== 'all') url += `&category=${currentCategory}`;
-                if (currentRegion !== 'all') url += `&region=${currentRegion}`;
-                
-                const res = await fetch(url);
+                const region = currentRegion !== 'all' ? currentRegion : 'Global';
+                const res = await fetch(`/api/trending?region=${encodeURIComponent(region)}&limit=5`);
                 const trends = await res.json();
                 
                 if (trends.length === 0) {
-                    list.innerHTML = '<p>No hay tendencias aún. ¡Sé el primero!</p>';
+                    list.innerHTML = '<p>No hay tendencias disponibles en este momento.</p>';
                     return;
                 }
                 
                 list.innerHTML = trends.map((t, i) => `
-                    <div class="trend-item" onclick="useTrend('${t.topic.replace(/'/g, "\\'")}')">
-                        <div class="trend-topic">${i + 1}. ${t.topic}</div>
-                        <div class="trend-meta">
-                            ${t.category || ''} ${t.region ? '| ' + t.region : ''}
-                        </div>
+                    <div class="trending-item" onclick="useTrend('${t.topic.replace(/'/g, "\\'")}')">
+                        <div class="trending-topic">${i + 1}. ${t.topic}</div>
+                        <div class="trending-source">📊 ${t.source} ${t.region ? '| ' + t.region : ''}</div>
                     </div>
                 `).join('');
             } catch (err) {
-                list.innerHTML = '<p>Error cargando</p>';
+                list.innerHTML = '<p>Error cargando tendencias</p>';
             }
         }
 
@@ -364,7 +361,6 @@
 
                 displayResult(data);
                 document.getElementById('result').style.display = 'block';
-                loadTopTrends();
             } catch (err) {
                 document.getElementById('error').textContent = 'Error: ' + err.message;
                 document.getElementById('error').style.display = 'block';
@@ -382,12 +378,12 @@
             if (a.hipotesis) html += `<h4>🎯 Hipótesis</h4><p>${a.hipotesis}</p>`;
             
             if (a.senales_clave && a.senales_clave.length) {
-                html += `<h4> Señales clave</h4>`;
+                html += `<h4>🔍 Señales clave</h4>`;
                 a.senales_clave.forEach(s => html += `<span class="tag">${s}</span>`);
             }
             
             if (a.angulos_periodisticos && a.angulos_periodisticos.length) {
-                html += `<h4> Ángulos periodísticos</h4><ul>`;
+                html += `<h4>📝 Ángulos periodísticos</h4><ul>`;
                 a.angulos_periodisticos.forEach(ang => html += `<li>${ang}</li>`);
                 html += `</ul>`;
             }
