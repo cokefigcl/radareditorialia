@@ -5,7 +5,6 @@ import json
 import sqlite3
 import requests
 from datetime import datetime, timedelta
-import time
 
 load_dotenv()
 
@@ -42,9 +41,9 @@ init_db()
 # ==================== CONFIGURACIÓN ====================
 CATEGORIES = [
     {'name': 'Eléctrico', 'icon': '⚡'},
-    {'name': 'Automotriz', 'icon': ''},
+    {'name': 'Automotriz', 'icon': '🚗'},
     {'name': 'Belleza', 'icon': '💄'},
-    {'name': 'Minería', 'icon': '️'},
+    {'name': 'Minería', 'icon': '⛏️'},
     {'name': 'IA', 'icon': '🤖'},
     {'name': 'Tendencias', 'icon': '📈'},
     {'name': 'Tecnología', 'icon': '💻'},
@@ -123,15 +122,13 @@ def get_trends_for_category(category):
         random.shuffle(all_trends)
         return all_trends[:5]
 
-# ==================== SISTEMA DE CONTADOR DE API ====================
+# ==================== CONTADOR DE API ====================
 
 def load_counter():
-    """Cargar contador desde archivo"""
     try:
         if os.path.exists(COUNTER_PATH):
             with open(COUNTER_PATH, 'r') as f:
                 data = json.load(f)
-            # Resetear si es un nuevo día
             today = datetime.now().strftime('%Y-%m-%d')
             if data.get('date') != today:
                 return {'count': 0, 'date': today, 'force_gdelt': False}
@@ -142,7 +139,6 @@ def load_counter():
         return {'count': 0, 'date': datetime.now().strftime('%Y-%m-%d'), 'force_gdelt': False}
 
 def save_counter(data):
-    """Guardar contador en archivo"""
     try:
         with open(COUNTER_PATH, 'w') as f:
             json.dump(data, f)
@@ -150,19 +146,14 @@ def save_counter(data):
         pass
 
 def increment_counter():
-    """Incrementar contador y devolver si debe usar GDELT"""
     counter = load_counter()
     counter['count'] += 1
-    
-    # Si llegamos al 90% del límite (90 de 100), forzar GDELT
     if counter['count'] >= 90:
         counter['force_gdelt'] = True
-    
     save_counter(counter)
     return counter
 
 def get_api_status():
-    """Obtener estado actual de la API"""
     counter = load_counter()
     remaining = max(0, 100 - counter['count'])
     return {
@@ -173,16 +164,14 @@ def get_api_status():
         'date': counter.get('date', '')
     }
 
-# ==================== NEWSAPI ====================
+# ==================== BÚSQUEDA DE NOTICIAS ====================
 
 def search_newsapi(topic, max_results=5, days_back=7):
-    """Buscar noticias en NewsAPI"""
     api_key = os.getenv('NEWSAPI_KEY')
     if not api_key:
-        return None  # Indica que no está configurada
+        return None
     
     try:
-        # Calcular fechas
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days_back)
         
@@ -221,7 +210,6 @@ def search_newsapi(topic, max_results=5, days_back=7):
             
             return news_items
         elif response.status_code == 429:
-            # Rate limit alcanzado
             counter = load_counter()
             counter['force_gdelt'] = True
             save_counter(counter)
@@ -233,10 +221,7 @@ def search_newsapi(topic, max_results=5, days_back=7):
         print(f"Error NewsAPI: {str(e)}")
         return None
 
-# ==================== GDELT ====================
-
 def search_gdelt_news(topic, max_results=5, days_back=7):
-    """Buscar noticias en GDELT"""
     try:
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days_back)
@@ -282,26 +267,19 @@ def search_gdelt_news(topic, max_results=5, days_back=7):
         return []
 
 def search_news_smart(topic, max_results=5, days_back=7):
-    """
-    Sistema inteligente: intenta NewsAPI primero, fallback a GDELT
-    """
     counter = load_counter()
     
-    # Si ya estamos forzando GDELT, usar directamente
     if counter.get('force_gdelt', False):
         print(f"Usando GDELT (límite NewsAPI alcanzado)")
         return search_gdelt_news(topic, max_results, days_back)
     
-    # Intentar NewsAPI
     print(f"Intentando NewsAPI (requests hoy: {counter['count']}/100)")
     result = search_newsapi(topic, max_results, days_back)
     
-    # Si NewsAPI no está configurada o falló, usar GDELT
     if result is None:
         print("NewsAPI no disponible, usando GDELT")
         return search_gdelt_news(topic, max_results, days_back)
     
-    # Si alcanzamos el rate limit
     if result == 'rate_limit':
         print("Rate limit de NewsAPI alcanzado, cambiando a GDELT")
         counter = load_counter()
@@ -309,12 +287,10 @@ def search_news_smart(topic, max_results=5, days_back=7):
         save_counter(counter)
         return search_gdelt_news(topic, max_results, days_back)
     
-    # Incrementar contador y devolver resultado
     increment_counter()
     return result
 
 def get_trend_evolution(topic, weeks=2):
-    """Evolución del interés (usa GDELT porque es gratis e ilimitado)"""
     evolution = []
     end_date = datetime.now()
     
@@ -352,6 +328,111 @@ def get_trend_evolution(topic, weeks=2):
     
     return evolution
 
+# ==================== ANÁLISIS CON IA ====================
+
+def generate_analysis_with_qwen(topic, category, region, real_news):
+    """Generar análisis usando Qwen"""
+    api_key = os.getenv('QWEN_API_KEY')
+    
+    if not api_key:
+        return None, "API key no configurada"
+    
+    news_context = ""
+    if real_news:
+        news_context = "\n\nNOTICIAS ENCONTRADAS:\n" + "\n".join([f"- {n['titulo']}" for n in real_news])
+    
+    prompt = f"""Analiza esta tendencia periodística:
+
+TEMA: {topic}
+CATEGORÍA: {category or 'General'}
+REGIÓN: {region or 'Chile'}
+{news_context}
+
+Responde SOLO con JSON válido:
+{{
+  "puntaje_relevancia": 7,
+  "justificacion_puntaje": "Breve explicación",
+  "hipotesis": "Hipótesis de 2-3 oraciones",
+  "senales_clave": ["Señal 1", "Señal 2"],
+  "angulos_periodisticos": ["Ángulo 1", "Ángulo 2"],
+  "fuentes_sugeridas": ["Fuente 1", "Fuente 2"],
+  "titulares_ejemplo": ["Titular 1", "Titular 2"],
+  "noticias_reales": {json.dumps(real_news if real_news else [], ensure_ascii=False)}
+}}"""
+
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json'
+    }
+    
+    payload = {
+        'model': 'qwen-plus',
+        'input': {'messages': [{'role': 'user', 'content': prompt}]},
+        'parameters': {'temperature': 0.7, 'max_tokens': 1000}
+    }
+    
+    try:
+        response = requests.post(
+            'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
+            headers=headers,
+            json=payload,
+            timeout=60
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            
+            try:
+                if 'output' in result and 'choices' in result['output']:
+                    analysis_text = result['output']['choices'][0]['message']['content']
+                elif 'output' in result and 'text' in result['output']:
+                    analysis_text = result['output']['text']
+                else:
+                    analysis_text = str(result.get('output', result))
+            except:
+                analysis_text = str(result)
+            
+            analysis_text = analysis_text.replace('```json', '').replace('```', '').strip()
+            
+            try:
+                analysis = json.loads(analysis_text)
+                return analysis, None
+            except json.JSONDecodeError as e:
+                return None, f"Error parseando JSON: {str(e)}"
+        else:
+            return None, f"Error API Qwen: {response.status_code}"
+    except Exception as e:
+        return None, f"Error de conexión: {str(e)}"
+
+def generate_fallback_analysis(topic, category, region, real_news):
+    """Generar análisis de fallback cuando Qwen falla"""
+    return {
+        'puntaje_relevancia': 5,
+        'justificacion_puntaje': 'Análisis generado automáticamente (IA no disponible)',
+        'hipotesis': f'La tendencia "{topic}" en la categoría {category or "General"} para {region or "Chile"} muestra relevancia periodística. Se recomienda monitorear su evolución en los próximos días.',
+        'senales_clave': [
+            f'Aumento de menciones sobre "{topic}" en medios de comunicación',
+            'Nuevas propuestas o regulaciones relacionadas con el tema',
+            'Cambios en el comportamiento o interés del público'
+        ],
+        'angulos_periodisticos': [
+            f'Impacto económico y social de "{topic}" en {region or "Chile"}',
+            'Perspectivas de expertos y actores clave del sector',
+            'Casos de éxito, fracaso o controversia relacionados'
+        ],
+        'fuentes_sugeridas': [
+            'Organismos oficiales y gubernamentales',
+            'Expertos y académicos del sector',
+            'Datos estadísticos y reportes de la industria'
+        ],
+        'titulares_ejemplo': [
+            f"Análisis en profundidad: {topic}",
+            f"Las claves de {topic} en {region or 'Chile'}",
+            f"Expertos advierten sobre {topic}"
+        ],
+        'noticias_reales': real_news if real_news else []
+    }
+
 # ==================== RUTAS ====================
 
 @app.route('/')
@@ -378,7 +459,6 @@ def get_trending():
 
 @app.route('/api/status', methods=['GET'])
 def get_status():
-    """Endpoint para ver el estado de las APIs"""
     return jsonify(get_api_status())
 
 @app.route('/api/history', methods=['GET'])
@@ -422,23 +502,31 @@ def delete_history(analysis_id):
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
     try:
+        print(f"\n{'='*50}")
+        print(f"Iniciando análisis...")
+        
         data = request.json
-        topic = data.get('topic', '')
+        topic = data.get('topic', '').strip()
         category = data.get('category')
         region = data.get('region')
         
+        print(f"Tema: '{topic}'")
+        print(f"Categoría: {category}")
+        print(f"Región: {region}")
+        
         if not topic:
+            print("Error: Tema vacío")
             return jsonify({'error': 'Falta el tema'}), 400
         
-        api_key = os.getenv('QWEN_API_KEY')
-        if not api_key:
-            return jsonify({'error': 'API key no configurada'}), 500
-        
-        # 1. Buscar noticias con sistema inteligente
+        # 1. Buscar noticias
+        print("Buscando noticias...")
         real_news = search_news_smart(topic, max_results=5, days_back=14)
+        print(f"Noticias encontradas: {len(real_news) if real_news else 0}")
         
-        # 2. Evolución (siempre usa GDELT porque es gratis)
+        # 2. Evolución
+        print("Obteniendo evolución...")
         evolution = get_trend_evolution(topic, weeks=2)
+        print(f"Semanas de evolución: {len(evolution)}")
         
         # 3. Calcular tendencia
         if len(evolution) >= 2:
@@ -457,86 +545,27 @@ def analyze():
             trend_direction = 'estable'
             trend_percent = 0
         
-        # 4. Construir contexto
-        news_context = ""
-        if real_news:
-            news_context = "\n\nNOTICIAS ENCONTRADAS:\n" + "\n".join([f"- {n['titulo']}" for n in real_news])
-        else:
-            news_context = "\n\nNOTA: No se encontraron noticias recientes sobre este tema."
+        # 4. Generar análisis con IA
+        print("Generando análisis con IA...")
+        analysis, error = generate_analysis_with_qwen(topic, category, region, real_news)
         
-        # 5. Prompt para Qwen
-        prompt = f"""Analiza esta tendencia periodística:
-
-TEMA: {topic}
-CATEGORÍA: {category or 'General'}
-REGIÓN: {region or 'Chile'}
-{news_context}
-
-Responde SOLO con JSON válido:
-{{
-  "puntaje_relevancia": 7,
-  "justificacion_puntaje": "Breve explicación",
-  "hipotesis": "Hipótesis de 2-3 oraciones",
-  "senales_clave": ["Señal 1", "Señal 2"],
-  "angulos_periodisticos": ["Ángulo 1", "Ángulo 2"],
-  "fuentes_sugeridas": ["Fuente 1", "Fuente 2"],
-  "titulares_ejemplo": ["Titular 1", "Titular 2"],
-  "noticias_reales": {json.dumps(real_news if real_news else [], ensure_ascii=False)}
-}}"""
-
-        # 6. Llamada a Qwen
-        headers = {
-            'Authorization': f'Bearer {api_key}',
-            'Content-Type': 'application/json'
-        }
+        if error:
+            print(f"Error de IA: {error}")
+            print("Usando análisis de fallback...")
+            analysis = generate_fallback_analysis(topic, category, region, real_news)
         
-        payload = {
-            'model': 'qwen-plus',
-            'input': {'messages': [{'role': 'user', 'content': prompt}]},
-            'parameters': {'temperature': 0.7, 'max_tokens': 1000}
-        }
+        if not analysis:
+            print("Análisis vacío, usando fallback...")
+            analysis = generate_fallback_analysis(topic, category, region, real_news)
         
-        response = requests.post(
-            'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
-            headers=headers,
-            json=payload,
-            timeout=45
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            
-            try:
-                if 'output' in result and 'choices' in result['output']:
-                    analysis_text = result['output']['choices'][0]['message']['content']
-                elif 'output' in result and 'text' in result['output']:
-                    analysis_text = result['output']['text']
-                else:
-                    analysis_text = str(result.get('output', result))
-            except:
-                analysis_text = str(result)
-            
-            analysis_text = analysis_text.replace('```json', '').replace('```', '').strip()
-            
-            try:
-                analysis = json.loads(analysis_text)
-            except:
-                analysis = {
-                    'puntaje_relevancia': 5,
-                    'justificacion_puntaje': 'Análisis generado automáticamente',
-                    'hipotesis': f'La tendencia "{topic}" muestra relevancia en {region or "Chile"}.',
-                    'senales_clave': ['Aumento de menciones', 'Nuevas regulaciones'],
-                    'angulos_periodisticos': ['Impacto económico', 'Perspectivas de expertos'],
-                    'fuentes_sugeridas': ['Organismos oficiales', 'Expertos del sector'],
-                    'titulares_ejemplo': [f"Análisis: {topic}"],
-                    'noticias_reales': real_news if real_news else []
-                }
-        else:
-            return jsonify({'error': f'Error API Qwen: {response.status_code}'}), 500
+        # Asegurar que tenga todos los campos
+        if 'noticias_reales' not in analysis:
+            analysis['noticias_reales'] = real_news if real_news else []
         
         score = analysis.get('puntaje_relevancia', 5)
         
-        # Guardar en BD
+        # 5. Guardar en BD
+        print("Guardando en base de datos...")
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute(
@@ -546,8 +575,8 @@ Responde SOLO con JSON válido:
         conn.commit()
         conn.close()
         
-        # Obtener estado actual de APIs
-        api_status = get_api_status()
+        print(f"Análisis completado exitosamente. Score: {score}")
+        print(f"{'='*50}\n")
         
         return jsonify({
             'topic': topic,
@@ -559,13 +588,33 @@ Responde SOLO con JSON válido:
             'trend_direction': trend_direction,
             'trend_percent': trend_percent,
             'noticias_encontradas': len(real_news) if real_news else 0,
-            'api_status': api_status,
+            'api_status': get_api_status(),
             'timestamp': datetime.now().isoformat()
         })
         
     except Exception as e:
-        print(f"Error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        print(f"Error crítico: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        # Retornar análisis de fallback incluso en caso de error
+        topic = request.json.get('topic', 'Tema desconocido') if request.json else 'Tema desconocido'
+        analysis = generate_fallback_analysis(topic, None, None, [])
+        
+        return jsonify({
+            'topic': topic,
+            'category': None,
+            'region': None,
+            'analysis': analysis,
+            'score': 5,
+            'evolution': [],
+            'trend_direction': 'estable',
+            'trend_percent': 0,
+            'noticias_encontradas': 0,
+            'api_status': get_api_status(),
+            'timestamp': datetime.now().isoformat(),
+            'warning': 'Se generó un análisis básico debido a un error técnico'
+        }), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
