@@ -1,404 +1,46 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Radar Editorial con IA</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        h1 { color: #333; margin-top: 0; }
-        
-        /* Filtros */
-        .filters {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        .filter-group h3 {
-            margin: 0 0 10px 0;
-            color: #555;
-            font-size: 14px;
-        }
-        .filter-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .filter-btn {
-            padding: 8px 16px;
-            border: 2px solid #ddd;
-            background: white;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s;
-            color: #333;
-            font-weight: 500;
-        }
-        .filter-btn:hover {
-            border-color: #007bff;
-            background: #e7f3ff;
-            color: #007bff;
-        }
-        .filter-btn.active {
-            background: #007bff;
-            color: white !important;
-            border-color: #007bff;
-        }
-        
-        /* Tendencias reales */
-        .trending-section {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 25px;
-            border-radius: 12px;
-            color: white;
-        }
-        .trending-section h3 {
-            margin: 0 0 20px 0;
-            color: white;
-            font-size: 20px;
-        }
-        .trending-item {
-            padding: 15px;
-            margin: 10px 0;
-            background: rgba(255,255,255,0.15);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            backdrop-filter: blur(10px);
-        }
-        .trending-item:hover {
-            background: rgba(255,255,255,0.25);
-            transform: translateX(5px);
-        }
-        .trending-topic {
-            font-weight: 600;
-            font-size: 16px;
-        }
-        .trending-source {
-            font-size: 12px;
-            opacity: 0.8;
-            margin-top: 5px;
-        }
-        
-        /* Búsqueda */
-        .input-group {
-            display: flex;
-            gap: 10px;
-            margin: 15px 0;
-            flex-wrap: wrap;
-        }
-        input[type="text"], select {
-            padding: 12px;
-            font-size: 16px;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-        }
-        input[type="text"] {
-            flex: 1;
-            min-width: 200px;
-        }
-        button {
-            background: #007bff;
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        button:hover { background: #0056b3; }
-        button:disabled { background: #ccc; }
-        
-        /* Resultados */
-        .result {
-            margin-top: 20px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            display: none;
-        }
-        .result h4 {
-            color: #555;
-            margin: 20px 0 10px 0;
-        }
-        .tag {
-            display: inline-block;
-            background: #e9ecef;
-            padding: 6px 12px;
-            margin: 4px 4px 4px 0;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-            color: #666;
-        }
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 6px;
-            margin-top: 20px;
-            display: none;
-        }
-        
-        @media (max-width: 768px) {
-            .filters { grid-template-columns: 1fr; }
-        }
-    </style>
-</head>
-<body>
-    <!-- Filtros -->
-    <div class="container">
-        <h1>📰 Radar Editorial con IA</h1>
-        
-        <div class="filters">
-            <div class="filter-group">
-                <h3>📂 Categorías</h3>
-                <div class="filter-buttons" id="categoryFilters">
-                    <button class="filter-btn active" onclick="selectCategory('all')">Todas</button>
-                </div>
-            </div>
-            <div class="filter-group">
-                <h3>🌍 Regiones</h3>
-                <div class="filter-buttons" id="regionFilters">
-                    <button class="filter-btn active" onclick="selectRegion('all')">Todas</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Tendencias Reales de Google -->
-    <div class="container">
-        <div class="trending-section">
-            <h3>🔥 Tendencias en Tiempo Real - Google Trends</h3>
-            <div id="trendingList">
-                <p>Cargando tendencias...</p>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Búsqueda -->
-    <div class="container">
-        <h3>🔍 Análisis Personalizado</h3>
-        <div class="input-group">
-            <input type="text" id="topicInput" placeholder="Ej: Endeudamiento de jóvenes en Chile">
-            <select id="categorySelect">
-                <option value="">Categoría</option>
-            </select>
-            <select id="regionSelect">
-                <option value="">Región</option>
-            </select>
-        </div>
-        <button onclick="analyzeTrend()" id="analyzeBtn">Analizar Tendencia</button>
-        
-        <div class="loading" id="loading">
-            <p>🤖 La IA está analizando...</p>
-        </div>
-        
-        <div class="error" id="error"></div>
-        
-        <div class="result" id="result">
-            <h3>📊 Análisis: <span id="resultTopic"></span></h3>
-            <div id="analysisContent"></div>
-        </div>
-    </div>
-
-    <script>
-        let currentCategory = 'all';
-        let currentRegion = 'all';
-        let categories = [];
-        let regions = [];
-
-        // Cargar filtros al iniciar
-        async function loadFilters() {
-            try {
-                const [catRes, regRes] = await Promise.all([
-                    fetch('/api/categories'),
-                    fetch('/api/regions')
-                ]);
-                
-                categories = await catRes.json();
-                regions = await regRes.json();
-                
-                renderFilters();
-                loadTrending();
-            } catch (err) {
-                console.error('Error:', err);
-            }
-        }
-
-        function renderFilters() {
-            // Categorías
-            const catContainer = document.getElementById('categoryFilters');
-            catContainer.innerHTML = '<button class="filter-btn active" onclick="selectCategory(\'all\')">Todas</button>';
-            categories.forEach(cat => {
-                const btn = document.createElement('button');
-                btn.className = 'filter-btn';
-                btn.textContent = `${cat.icon} ${cat.name}`;
-                btn.onclick = () => selectCategory(cat.name);
-                catContainer.appendChild(btn);
-            });
-            
-            // Regiones
-            const regContainer = document.getElementById('regionFilters');
-            regContainer.innerHTML = '<button class="filter-btn active" onclick="selectRegion(\'all\')">Todas</button>';
-            regions.forEach(region => {
-                const btn = document.createElement('button');
-                btn.className = 'filter-btn';
-                btn.textContent = region;
-                btn.onclick = () => selectRegion(region);
-                regContainer.appendChild(btn);
-            });
-            
-            // Selects
-            const catSelect = document.getElementById('categorySelect');
-            catSelect.innerHTML = '<option value="">Categoría</option>';
-            categories.forEach(cat => {
-                catSelect.innerHTML += `<option value="${cat.name}">${cat.icon} ${cat.name}</option>`;
-            });
-            
-            const regSelect = document.getElementById('regionSelect');
-            regSelect.innerHTML = '<option value="">Región</option>';
-            regions.forEach(region => {
-                regSelect.innerHTML += `<option value="${region}">${region}</option>`;
-            });
-        }
-
-        function selectCategory(cat) {
-            currentCategory = cat;
-            document.querySelectorAll('#categoryFilters .filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if ((cat === 'all' && btn.textContent === 'Todas') || btn.textContent.includes(cat)) {
-                    btn.classList.add('active');
-                }
-            });
-            loadTrending();
-        }
-
-        function selectRegion(region) {
-            currentRegion = region;
-            document.querySelectorAll('#regionFilters .filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if ((region === 'all' && btn.textContent === 'Todas') || btn.textContent === region) {
-                    btn.classList.add('active');
-                }
-            });
-            loadTrending();
-        }
-
-        async function loadTrending() {
-            const list = document.getElementById('trendingList');
-            list.innerHTML = '<p>Cargando tendencias de Google...</p>';
-            
-            try {
-                const region = currentRegion !== 'all' ? currentRegion : 'Global';
-                const res = await fetch(`/api/trending?region=${encodeURIComponent(region)}&limit=5`);
-                const trends = await res.json();
-                
-                if (trends.length === 0) {
-                    list.innerHTML = '<p>No hay tendencias disponibles en este momento.</p>';
-                    return;
-                }
-                
-                list.innerHTML = trends.map((t, i) => `
-                    <div class="trending-item" onclick="useTrend('${t.topic.replace(/'/g, "\\'")}')">
-                        <div class="trending-topic">${i + 1}. ${t.topic}</div>
-                        <div class="trending-source">📊 ${t.source} ${t.region ? '| ' + t.region : ''}</div>
-                    </div>
-                `).join('');
-            } catch (err) {
-                list.innerHTML = '<p>Error cargando tendencias</p>';
-            }
-        }
-
-        function useTrend(topic) {
-            document.getElementById('topicInput').value = topic;
-        }
-
-        async function analyzeTrend() {
-            const topic = document.getElementById('topicInput').value.trim();
-            const category = document.getElementById('categorySelect').value;
-            const region = document.getElementById('regionSelect').value;
-            
-            if (!topic) {
-                alert('Ingresa un tema');
-                return;
-            }
-
-            document.getElementById('analyzeBtn').disabled = true;
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('result').style.display = 'none';
-            document.getElementById('error').style.display = 'none';
-
-            try {
-                const res = await fetch('/api/analyze', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ topic, category, region })
-                });
-
-                const data = await res.json();
-
-                if (data.error) throw new Error(data.error);
-
-                displayResult(data);
-                document.getElementById('result').style.display = 'block';
-            } catch (err) {
-                document.getElementById('error').textContent = 'Error: ' + err.message;
-                document.getElementById('error').style.display = 'block';
-            } finally {
-                document.getElementById('analyzeBtn').disabled = false;
-                document.getElementById('loading').style.display = 'none';
-            }
-        }
-
         function displayResult(data) {
             document.getElementById('resultTopic').textContent = data.topic;
             const a = data.analysis;
             
             let html = '';
-            if (a.hipotesis) html += `<h4>🎯 Hipótesis</h4><p>${a.hipotesis}</p>`;
             
-            if (a.senales_clave && a.senales_clave.length) {
-                html += `<h4>🔍 Señales clave</h4>`;
-                a.senales_clave.forEach(s => html += `<span class="tag">${s}</span>`);
+            // Hipótesis
+            if (a.hipotesis) {
+                html += `<div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3; margin-bottom: 20px;">
+                            <h4 style="margin-top:0; color: #1565c0;">🎯 Hipótesis Editorial</h4>
+                            <p style="margin-bottom:0; line-height: 1.6;">${a.hipotesis}</p>
+                         </div>`;
             }
             
+            // Titulares Ejemplo (NUEVO)
+            if (a.titulares_ejemplo && a.titulares_ejemplo.length) {
+                html += `<h4>📰 Posibles Titulares / Ángulos de Cobertura</h4><ul style="line-height: 1.8;">`;
+                a.titulares_ejemplo.forEach(titular => {
+                    html += `<li>📌 ${titular}</li>`;
+                });
+                html += `</ul>`;
+            }
+            
+            // Señales clave
+            if (a.senales_clave && a.senales_clave.length) {
+                html += `<h4>🔍 Señales clave a monitorear</h4><div>`;
+                a.senales_clave.forEach(s => html += `<span class="tag">${s}</span>`);
+                html += `</div>`;
+            }
+            
+            // Ángulos periodísticos
             if (a.angulos_periodisticos && a.angulos_periodisticos.length) {
-                html += `<h4>📝 Ángulos periodísticos</h4><ul>`;
+                html += `<h4>📝 Ángulos de investigación</h4><ul>`;
                 a.angulos_periodisticos.forEach(ang => html += `<li>${ang}</li>`);
                 html += `</ul>`;
             }
             
+            // Fuentes
             if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) {
                 html += `<h4>📚 Fuentes sugeridas</h4><ul>`;
-                a.fuentes_sugeridas.forEach(f => html += `<li>${f}</li>`);
+                a.fuentes_sugeridas.forEach(f => html += `<li>🔗 ${f}</li>`);
                 html += `</ul>`;
             }
             
             document.getElementById('analysisContent').innerHTML = html;
         }
-
-        // Iniciar
-        loadFilters();
-    </script>
-</body>
-</html>
