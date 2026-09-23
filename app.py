@@ -38,7 +38,7 @@ init_db()
 
 # ==================== CONFIGURACIÓN ====================
 CATEGORIES = [
-    {'name': 'Eléctrico', 'icon': ''},
+    {'name': 'Eléctrico', 'icon': '⚡'},
     {'name': 'Automotriz', 'icon': '🚗'},
     {'name': 'Belleza', 'icon': '💄'},
     {'name': 'Minería', 'icon': '⛏️'},
@@ -48,8 +48,81 @@ CATEGORIES = [
     {'name': 'Economía', 'icon': '💰'}
 ]
 
-# Solo Chile por defecto
 REGIONS = ['Chile']
+
+# TENDENCIAS POR CATEGORÍA
+TRENDS_BY_CATEGORY = {
+    'Eléctrico': [
+        "Subsidios a la electromovilidad en Chile 2026",
+        "Expansión de la red de carga para vehículos eléctricos",
+        "Nuevas normativas de eficiencia energética",
+        "Crecimiento de la energía solar en hogares chilenos",
+        "Baterías de litio: Chile como actor global"
+    ],
+    'Automotriz': [
+        "Caída en las ventas de autos nuevos en Chile",
+        "Auge de los autos usados importados",
+        "Nuevas regulaciones de emisiones vehiculares",
+        "Competencia de marcas chinas en el mercado local",
+        "Seguros automotrices: alzas y nuevas coberturas"
+    ],
+    'Belleza': [
+        "Boom del skincare coreano en Latinoamérica",
+        "Cosmética natural y sustentable en Chile",
+        "Influencers de belleza y su impacto en ventas",
+        "Tendencias de maquillaje para 2026",
+        "Industria del cabello: tratamientos capilares en auge"
+    ],
+    'Minería': [
+        "Precio del cobre alcanza máximos históricos",
+        "Litio: Chile redefine su estrategia nacional",
+        "Minería verde y descarbonización del sector",
+        "Automatización y robots en faenas mineras",
+        "Conflictos socioambientales en zonas mineras"
+    ],
+    'IA': [
+        "Regulación de la inteligencia artificial en Chile",
+        "IA generativa transforma el mundo laboral",
+        "Startups chilenas de inteligencia artificial",
+        "Deepfakes y desinformación: el nuevo desafío",
+        "IA en la educación: oportunidades y riesgos"
+    ],
+    'Tendencias': [
+        "Deuda de los jóvenes y medios de pago digitales",
+        "Crisis habitacional en Santiago",
+        "Migración y su impacto en el mercado laboral",
+        "Turismo interno post-pandemia",
+        "Alimentación saludable y foodtech en Chile"
+    ],
+    'Tecnología': [
+        "Expansión del 5G en regiones de Chile",
+        "Ciberseguridad: ataques a empresas chilenas",
+        "Fintech y bancarización digital",
+        "Gaming y esports: industria en crecimiento",
+        "Transformación digital en pymes chilenas"
+    ],
+    'Economía': [
+        "Tasa de interés del Banco Central de Chile",
+        "Inflación y costo de la canasta básica",
+        "Reforma tributaria: impactos y debates",
+        "Desempleo y mercado laboral chileno",
+        "Dólar y su efecto en la economía local"
+    ]
+}
+
+def get_trends_for_category(category):
+    """Devuelve tendencias según la categoría"""
+    if category and category != 'all' and category in TRENDS_BY_CATEGORY:
+        return TRENDS_BY_CATEGORY[category]
+    else:
+        # Si es 'all' o no existe, devolver mezcla de todas
+        all_trends = []
+        for trends in TRENDS_BY_CATEGORY.values():
+            all_trends.extend(trends)
+        # Mezclar y tomar 5
+        import random
+        random.shuffle(all_trends)
+        return all_trends[:5]
 
 # ==================== RUTAS ====================
 @app.route('/')
@@ -66,24 +139,15 @@ def get_regions():
 
 @app.route('/api/trending', methods=['GET'])
 def get_trending():
-    region = request.args.get('region', 'Chile')  # Default Chile
+    category = request.args.get('category', 'all')
     limit = int(request.args.get('limit', 5))
     
-    # Solo tendencias de Chile
-    trends_chile = [
-        "Reforma de pensiones y su impacto en jóvenes",
-        "Precio del cobre alcanza nuevos máximos históricos",
-        "Sequía en la zona central y nuevas medidas hídricas",
-        "Avance de la electromovilidad en transporte público",
-        "Nuevas regulaciones para el comercio electrónico",
-        "Deuda de los jóvenes y medios de pago digitales",
-        "Inteligencia Artificial en el sector minero",
-        "Crisis habitacional en Santiago",
-        "Transición energética y energías renovables",
-        "Educación superior y financiamiento estudiantil"
-    ]
+    trends = get_trends_for_category(category)
     
-    return jsonify([{'topic': t, 'source': 'Tendencias Chile', 'region': 'Chile'} for t in trends_chile[:limit]])
+    return jsonify([
+        {'topic': t, 'source': 'Tendencias ' + (category if category != 'all' else 'Chile'), 'region': 'Chile'}
+        for t in trends[:limit]
+    ])
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
@@ -143,40 +207,34 @@ Responde SOLO con JSON válido (sin markdown) con esta estructura:
         if response.status_code == 200:
             result = response.json()
             
-            # Manejar diferentes formatos de respuesta de DashScope
+            # Manejar diferentes formatos de respuesta
             try:
-                # Intentar formato nuevo: output.choices[0].message.content
                 if 'output' in result and 'choices' in result['output']:
                     analysis_text = result['output']['choices'][0]['message']['content']
-                # Intentar formato antiguo: output.text
                 elif 'output' in result and 'text' in result['output']:
                     analysis_text = result['output']['text']
-                # Fallback: buscar en output directamente
                 elif 'output' in result:
                     analysis_text = str(result['output'])
                 else:
                     analysis_text = str(result)
-            except (KeyError, IndexError, TypeError) as e:
-                print(f"Error parseando respuesta: {e}")
+            except (KeyError, IndexError, TypeError):
                 analysis_text = str(result)
             
-            # Limpiar texto
             analysis_text = analysis_text.replace('```json', '').replace('```', '').strip()
             
             try:
                 analysis = json.loads(analysis_text)
             except json.JSONDecodeError:
-                # Si no es JSON válido, crear análisis básico
                 analysis = {
-                    'hipotesis': f'La tendencia "{topic}" muestra relevancia en el contexto {region or "chileno"}. Se recomienda monitorear su evolución.',
+                    'hipotesis': f'La tendencia "{topic}" muestra relevancia en el contexto {region or "chileno"}.',
                     'senales_clave': [
                         f'Aumento de menciones sobre "{topic}" en medios',
-                        'Nuevas propuestas legislativas relacionadas',
+                        'Nuevas propuestas legislativas',
                         'Cambio en el comportamiento del sector'
                     ],
                     'angulos_periodisticos': [
                         f'Impacto económico y social de "{topic}"',
-                        'Perspectivas de expertos y actores clave',
+                        'Perspectivas de expertos',
                         'Casos de éxito y fracaso'
                     ],
                     'fuentes_sugeridas': [
@@ -193,7 +251,6 @@ Responde SOLO con JSON válido (sin markdown) con esta estructura:
         else:
             return jsonify({'error': f'Error API Qwen: {response.status_code}'}), 500
         
-        # Guardar en BD
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute(
