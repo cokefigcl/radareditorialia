@@ -45,14 +45,17 @@
             cursor: pointer;
             font-size: 14px;
             transition: all 0.2s;
+            color: #333;  /* ← TEXTO VISIBLE */
+            font-weight: 500;
         }
         .filter-btn:hover {
             border-color: #007bff;
             background: #e7f3ff;
+            color: #007bff;
         }
         .filter-btn.active {
             background: #007bff;
-            color: white;
+            color: white !important;  /* ← BLANCO CUANDO ACTIVO */
             border-color: #007bff;
         }
         
