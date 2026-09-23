@@ -40,13 +40,13 @@ init_db()
 # ==================== CONFIGURACIÓN ====================
 CATEGORIES = [
     {'name': 'Eléctrico', 'icon': '⚡'},
-    {'name': 'Automotriz', 'icon': '🚗'},
+    {'name': 'Automotriz', 'icon': ''},
     {'name': 'Belleza', 'icon': '💄'},
     {'name': 'Minería', 'icon': '️'},
     {'name': 'IA', 'icon': '🤖'},
     {'name': 'Tendencias', 'icon': ''},
     {'name': 'Tecnología', 'icon': '💻'},
-    {'name': 'Economía', 'icon': '💰'}
+    {'name': 'Economía', 'icon': ''}
 ]
 
 REGIONS = ['Chile']
@@ -121,23 +121,16 @@ def get_trends_for_category(category):
         random.shuffle(all_trends)
         return all_trends[:5]
 
-# ==================== GDELT: BÚSQUEDA REAL DE NOTICIAS ====================
+# ==================== GDELT: BÚSQUEDA DE NOTICIAS ====================
 
 def search_gdelt_news(query, max_results=5, days_back=7):
-    """
-    Busca noticias reales usando la API gratuita de GDELT
-    Documentación: https://blog.gdeltproject.org/gdelt-doc-2-0-api-debuts/
-    """
     try:
-        # Calcular fechas
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days_back)
         
-        # Formato de fechas para GDELT: YYYYMMDDHHMMSS
         start_str = start_date.strftime('%Y%m%d%H%M%S')
-        end_str = end_date.strftime('%Y%m%d%H%M%S')
+        end_str = end_date.strftime('%Y%m%d%H%MSS')
         
-        # URL de la API GDELT DOC 2.0
         url = 'https://api.gdeltproject.org/api/v2/doc/doc'
         
         params = {
@@ -146,8 +139,8 @@ def search_gdelt_news(query, max_results=5, days_back=7):
             'format': 'json',
             'startdatetime': start_str,
             'enddatetime': end_str,
-            'maxrecords': max_results * 3,  # Pedimos más para filtrar después
-            'sourcelang': 'spa',  # Noticias en español
+            'maxrecords': max_results * 3,
+            'sourcelang': 'spa',
             'sort': 'DateDesc'
         }
         
@@ -157,7 +150,6 @@ def search_gdelt_news(query, max_results=5, days_back=7):
             data = response.json()
             articles = data.get('articles', [])
             
-            # Filtrar y formatear artículos
             news_items = []
             seen_titles = set()
             
@@ -167,7 +159,6 @@ def search_gdelt_news(query, max_results=5, days_back=7):
                 source = article.get('domain', '')
                 date = article.get('seendate', '')
                 
-                # Evitar duplicados y títulos vacíos
                 if title and title not in seen_titles and len(title) > 10:
                     seen_titles.add(title)
                     news_items.append({
@@ -182,11 +173,10 @@ def search_gdelt_news(query, max_results=5, days_back=7):
             
             return news_items
         else:
-            print(f"Error GDELT: {response.status_code}")
             return []
             
     except Exception as e:
-        print(f"Error en búsqueda GDELT: {str(e)}")
+        print(f"Error GDELT: {str(e)}")
         return []
 
 # ==================== RUTAS ====================
@@ -213,7 +203,6 @@ def get_trending():
         for t in trends[:limit]
     ])
 
-# NUEVO: Endpoint para buscar noticias reales con GDELT
 @app.route('/api/news', methods=['GET'])
 def get_news():
     query = request.args.get('q', '')
@@ -281,26 +270,24 @@ def analyze():
         if not api_key:
             return jsonify({'error': 'API key de Qwen no configurada'}), 500
         
-        # NUEVO: Buscar noticias reales con GDELT primero
         real_news = search_gdelt_news(topic, max_results=5, days_back=14)
         
-        # Construir contexto de noticias reales para el prompt
         news_context = ""
         if real_news:
-            news_context = "\n\nNOTICIAS RECIENTES ENCONTRADAS SOBRE EL TEMA:\n"
+            news_context = "\n\nNOTICIAS RECIENTES:\n"
             for i, news in enumerate(real_news[:5], 1):
-                news_context += f"{i}. {news['titulo']} (Fuente: {news['fuente']}, {news['fecha']})\n"
+                news_context += f"{i}. {news['titulo']} ({news['fuente']}, {news['fecha']})\n"
         
-        prompt = f"""Eres un editor jefe y analista de inteligencia informativa. Analiza esta tendencia:
+        prompt = f"""Eres un editor jefe y analista de inteligencia informativa. Analiza:
 
 TEMA: {topic}
 CATEGORÍA: {category or 'General'}
 REGIÓN: {region or 'Chile'}
 {news_context}
-Responde SOLO con JSON válido (sin markdown) con esta estructura exacta:
+Responde SOLO con JSON válido con esta estructura:
 {{
   "puntaje_relevancia": 8,
-  "justificacion_puntaje": "Breve explicación de por qué este puntaje",
+  "justificacion_puntaje": "Explicación breve",
   "hipotesis": "Hipótesis de 2-3 oraciones",
   "senales_clave": ["Señal 1", "Señal 2", "Señal 3"],
   "angulos_periodisticos": ["Ángulo 1", "Ángulo 2", "Ángulo 3"],
@@ -309,13 +296,7 @@ Responde SOLO con JSON válido (sin markdown) con esta estructura exacta:
   "noticias_reales": {json.dumps(real_news[:5], ensure_ascii=False) if real_news else '[]'}
 }}
 
-El puntaje_relevancia debe ser un número del 1 al 10 donde:
-- 1-3: Baja relevancia (tema niche o muy específico)
-- 4-6: Relevancia media (interesa a un sector)
-- 7-8: Alta relevancia (impacto amplio)
-- 9-10: Relevancia crítica (tema de portada)
-
-Si encontraste noticias reales, úsalas como contexto para hacer el análisis más preciso."""
+Puntaje: 1-3 (Baja), 4-6 (Media), 7-8 (Alta), 9-10 (Crítica)"""
 
         headers = {
             'Authorization': f'Bearer {api_key}',
@@ -350,26 +331,24 @@ Si encontraste noticias reales, úsalas como contexto para hacer el análisis m�
                     analysis_text = result['output']['choices'][0]['message']['content']
                 elif 'output' in result and 'text' in result['output']:
                     analysis_text = result['output']['text']
-                elif 'output' in result:
-                    analysis_text = str(result['output'])
                 else:
-                    analysis_text = str(result)
-            except (KeyError, IndexError, TypeError):
+                    analysis_text = str(result.get('output', result))
+            except:
                 analysis_text = str(result)
             
             analysis_text = analysis_text.replace('```json', '').replace('```', '').strip()
             
             try:
                 analysis = json.loads(analysis_text)
-            except json.JSONDecodeError:
+            except:
                 analysis = {
                     'puntaje_relevancia': 5,
-                    'justificacion_puntaje': 'Análisis generado con fallback',
+                    'justificacion_puntaje': 'Análisis generado',
                     'hipotesis': f'La tendencia "{topic}" muestra relevancia en el contexto {region or "chileno"}.',
                     'senales_clave': ['Aumento de menciones', 'Nuevas regulaciones', 'Cambio en el sector'],
                     'angulos_periodisticos': ['Impacto económico', 'Perspectivas de expertos', 'Casos de éxito'],
                     'fuentes_sugeridas': ['Organismos oficiales', 'Expertos', 'Datos estadísticos'],
-                    'titulares_ejemplo': [f"Análisis: {topic}", f"Las claves de {topic}", f"Expertos sobre {topic}"],
+                    'titulares_ejemplo': [f"Análisis: {topic}", f"Las claves de {topic}"],
                     'noticias_reales': real_news
                 }
         else:
@@ -397,7 +376,7 @@ Si encontraste noticias reales, úsalas como contexto para hacer el análisis m�
         })
         
     except Exception as e:
-        print(f"Error en analyze: {str(e)}")
+        print(f"Error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
