@@ -1,176 +1,38 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radar Editorial con IA</title>
+    <title>Radar Editorial</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        h1 { color: #333; }
-        .input-group {
-            margin: 20px 0;
-        }
-        input[type="text"] {
-            width: 100%;
-            padding: 12px;
-            font-size: 16px;
-            border: 2px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        button {
-            background: #007bff;
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover { background: #0056b3; }
-        button:disabled { background: #ccc; }
-        .result {
-            margin-top: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 4px;
-            display: none;
-        }
-        .result h3 { color: #333; margin-top: 0; }
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 4px;
-            margin-top: 20px;
-            display: none;
-        }
-        .tag {
-            display: inline-block;
-            background: #e9ecef;
-            padding: 5px 10px;
-            margin: 5px 5px 5px 0;
-            border-radius: 3px;
-            font-size: 14px;
-        }
+        body { font-family: Arial; max-width: 800px; margin: 50px auto; padding: 20px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .result { margin-top: 20px; padding: 20px; background: #f0f0f0; display: none; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>📰 Radar Editorial con IA</h1>
-        <p>Analiza tendencias periodísticas con inteligencia artificial</p>
-        
-        <div class="input-group">
-            <input type="text" id="topicInput" placeholder="Ej: Endeudamiento de jóvenes en Chile">
-        </div>
-        
-        <button onclick="analyzeTrend()" id="analyzeBtn">Analizar Tendencia</button>
-        
-        <div class="loading" id="loading">
-            <p>🤖 La IA está analizando...</p>
-        </div>
-        
-        <div class="error" id="error"></div>
-        
-        <div class="result" id="result">
-            <h3>📊 Análisis de: <span id="resultTopic"></span></h3>
-            <div id="analysisContent"></div>
-        </div>
-    </div>
-
+    <h1>📰 Radar Editorial</h1>
+    <input type="text" id="topic" placeholder="Escribe un tema...">
+    <button onclick="analizar()">Analizar</button>
+    <div class="result" id="result"></div>
+    
     <script>
-        async function analyzeTrend() {
-            const topic = document.getElementById('topicInput').value.trim();
-            if (!topic) {
-                alert('Ingresa un tema para analizar');
-                return;
-            }
-
-            const btn = document.getElementById('analyzeBtn');
-            const loading = document.getElementById('loading');
+        async function analizar() {
+            const topic = document.getElementById('topic').value;
             const result = document.getElementById('result');
-            const error = document.getElementById('error');
-
-            btn.disabled = true;
-            loading.style.display = 'block';
-            result.style.display = 'none';
-            error.style.display = 'none';
-
+            result.style.display = 'block';
+            result.innerHTML = 'Cargando...';
+            
             try {
-                const response = await fetch('/api/analyze', {
+                const res = await fetch('/api/analyze', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ topic: topic })
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({topic: topic})
                 });
-
-                const data = await response.json();
-
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-
-                displayResult(data);
-                result.style.display = 'block';
-            } catch (err) {
-                error.textContent = 'Error: ' + err.message;
-                error.style.display = 'block';
-            } finally {
-                btn.disabled = false;
-                loading.style.display = 'none';
+                const data = await res.json();
+                result.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (e) {
+                result.innerHTML = 'Error: ' + e.message;
             }
-        }
-
-        function displayResult(data) {
-            document.getElementById('resultTopic').textContent = data.topic;
-            const analysis = data.analysis;
-            
-            let html = '';
-            
-            if (analysis.hipotesis) {
-                html += `<h4>🎯 Hipótesis</h4><p>${analysis.hipotesis}</p>`;
-            }
-            
-            if (analysis.senales_clave && analysis.senales_clave.length) {
-                html += `<h4> Señales clave a monitorear</h4>`;
-                analysis.senales_clave.forEach(señal => {
-                    html += `<span class="tag">${señal}</span>`;
-                });
-            }
-            
-            if (analysis.angulos_periodisticos && analysis.angulos_periodisticos.length) {
-                html += `<h4>📝 Ángulos periodísticos sugeridos</h4><ul>`;
-                analysis.angulos_periodisticos.forEach(angulo => {
-                    html += `<li>${angulo}</li>`;
-                });
-                html += `</ul>`;
-            }
-            
-            if (analysis.fuentes_sugeridas && analysis.fuentes_sugeridas.length) {
-                html += `<h4>📚 Fuentes sugeridas</h4><ul>`;
-                analysis.fuentes_sugeridas.forEach(fuente => {
-                    html += `<li>${fuente}</li>`;
-                });
-                html += `</ul>`;
-            }
-
-            document.getElementById('analysisContent').innerHTML = html;
         }
     </script>
 </body>
