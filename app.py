@@ -41,7 +41,7 @@ init_db()
 # ==================== CONFIGURACIÓN ====================
 CATEGORIES = [
     {'name': 'Eléctrico', 'icon': '⚡'},
-    {'name': 'Automotriz', 'icon': '🚗'},
+    {'name': 'Automotriz', 'icon': ''},
     {'name': 'Belleza', 'icon': '💄'},
     {'name': 'Minería', 'icon': '⛏️'},
     {'name': 'IA', 'icon': '🤖'},
@@ -331,7 +331,6 @@ def get_trend_evolution(topic, weeks=2):
 # ==================== ANÁLISIS CON IA ====================
 
 def generate_analysis_with_qwen(topic, category, region, real_news):
-    """Generar análisis usando Qwen"""
     api_key = os.getenv('QWEN_API_KEY')
     
     if not api_key:
@@ -405,7 +404,6 @@ Responde SOLO con JSON válido:
         return None, f"Error de conexión: {str(e)}"
 
 def generate_fallback_analysis(topic, category, region, real_news):
-    """Generar análisis de fallback cuando Qwen falla"""
     return {
         'puntaje_relevancia': 5,
         'justificacion_puntaje': 'Análisis generado automáticamente (IA no disponible)',
