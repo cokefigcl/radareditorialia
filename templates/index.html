@@ -109,6 +109,14 @@
             margin-top: 20px;
             display: none;
         }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            display: none;
+        }
         .score-badge {
             display: inline-block;
             padding: 6px 14px;
@@ -213,14 +221,14 @@
 </head>
 <body>
     <div class="container">
-        <h1>📰 Radar Editorial con IA</h1>
+        <h1> Radar Editorial con IA</h1>
         <h3>📂 Categorías</h3>
         <div id="categoryFilters"></div>
     </div>
     
     <div class="container">
         <div class="trending-section">
-            <h3> Tendencias en Chile</h3>
+            <h3>🔥 Tendencias en Chile</h3>
             <div id="trendingList"><p>Cargando...</p></div>
         </div>
     </div>
@@ -235,6 +243,7 @@
         <button onclick="analyzeTrend()" id="analyzeBtn">Analizar Tendencia</button>
         <div class="loading" id="loading"><p> Analizando...</p></div>
         <div class="error" id="error"></div>
+        <div class="warning" id="warning"></div>
         <div class="result" id="result">
             <h3>📊 Análisis: <span id="resultTopic"></span></h3>
             <div id="analysisContent"></div>
@@ -248,7 +257,7 @@
     
     <div class="footer">
         <div>Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - <a href="https://ltv.cl" target="_blank">LTV.cl</a></div>
-        <div class="version">Versión 3.1.0 | Última actualización: Septiembre 2026</div>
+        <div class="version">Versión 3.2.0 | Última actualización: Septiembre 2026</div>
     </div>
 
     <script>
@@ -334,6 +343,7 @@
             document.getElementById('loading').style.display = 'block';
             document.getElementById('result').style.display = 'none';
             document.getElementById('error').style.display = 'none';
+            document.getElementById('warning').style.display = 'none';
 
             try {
                 const res = await fetch('/api/analyze', {
@@ -342,7 +352,13 @@
                     body: JSON.stringify({ topic: topic, category: category, region: region })
                 });
                 const data = await res.json();
-                if (data.error) throw new Error(data.error);
+                
+                // Mostrar warning si existe
+                if (data.warning) {
+                    document.getElementById('warning').textContent = '⚠️ ' + data.warning;
+                    document.getElementById('warning').style.display = 'block';
+                }
+                
                 displayResult(data);
                 document.getElementById('result').style.display = 'block';
                 loadHistory();
@@ -363,10 +379,10 @@
         }
 
         function getScoreLabel(score) {
-            if (score >= 9) return '🔴 CRÍTICA';
+            if (score >= 9) return ' CRÍTICA';
             if (score >= 7) return '✅ ALTA';
             if (score >= 4) return '⚠️ MEDIA';
-            return ' BAJA';
+            return '🔵 BAJA';
         }
 
         function renderEvolutionChart(evolution, topic) {
@@ -422,11 +438,18 @@
         }
 
         function displayResult(data) {
+            // Validaciones robustas
+            if (!data) {
+                document.getElementById('analysisContent').innerHTML = '<p>Error: No se recibieron datos</p>';
+                return;
+            }
+            
             document.getElementById('resultTopic').textContent = data.topic || 'Tema desconocido';
             const a = data.analysis || {};
             const score = data.score || a.puntaje_relevancia || 0;
             let html = '';
             
+            // Puntaje
             if (score > 0) {
                 html += '<div style="margin-bottom: 20px;">';
                 html += '<span class="score-badge ' + getScoreClass(score) + '">' + score + '/10 - ' + getScoreLabel(score) + '</span>';
@@ -436,10 +459,10 @@
                 html += '</div>';
             }
             
-            // Evolución temporal
+            // Evolución
             if (data.evolution && Array.isArray(data.evolution) && data.evolution.length > 0) {
                 html += '<div class="evolution-section">';
-                html += '<h4>📈 Evolución del Interés (últimas 2 semanas)</h4>';
+                html += '<h4> Evolución del Interés (últimas 2 semanas)</h4>';
                 
                 const direction = data.trend_direction || 'estable';
                 const percent = data.trend_percent || 0;
@@ -463,16 +486,16 @@
                 html += '</div>';
             }
             
-            // Noticias reales
+            // Noticias
             if (a.noticias_reales && Array.isArray(a.noticias_reales) && a.noticias_reales.length > 0) {
                 html += '<div class="news-section">';
                 html += '<h4>📰 Noticias Reales Encontradas (' + a.noticias_reales.length + ')</h4>';
                 a.noticias_reales.forEach(function(news) {
                     html += '<div class="news-item">';
                     if (news.url) {
-                        html += '<div class="news-title"><a href="' + news.url + '" target="_blank"> ' + news.titulo + '</a></div>';
+                        html += '<div class="news-title"><a href="' + news.url + '" target="_blank">📰 ' + news.titulo + '</a></div>';
                     } else {
-                        html += '<div class="news-title">' + news.titulo + '</div>';
+                        html += '<div class="news-title">📰 ' + news.titulo + '</div>';
                     }
                     html += '<div class="news-meta">';
                     if (news.fuente) html += '📡 ' + news.fuente;
@@ -483,7 +506,7 @@
             } else {
                 html += '<div class="no-news">';
                 html += '<p><strong>⚠️ No se encontraron noticias recientes</strong></p>';
-                html += '<p style="margin-top: 8px; font-size: 13px;">Esto puede deberse a: es un tema muy específico, muy nuevo, o los medios locales no están indexados en GDELT.</p>';
+                html += '<p style="margin-top: 8px; font-size: 13px;">Esto puede deberse a: es un tema muy específico, muy nuevo, o los medios locales no están indexados.</p>';
                 html += '</div>';
             }
             
@@ -494,9 +517,9 @@
                 html += '</ul>';
             }
             
-            // Señales clave
+            // Señales
             if (a.senales_clave && Array.isArray(a.senales_clave) && a.senales_clave.length > 0) {
-                html += '<h4>🔍 Señales clave</h4><div>';
+                html += '<h4> Señales clave</h4><div>';
                 a.senales_clave.forEach(function(s) { html += '<span class="tag">' + s + '</span>'; });
                 html += '</div>';
             }
@@ -511,7 +534,7 @@
             // Fuentes
             if (a.fuentes_sugeridas && Array.isArray(a.fuentes_sugeridas) && a.fuentes_sugeridas.length > 0) {
                 html += '<h4>📚 Fuentes sugeridas</h4><ul>';
-                a.fuentes_sugeridas.forEach(function(f) { html += '<li> ' + f + '</li>'; });
+                a.fuentes_sugeridas.forEach(function(f) { html += '<li>🔗 ' + f + '</li>'; });
                 html += '</ul>';
             }
             
@@ -521,6 +544,7 @@
             
             document.getElementById('analysisContent').innerHTML = html;
             
+            // Renderizar gráfico
             if (data.evolution && Array.isArray(data.evolution) && data.evolution.length > 0) {
                 setTimeout(function() {
                     renderEvolutionChart(data.evolution, data.topic);
