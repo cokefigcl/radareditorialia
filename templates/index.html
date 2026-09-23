@@ -67,6 +67,48 @@
             margin: 15px 0;
             flex-wrap: wrap;
         }
+        .mode-selector {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        .mode-btn {
+            padding: 10px 20px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .mode-btn:hover { border-color: #007bff; }
+        .mode-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        .lens-selector {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        .lens-btn {
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .lens-btn:hover { border-color: #28a745; }
+        .lens-btn.active {
+            background: #28a745;
+            color: white;
+            border-color: #28a745;
+        }
         button {
             background: #007bff;
             color: white;
@@ -193,31 +235,62 @@
         }
         .footer a { color: #007bff; text-decoration: none; font-weight: 600; }
         .footer .version { font-size: 12px; color: #999; margin-top: 5px; }
+        .mode-label {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .mode-briefing { background: #17a2b8; color: white; }
+        .mode-devil { background: #dc3545; color: white; }
+        .mode-compare { background: #6f42c1; color: white; }
+        .mode-standard { background: #6c757d; color: white; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1> Radar Editorial con IA</h1>
+        <h1>📰 Radar Editorial con IA</h1>
         <h3>📂 Categorías</h3>
         <div id="categoryFilters"></div>
     </div>
     
     <div class="container">
         <div class="trending-section">
-            <h3>🔥 Tendencias en Chile</h3>
+            <h3> Tendencias en Chile</h3>
             <div id="trendingList"><p>Cargando...</p></div>
         </div>
     </div>
     
     <div class="container">
         <h3>🔍 Análisis Personalizado</h3>
+        
+        <h4 style="margin-top: 20px;">Modo de Análisis</h4>
+        <div class="mode-selector">
+            <button class="mode-btn active" onclick="selectMode('standard')">📊 Estándar</button>
+            <button class="mode-btn" onclick="selectMode('briefing')">⚡ Briefing</button>
+            <button class="mode-btn" onclick="selectMode('devil')">😈 Abogado del Diablo</button>
+            <button class="mode-btn" onclick="selectMode('compare')">⚖️ Comparador</button>
+        </div>
+        
         <div class="input-group">
-            <input type="text" id="topicInput" placeholder="Ej: Endeudamiento de jóvenes en Chile">
+            <input type="text" id="topicInput" placeholder="Tema principal">
+            <input type="text" id="topic2Input" placeholder="Segundo tema (solo comparador)" style="display: none;">
             <select id="categorySelect"><option value="">Categoría</option></select>
             <select id="regionSelect"><option value="Chile">Chile</option></select>
         </div>
-        <button onclick="analyzeTrend()" id="analyzeBtn">Analizar Tendencia</button>
-        <div class="loading" id="loading"><p> Analizando...</p></div>
+        
+        <div id="lensSelector" class="lens-selector">
+            <button class="lens-btn active" onclick="selectLens('')">🎯 Sin lente</button>
+            <button class="lens-btn" onclick="selectLens('data')">🔍 Datos</button>
+            <button class="lens-btn" onclick="selectLens('controversy')">🔥 Polémico</button>
+            <button class="lens-btn" onclick="selectLens('human')">👥 Humano</button>
+            <button class="lens-btn" onclick="selectLens('economic')">💰 Económico</button>
+        </div>
+        
+        <button onclick="analyzeTrend()" id="analyzeBtn">Analizar</button>
+        <div class="loading" id="loading"><p>🤖 Analizando...</p></div>
         <div class="error" id="error"></div>
         <div class="warning" id="warning"></div>
         <div class="result" id="result">
@@ -227,18 +300,20 @@
     </div>
     
     <div class="container">
-        <h2>📚 Historial de Análisis</h2>
+        <h2> Historial de Análisis</h2>
         <div id="historyList"><p>Cargando...</p></div>
     </div>
     
     <div class="footer">
         <div>Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - <a href="https://ltv.cl" target="_blank">LTV.cl</a></div>
-        <div class="version">Versión 4.0.0 | Última actualización: Septiembre 2026</div>
+        <div class="version">Versión 5.0.0 | Última actualización: Septiembre 2026</div>
     </div>
 
     <script>
         let currentCategory = 'all';
         let categories = [];
+        let currentMode = 'standard';
+        let currentLens = '';
 
         async function loadFilters() {
             try {
@@ -308,11 +383,43 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
+        function selectMode(mode) {
+            currentMode = mode;
+            const buttons = document.querySelectorAll('.mode-btn');
+            buttons.forEach(function(btn) { btn.classList.remove('active'); });
+            event.target.classList.add('active');
+            
+            // Mostrar/ocultar segundo campo y lentes
+            const topic2Input = document.getElementById('topic2Input');
+            const lensSelector = document.getElementById('lensSelector');
+            
+            if (mode === 'compare') {
+                topic2Input.style.display = 'block';
+                lensSelector.style.display = 'none';
+            } else if (mode === 'briefing' || mode === 'devil') {
+                topic2Input.style.display = 'none';
+                lensSelector.style.display = 'none';
+            } else {
+                topic2Input.style.display = 'none';
+                lensSelector.style.display = 'flex';
+            }
+        }
+
+        function selectLens(lens) {
+            currentLens = lens;
+            const buttons = document.querySelectorAll('.lens-btn');
+            buttons.forEach(function(btn) { btn.classList.remove('active'); });
+            event.target.classList.add('active');
+        }
+
         async function analyzeTrend() {
             const topic = document.getElementById('topicInput').value.trim();
+            const topic2 = document.getElementById('topic2Input').value.trim();
             const category = document.getElementById('categorySelect').value;
             const region = document.getElementById('regionSelect').value;
+            
             if (!topic) { alert('Ingresa un tema'); return; }
+            if (currentMode === 'compare' && !topic2) { alert('Ingresa el segundo tema para comparar'); return; }
 
             document.getElementById('analyzeBtn').disabled = true;
             document.getElementById('loading').style.display = 'block';
@@ -324,7 +431,14 @@
                 const res = await fetch('/api/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ topic: topic, category: category, region: region })
+                    body: JSON.stringify({ 
+                        topic: topic, 
+                        topic2: topic2,
+                        category: category, 
+                        region: region,
+                        mode: currentMode,
+                        lens: currentLens
+                    })
                 });
                 const data = await res.json();
                 
@@ -353,7 +467,7 @@
         }
 
         function getScoreLabel(score) {
-            if (score >= 9) return ' CRÍTICA';
+            if (score >= 9) return '🔴 CRÍTICA';
             if (score >= 7) return '✅ ALTA';
             if (score >= 4) return '⚠️ MEDIA';
             return '🔵 BAJA';
@@ -365,30 +479,133 @@
                 return;
             }
             
-            document.getElementById('resultTopic').textContent = data.topic || 'Tema';
+            const modeLabels = {
+                'standard': 'Estándar',
+                'briefing': 'Briefing',
+                'devil': 'Abogado del Diablo',
+                'compare': 'Comparador'
+            };
+            
+            document.getElementById('resultTopic').innerHTML = data.topic + 
+                (data.topic2 ? ' vs ' + data.topic2 : '') +
+                '<span class="mode-label mode-' + data.mode + '">' + modeLabels[data.mode] + '</span>';
+            
             const a = data.analysis || {};
             const score = data.score || a.puntaje_relevancia || 0;
             let html = '';
             
-            // Puntaje
-            if (score > 0) {
-                html += '<div style="margin-bottom: 20px;">';
-                html += '<span class="score-badge ' + getScoreClass(score) + '">' + score + '/10 - ' + getScoreLabel(score) + '</span>';
-                if (a.justificacion_puntaje) {
-                    html += '<span style="color: #666; font-size: 14px; margin-left: 10px;">' + a.justificacion_puntaje + '</span>';
+            // Modo Briefing
+            if (data.mode === 'briefing') {
+                if (a.resumen_ejecutivo) {
+                    html += '<div style="background: #d1ecf1; padding: 15px; border-radius: 8px; border-left: 4px solid #17a2b8; margin-bottom: 20px;">';
+                    html += '<h4 style="margin-top:0; color: #0c5460;">📝 Resumen Ejecutivo</h4>';
+                    html += '<p style="margin-bottom:0; line-height: 1.6;">' + a.resumen_ejecutivo + '</p>';
+                    html += '</div>';
                 }
-                html += '</div>';
+                if (a.preguntas_fuente && a.preguntas_fuente.length) {
+                    html += '<h4>❓ Preguntas para tu Fuente</h4><ul>';
+                    a.preguntas_fuente.forEach(function(q) { html += '<li>' + q + '</li>'; });
+                    html += '</ul>';
+                }
+                if (a.datos_duros && a.datos_duros.length) {
+                    html += '<h4>📊 Datos Duros a Verificar</h4><div>';
+                    a.datos_duros.forEach(function(d) { html += '<span class="tag">' + d + '</span>'; });
+                    html += '</div>';
+                }
+                if (a.timeline_sugerido) {
+                    html += '<h4>⏰ Timeline Sugerido</h4><p>' + a.timeline_sugerido + '</p>';
+                }
             }
             
-            // Hipótesis
-            if (a.hipotesis) {
-                html += '<div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3; margin: 20px 0;">';
-                html += '<h4 style="margin-top:0; color: #1565c0;">🎯 Hipótesis Editorial</h4>';
-                html += '<p style="margin-bottom:0; line-height: 1.6;">' + a.hipotesis + '</p>';
-                html += '</div>';
+            // Modo Abogado del Diablo
+            else if (data.mode === 'devil') {
+                if (a.cobertura_mainstream) {
+                    html += '<div style="background: #f8d7da; padding: 15px; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 20px;">';
+                    html += '<h4 style="margin-top:0; color: #721c24;">📰 Lo que todos dicen</h4>';
+                    html += '<p style="margin-bottom:0; line-height: 1.6;">' + a.cobertura_mainstream + '</p>';
+                    html += '</div>';
+                }
+                if (a.angulo_ciego) {
+                    html += '<div style="background: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 20px;">';
+                    html += '<h4 style="margin-top:0; color: #155724;"> Tu ángulo único</h4>';
+                    html += '<p style="margin-bottom:0; line-height: 1.6;">' + a.angulo_ciego + '</p>';
+                    html += '</div>';
+                }
+                if (a.riesgos_sesgos && a.riesgos_sesgos.length) {
+                    html += '<h4>️ Riesgos y Sesgos</h4><div>';
+                    a.riesgos_sesgos.forEach(function(r) { html += '<span class="tag">' + r + '</span>'; });
+                    html += '</div>';
+                }
+                if (a.pregunta_incomoda) {
+                    html += '<h4>🔥 La Pregunta Incómoda</h4><p style="font-size: 18px; font-weight: bold; color: #dc3545;">' + a.pregunta_incomoda + '</p>';
+                }
             }
             
-            // Noticias
+            // Modo Comparador
+            else if (data.mode === 'compare') {
+                if (a.mas_recorrido) {
+                    html += '<div style="background: #e2e3f5; padding: 15px; border-radius: 8px; border-left: 4px solid #6f42c1; margin-bottom: 20px;">';
+                    html += '<h4 style="margin-top:0; color: #383d41;"> Más Recorrido</h4>';
+                    html += '<p style="margin-bottom:0; line-height: 1.6;">' + a.mas_recorrido + '</p>';
+                    html += '</div>';
+                }
+                if (a.fuentes_comunes && a.fuentes_comunes.length) {
+                    html += '<h4> Fuentes Comunes</h4><div>';
+                    a.fuentes_comunes.forEach(function(f) { html += '<span class="tag">' + f + '</span>'; });
+                    html += '</div>';
+                }
+                if (a.angulo_conector) {
+                    html += '<h4>💡 Ángulo Conector</h4><p>' + a.angulo_conector + '</p>';
+                }
+                if (a.recomendacion) {
+                    html += '<h4>✅ Recomendación</h4><p style="font-weight: bold;">' + a.recomendacion + '</p>';
+                }
+            }
+            
+            // Modo Estándar
+            else {
+                if (score > 0) {
+                    html += '<div style="margin-bottom: 20px;">';
+                    html += '<span class="score-badge ' + getScoreClass(score) + '">' + score + '/10 - ' + getScoreLabel(score) + '</span>';
+                    if (a.justificacion_puntaje) {
+                        html += '<span style="color: #666; font-size: 14px; margin-left: 10px;">' + a.justificacion_puntaje + '</span>';
+                    }
+                    html += '</div>';
+                }
+                
+                if (a.hipotesis) {
+                    html += '<div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3; margin: 20px 0;">';
+                    html += '<h4 style="margin-top:0; color: #1565c0;">🎯 Hipótesis Editorial</h4>';
+                    html += '<p style="margin-bottom:0; line-height: 1.6;">' + a.hipotesis + '</p>';
+                    html += '</div>';
+                }
+                
+                if (a.titulares_ejemplo && a.titulares_ejemplo.length) {
+                    html += '<h4>📝 Posibles Titulares</h4><ul>';
+                    a.titulares_ejemplo.forEach(function(t) { html += '<li>📌 ' + t + '</li>'; });
+                    html += '</ul>';
+                }
+                
+                if (a.senales_clave && a.senales_clave.length) {
+                    html += '<h4> Señales clave</h4><div>';
+                    a.senales_clave.forEach(function(s) { html += '<span class="tag">' + s + '</span>'; });
+                    html += '</div>';
+                }
+                
+                if (a.angulos_periodisticos && a.angulos_periodisticos.length) {
+                    html += '<h4>📝 Ángulos de investigación</h4><ul>';
+                    a.angulos_periodisticos.forEach(function(ang) { html += '<li>' + ang + '</li>'; });
+                    html += '</ul>';
+                }
+                
+                if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) {
+                    html += '<h4>📚 Fuentes sugeridas</h4><ul>';
+                    a.fuentes_sugeridas.forEach(function(f) { html += '<li>🔗 ' + f + '</li>'; });
+                    html += '</ul>';
+                }
+            }
+            
+            // Noticias (todos los modos)
             if (a.noticias_reales && Array.isArray(a.noticias_reales) && a.noticias_reales.length > 0) {
                 html += '<div class="news-section">';
                 html += '<h4>📰 Noticias Reales Encontradas (' + a.noticias_reales.length + ')</h4>';
@@ -397,51 +614,18 @@
                     if (news.url) {
                         html += '<div class="news-title"><a href="' + news.url + '" target="_blank">📰 ' + news.titulo + '</a></div>';
                     } else {
-                        html += '<div class="news-title"> ' + news.titulo + '</div>';
+                        html += '<div class="news-title">📰 ' + news.titulo + '</div>';
                     }
                     html += '<div class="news-meta">';
-                    if (news.fuente) html += '📡 ' + news.fuente;
-                    if (news.fecha) html += ' |  ' + news.fecha;
+                    if (news.fuente) html += ' ' + news.fuente;
+                    if (news.fecha) html += ' | 📅 ' + news.fecha;
                     html += '</div></div>';
                 });
                 html += '</div>';
-            } else {
-                html += '<div class="no-news">';
-                html += '<p><strong>⚠️ No se encontraron noticias recientes</strong></p>';
-                html += '<p style="margin-top: 8px; font-size: 13px;">Esto puede deberse a: es un tema muy específico, muy nuevo, o los medios locales no están indexados.</p>';
-                html += '</div>';
-            }
-            
-            // Titulares
-            if (a.titulares_ejemplo && Array.isArray(a.titulares_ejemplo) && a.titulares_ejemplo.length > 0) {
-                html += '<h4>📝 Posibles Titulares</h4><ul>';
-                a.titulares_ejemplo.forEach(function(t) { html += '<li>📌 ' + t + '</li>'; });
-                html += '</ul>';
-            }
-            
-            // Señales
-            if (a.senales_clave && Array.isArray(a.senales_clave) && a.senales_clave.length > 0) {
-                html += '<h4>🔍 Señales clave</h4><div>';
-                a.senales_clave.forEach(function(s) { html += '<span class="tag">' + s + '</span>'; });
-                html += '</div>';
-            }
-            
-            // Ángulos
-            if (a.angulos_periodisticos && Array.isArray(a.angulos_periodisticos) && a.angulos_periodisticos.length > 0) {
-                html += '<h4>📝 Ángulos de investigación</h4><ul>';
-                a.angulos_periodisticos.forEach(function(ang) { html += '<li>' + ang + '</li>'; });
-                html += '</ul>';
-            }
-            
-            // Fuentes
-            if (a.fuentes_sugeridas && Array.isArray(a.fuentes_sugeridas) && a.fuentes_sugeridas.length > 0) {
-                html += '<h4>📚 Fuentes sugeridas</h4><ul>';
-                a.fuentes_sugeridas.forEach(function(f) { html += '<li> ' + f + '</li>'; });
-                html += '</ul>';
             }
             
             if (html === '') {
-                html = '<p style="color: #666;">No se generó análisis. Intenta con otro tema.</p>';
+                html = '<p style="color: #666;">No se generó análisis.</p>';
             }
             
             document.getElementById('analysisContent').innerHTML = html;
@@ -454,7 +638,7 @@
                 const res = await fetch('/api/history?limit=20');
                 const history = await res.json();
                 if (history.length === 0) {
-                    list.innerHTML = '<p style="color: #666;">Aún no hay análisis. ¡Haz tu primer análisis arriba!</p>';
+                    list.innerHTML = '<p style="color: #666;">Aún no hay análisis.</p>';
                     return;
                 }
                 let html = '';
@@ -462,17 +646,20 @@
                     const analysis = item.analysis || {};
                     const score = item.score || analysis.puntaje_relevancia || 0;
                     const category = item.category || 'General';
+                    const mode = item.mode || 'standard';
                     const date = item.created_at ? new Date(item.created_at).toLocaleString('es-CL') : '';
+                    const modeLabels = {'standard': '', 'briefing': '⚡', 'devil': '😈', 'compare': '️'};
+                    
                     html += '<div class="history-item">';
                     html += '<div class="history-header">';
-                    html += '<div><div class="history-topic">' + item.topic + '</div>';
+                    html += '<div><div class="history-topic">' + modeLabels[mode] + ' ' + item.topic + (item.topic2 ? ' vs ' + item.topic2 : '') + '</div>';
                     html += '<div class="history-meta">📂 ' + category + ' | 📅 ' + date + '</div></div>';
-                    if (score > 0) {
+                    if (score > 0 && mode === 'standard') {
                         html += '<span class="score-badge ' + getScoreClass(score) + '">' + score + '/10</span>';
                     }
                     html += '</div>';
                     html += '<div class="history-actions">';
-                    html += '<button class="btn-small btn-analyze" onclick="reAnalyze(\'' + item.topic.replace(/'/g, "\\'") + '\', \'' + (item.category || '') + '\')">🔄 Re-analizar</button>';
+                    html += '<button class="btn-small btn-analyze" onclick="reAnalyze(\'' + item.topic.replace(/'/g, "\\'") + '\', \'' + (item.category || '') + '\', \'' + mode + '\')">🔄 Re-analizar</button>';
                     html += '<button class="btn-small btn-delete" onclick="deleteAnalysis(' + item.id + ')">️ Eliminar</button>';
                     html += '</div></div>';
                 });
@@ -483,9 +670,10 @@
             }
         }
 
-        function reAnalyze(topic, category) {
+        function reAnalyze(topic, category, mode) {
             document.getElementById('topicInput').value = topic;
             if (category) document.getElementById('categorySelect').value = category;
+            selectMode(mode);
             window.scrollTo({ top: 0, behavior: 'smooth' });
             setTimeout(function() { analyzeTrend(); }, 500);
         }
