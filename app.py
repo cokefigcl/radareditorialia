@@ -41,7 +41,7 @@ CATEGORIES = [
     {'name': 'Eléctrico', 'icon': '⚡'},
     {'name': 'Automotriz', 'icon': '🚗'},
     {'name': 'Belleza', 'icon': '💄'},
-    {'name': 'Minería', 'icon': '⛏️'},
+    {'name': 'Minería', 'icon': '️'},
     {'name': 'IA', 'icon': '🤖'},
     {'name': 'Tendencias', 'icon': '📈'},
     {'name': 'Tecnología', 'icon': '💻'},
@@ -119,14 +119,21 @@ Sé específico, práctico y con enfoque periodístico real."""
             'Content-Type': 'application/json'
         }
         
+        # FORMATO CORRECTO PARA DASHSCOPE (API de Qwen)
         payload = {
             'model': 'qwen-plus',
-            'messages': [{'role': 'user', 'content': prompt}],
-            'temperature': 0.7,
-            'max_tokens': 1000
+            'input': {
+                'messages': [
+                    {'role': 'user', 'content': prompt}
+                ]
+            },
+            'parameters': {
+                'temperature': 0.7,
+                'max_tokens': 1000
+            }
         }
         
-        # Llamada real a la API de Qwen
+        # Llamada real a la API de Qwen (DashScope)
         response = requests.post(
             'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
             headers=headers,
@@ -136,7 +143,9 @@ Sé específico, práctico y con enfoque periodístico real."""
         
         if response.status_code == 200:
             result = response.json()
-            analysis_text = result['output']['text']
+            
+            # DashScope devuelve la respuesta en output.choices[0].message.content
+            analysis_text = result['output']['choices'][0]['message']['content']
             
             # Limpiar el texto por si la IA agrega ```json
             analysis_text = analysis_text.replace('```json', '').replace('```', '').strip()
