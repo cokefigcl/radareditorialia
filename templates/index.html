@@ -329,15 +329,13 @@
             min-width: 80px;
             text-align: center;
         }
-        .score-high { background: #e8f5e9; color: #2e7d32; }
-        .score-medium { background: #fff8e1; color: #f57f17; }
-        .score-low { background: #ffebee; color: #c62828; }
         .prediction-meta {
             display: flex;
             gap: 15px;
             margin-bottom: 10px;
             font-size: 13px;
             color: #666;
+            flex-wrap: wrap;
         }
         .prediction-alert {
             background: #fff3cd;
@@ -373,6 +371,17 @@
             font-size: 13px;
         }
         .predictions-refresh:hover { background: #5a6268; }
+        .realtime-badge {
+            display: inline-block;
+            background: #dc3545;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-left: 8px;
+            animation: pulse 1.5s infinite;
+        }
     </style>
 </head>
 <body>
@@ -419,7 +428,7 @@
         <div id="lensSelector" class="lens-selector">
             <button class="lens-btn active" onclick="selectLens('')">🎯 Sin lente</button>
             <button class="lens-btn" onclick="selectLens('data')">🔍 Datos</button>
-            <button class="lens-btn" onclick="selectLens('controversy')"> Polémico</button>
+            <button class="lens-btn" onclick="selectLens('controversy')">🔥 Polémico</button>
             <button class="lens-btn" onclick="selectLens('human')">👥 Humano</button>
             <button class="lens-btn" onclick="selectLens('economic')">💰 Económico</button>
         </div>
@@ -435,13 +444,13 @@
     </div>
     
     <div class="container">
-        <h2>📚 Historial de Análisis</h2>
+        <h2> Historial de Análisis</h2>
         <div id="historyList"><p>Cargando...</p></div>
     </div>
     
     <div class="footer">
         <div>Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - <a href="https://ltv.cl" target="_blank">LTV.cl</a></div>
-        <div class="version">Versión 6.0.0 | Última actualización: Septiembre 2026</div>
+        <div class="version">Versión 6.1.0 | Última actualización: Septiembre 2026</div>
     </div>
 
     <script>
@@ -473,7 +482,7 @@
             let html = '';
             
             html += '<div class="category-group">';
-            html += '<div class="category-group-title">📂 TEMAS</div>';
+            html += '<div class="category-group-title"> TEMAS</div>';
             html += '<button class="filter-btn active" onclick="selectCategory(\'all\')">Todas</button>';
             temas.forEach(function(cat) {
                 html += '<button class="filter-btn" onclick="selectCategory(\'' + cat.name + '\')">' + cat.icon + ' ' + cat.name + '</button>';
@@ -488,7 +497,7 @@
             html += '</div>';
             
             html += '<div class="category-group">';
-            html += '<div class="category-group-title"> SECCIONES</div>';
+            html += '<div class="category-group-title">📰 SECCIONES</div>';
             secciones.forEach(function(cat) {
                 html += '<button class="filter-btn" onclick="selectCategory(\'' + cat.name + '\')">' + cat.icon + ' ' + cat.name + '</button>';
             });
@@ -517,7 +526,7 @@
 
         async function loadTrending() {
             const list = document.getElementById('trendingList');
-            list.innerHTML = '<p>🔄 Cargando tendencias reales...</p>';
+            list.innerHTML = '<p> Cargando tendencias reales...</p>';
             try {
                 const url = '/api/trending?category=' + encodeURIComponent(currentCategory) + '&limit=5';
                 const res = await fetch(url);
@@ -544,7 +553,7 @@
 
         async function loadPredictions() {
             const list = document.getElementById('predictionsList');
-            list.innerHTML = '<p> Generando predicciones con IA...</p>';
+            list.innerHTML = '<p>🔮 Generando predicciones con IA...</p>';
             
             try {
                 const res = await fetch('/api/predictions');
@@ -564,17 +573,22 @@
                     
                     html += '<div class="prediction-card ' + cardClass + '">';
                     html += '<div class="prediction-header">';
-                    html += '<div class="prediction-topic">' + p.topic + '</div>';
+                    html += '<div class="prediction-topic">' + p.topic;
+                    if (p.is_realtime) {
+                        html += '<span class="realtime-badge">EN VIVO</span>';
+                    }
+                    html += '</div>';
                     html += '<div class="prediction-score ' + scoreClass + '">' + p.score + '%</div>';
                     html += '</div>';
                     
                     html += '<div class="prediction-meta">';
                     html += '<span>📂 ' + (p.category || 'General') + '</span>';
                     html += '<span>📰 ' + p.news_count + ' noticias</span>';
+                    html += '<span>📡 ' + (p.source || 'Google Trends') + '</span>';
                     html += '</div>';
                     
                     if (p.alert_level) {
-                        const alertText = p.alert_level === 'critical' ? ' ALERTA CRÍTICA: Tema con alto potencial de viralización' : '️ ALERTA: Tema en crecimiento acelerado';
+                        const alertText = p.alert_level === 'critical' ? ' ALERTA CRÍTICA: Tema con alto potencial de viralización' : '⚠️ ALERTA: Tema en crecimiento acelerado';
                         html += '<div class="prediction-alert">' + alertText + '</div>';
                     }
                     
@@ -686,7 +700,7 @@
         function getScoreLabel(score) {
             if (score >= 9) return '🔴 CRÍTICA';
             if (score >= 7) return '✅ ALTA';
-            if (score >= 4) return '⚠️ MEDIA';
+            if (score >= 4) return '️ MEDIA';
             return '🔵 BAJA';
         }
 
@@ -764,7 +778,7 @@
                     html += '</div>';
                 }
                 if (a.fuentes_comunes && a.fuentes_comunes.length) {
-                    html += '<h4>🔗 Fuentes Comunes</h4><div>';
+                    html += '<h4> Fuentes Comunes</h4><div>';
                     a.fuentes_comunes.forEach(function(f) { html += '<span class="tag">' + f + '</span>'; });
                     html += '</div>';
                 }
@@ -795,12 +809,12 @@
                 
                 if (a.titulares_ejemplo && a.titulares_ejemplo.length) {
                     html += '<h4>📝 Posibles Titulares</h4><ul>';
-                    a.titulares_ejemplo.forEach(function(t) { html += '<li>📌 ' + t + '</li>'; });
+                    a.titulares_ejemplo.forEach(function(t) { html += '<li> ' + t + '</li>'; });
                     html += '</ul>';
                 }
                 
                 if (a.senales_clave && a.senales_clave.length) {
-                    html += '<h4> Señales clave</h4><div>';
+                    html += '<h4>🔍 Señales clave</h4><div>';
                     a.senales_clave.forEach(function(s) { html += '<span class="tag">' + s + '</span>'; });
                     html += '</div>';
                 }
@@ -820,7 +834,7 @@
             
             if (a.noticias_reales && Array.isArray(a.noticias_reales) && a.noticias_reales.length > 0) {
                 html += '<div class="news-section">';
-                html += '<h4> Noticias Reales Encontradas (' + a.noticias_reales.length + ')</h4>';
+                html += '<h4>📰 Noticias Reales Encontradas (' + a.noticias_reales.length + ')</h4>';
                 a.noticias_reales.forEach(function(news) {
                     html += '<div class="news-item">';
                     if (news.url) {
@@ -871,7 +885,7 @@
                     }
                     html += '</div>';
                     html += '<div class="history-actions">';
-                    html += '<button class="btn-small btn-analyze" onclick="reAnalyze(\'' + item.topic.replace(/'/g, "\\'") + '\', \'' + (item.category || '') + '\', \'' + mode + '\')"> Re-analizar</button>';
+                    html += '<button class="btn-small btn-analyze" onclick="reAnalyze(\'' + item.topic.replace(/'/g, "\\'") + '\', \'' + (item.category || '') + '\', \'' + mode + '\')">🔄 Re-analizar</button>';
                     html += '<button class="btn-small btn-delete" onclick="deleteAnalysis(' + item.id + ')">🗑️ Eliminar</button>';
                     html += '</div></div>';
                 });
