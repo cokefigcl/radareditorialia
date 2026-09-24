@@ -6,7 +6,6 @@ import sqlite3
 import requests
 import re
 from datetime import datetime, timedelta
-from pytrends.request import TrendReq
 
 load_dotenv()
 
@@ -68,8 +67,8 @@ CATEGORIES = [
     {'name': 'Cultura', 'icon': '🎭', 'type': 'seccion'},
     {'name': 'Dopamina', 'icon': '🧠', 'type': 'seccion'},
     {'name': 'Salud', 'icon': '🏥', 'type': 'seccion'},
-    {'name': 'Sociedad', 'icon': '', 'type': 'seccion'},
-    {'name': 'TV y Espectáculos', 'icon': '📺', 'type': 'seccion'}
+    {'name': 'Sociedad', 'icon': '👥', 'type': 'seccion'},
+    {'name': 'TV y Espectáculos', 'icon': '', 'type': 'seccion'}
 ]
 
 REGIONS = ['Chile']
@@ -101,73 +100,149 @@ SEARCH_KEYWORDS = {
     'TV y Espectáculos': 'televisión OR espectáculos OR farándula'
 }
 
-# ==================== GOOGLE TRENDS ====================
+# ==================== GOOGLE TRENDS (con fallback) ====================
 
 def get_google_trends_data():
-    """Obtiene tendencias ascendentes de Google Trends en Chile"""
+    """Obtiene tendencias de Google Trends en Chile con fallback"""
     try:
-        pytrends = TrendReq(hl='es-CL', tz=-240)
+        from pytrends.request import TrendReq
+        pytrends = TrendReq(hl='es-CL', tz=-240, timeout=(10, 20))
         
-        # Obtener tendencias diarias en Chile
+        # Intentar obtener trending searches
         trending_searches = pytrends.trending_searches(pn='chile')
         
-        if trending_searches.empty:
-            return []
-        
-        # Tomar los top 10
-        topics = trending_searches[0].head(10).tolist()
-        
-        print(f"[TRENDS] Google Trends encontró {len(topics)} temas")
-        
-        return topics
+        if not trending_searches.empty:
+            topics = trending_searches[0].head(10).tolist()
+            print(f"[TRENDS] ✅ Google Trends encontró {len(topics)} temas")
+            return topics
     except Exception as e:
-        print(f"[TRENDS] Error Google Trends: {str(e)}")
-        return []
+        print(f"[TRENDS] ⚠️ Google Trends falló: {str(e)}")
+    
+    return []
 
-def calculate_prediction_score(topic, news_count):
-    """Calcula score de predicción basado en volumen y noticias"""
-    # Score base por noticias encontradas
-    news_score = min(news_count * 20, 60)  # Máximo 60 puntos
+def get_trending_topics_from_news():
+    """Fallback: obtiene temas trending desde NewsAPI/GDELT analizando volumen"""
+    print("[TRENDS] Usando fallback: análisis de volumen de noticias")
     
-    # Score por volumen de búsqueda (simulado con noticias)
-    volume_score = min(news_count * 10, 30)  # Máximo 30 puntos
+    newsapi_key = os.getenv('NEWSAPI_KEY')
+    topic_counts = {}
     
-    # Score base mínimo
-    base_score = 10
+    # Buscar en múltiples categorías y contar menciones
+    categories_to_check = ['Chile', 'economía', 'política', 'deportes', 'tecnología', 'salud']
     
-    total = base_score + news_score + volume_score
+    for category in categories_to_check:
+        try:
+            if newsapi_key:
+                url = 'https://newsapi.org/v2/everything'
+                params = {
+                    'q': category,
+                    'from': (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'),
+                    'to': datetime.now().strftime('%Y-%m-%d'),
+                    'sortBy': 'publishedAt',
+                    'language': 'es',
+                    'pageSize': 20,
+                    'apiKey': newsapi_key
+                }
+                response = requests.get(url, params=params, timeout=10)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    for article in data.get('articles', []):
+                        title = article.get('title', '').strip()
+                        if title and len(title) > 20:
+                            # Usar primeras 5 palabras como "tema"
+                            words = title.split()[:5]
+                            topic_key = ' '.join(words)
+                            if topic_key not in topic_counts:
+                                topic_counts[topic_key] = {
+                                    'count': 0,
+                                    'full_title': title,
+                                    'source': article.get('source', {}).get('name', ''),
+                                    'url': article.get('url', '')
+                                }
+                            topic_counts[topic_key]['count'] += 1
+        except Exception as e:
+            print(f"[TRENDS] Error en categoría {category}: {str(e)}")
+    
+    # Ordenar por cantidad de menciones
+    sorted_topics = sorted(topic_counts.values(), key=lambda x: x['count'], reverse=True)
+    
+    # Retornar top 10
+    return [t['full_title'] for t in sorted_topics[:10]]
+
+def calculate_prediction_score(topic, news_count, is_trending=False):
+    """Calcula score de predicción"""
+    # Score base
+    base_score = 20
+    
+    # Score por noticias (hasta 50 puntos)
+    news_score = min(news_count * 15, 50)
+    
+    # Bonus si es trending de Google
+    trending_bonus = 30 if is_trending else 0
+    
+    total = base_score + news_score + trending_bonus
     return min(total, 100)
+
+def guess_category(topic):
+    """Intenta adivinar la categoría de un tema"""
+    topic_lower = topic.lower()
+    
+    category_keywords = {
+        'Deportes': ['fútbol', 'deporte', 'selección', 'campeonato', 'juego', 'copa'],
+        'Economía': ['dólar', 'inflación', 'economía', 'peso', 'banco central', 'bolsa'],
+        'Nacional': ['gobierno', 'presidente', 'kongreso', 'ley', 'chile', 'kast', 'ministra'],
+        'Internacional': ['eeuu', 'europa', 'guerra', 'mundial', 'trump', 'putin'],
+        'Tecnología': ['tecnología', 'app', 'digital', 'startup', 'ia', 'inteligencia artificial'],
+        'Salud': ['salud', 'virus', 'vacuna', 'hospital', 'médico', 'pandemia'],
+        'Sociedad': ['sociedad', 'protesta', 'derechos', 'educación', 'migración'],
+        'TV y Espectáculos': ['actor', 'actriz', 'show', 'tv', 'famoso', 'cine', 'música'],
+        'Ciencia y Tecnología': ['ciencia', 'investigación', 'descubrimiento', 'espacio'],
+    }
+    
+    for category, keywords in category_keywords.items():
+        for keyword in keywords:
+            if keyword in topic_lower:
+                return category
+    
+    return 'Tendencias'
 
 def get_predictions():
     """Genera predicciones cruzando Google Trends + NewsAPI"""
     print("[PREDICT] Generando predicciones...")
     
-    # 1. Obtener temas de Google Trends
+    # 1. Intentar Google Trends
     gt_topics = get_google_trends_data()
     
+    # 2. Si falla, usar fallback
     if not gt_topics:
-        print("[PREDICT] No hay datos de Google Trends")
+        print("[PREDICT] Google Trends no disponible, usando fallback")
+        gt_topics = get_trending_topics_from_news()
+    
+    if not gt_topics:
+        print("[PREDICT] No hay datos disponibles")
         return []
     
     predictions = []
     
-    # 2. Para cada tema, buscar noticias y calcular score
-    for topic in gt_topics[:10]:
-        print(f"[PREDICT] Analizando: {topic}")
+    # 3. Para cada tema, buscar noticias y calcular score
+    for i, topic in enumerate(gt_topics[:10]):
+        print(f"[PREDICT] Analizando ({i+1}/10): {topic[:50]}...")
         
         # Buscar noticias
         news = search_news(topic, max_results=3)
         news_count = len(news)
         
-        # Calcular score
-        score = calculate_prediction_score(topic, news_count)
+        # Es trending de Google?
+        is_trending = i < len(get_google_trends_data()) if gt_topics else False
         
-        # Solo incluir si tiene score > 30
-        if score >= 30:
-            # Determinar categoría más probable
+        # Calcular score
+        score = calculate_prediction_score(topic, news_count, is_trending)
+        
+        # Incluir si tiene score > 25 (más tolerante)
+        if score >= 25:
             category = guess_category(topic)
             
-            # Generar alerta si score > 70
             alert_level = None
             if score >= 85:
                 alert_level = 'critical'
@@ -184,35 +259,12 @@ def get_predictions():
                 'timestamp': datetime.now().isoformat()
             })
     
-    # Ordenar por score descendente
+    # Ordenar por score
     predictions.sort(key=lambda x: x['score'], reverse=True)
     
-    print(f"[PREDICT] Generadas {len(predictions)} predicciones")
+    print(f"[PREDICT] ✅ Generadas {len(predictions)} predicciones")
     
     return predictions[:10]
-
-def guess_category(topic):
-    """Intenta adivinar la categoría de un tema"""
-    topic_lower = topic.lower()
-    
-    category_keywords = {
-        'Deportes': ['fútbol', 'deporte', 'selección', 'campeonato', 'juego'],
-        'Economía': ['dólar', 'inflación', 'economía', 'peso', 'banco central'],
-        'Nacional': ['gobierno', 'presidente', 'kongreso', 'ley', 'chile'],
-        'Internacional': ['eeuu', 'europa', 'guerra', 'mundial'],
-        'Tecnología': ['tecnología', 'app', 'digital', 'startup', 'ia'],
-        'Salud': ['salud', 'virus', 'vacuna', 'hospital', 'médico'],
-        'Sociedad': ['sociedad', 'protesta', 'derechos', 'educación'],
-        'TV y Espectáculos': ['actor', 'actriz', 'show', 'tv', 'famoso'],
-        'Ciencia y Tecnología': ['ciencia', 'investigación', 'descubrimiento'],
-    }
-    
-    for category, keywords in category_keywords.items():
-        for keyword in keywords:
-            if keyword in topic_lower:
-                return category
-    
-    return 'Tendencias'
 
 def get_trends_for_category(category):
     """Obtiene tendencias REALES desde NewsAPI o GDELT"""
@@ -591,7 +643,7 @@ def get_trending():
 
 @app.route('/api/predictions', methods=['GET'])
 def get_predictions_route():
-    """Endpoint para obtener predicciones basadas en Google Trends"""
+    """Endpoint para obtener predicciones"""
     predictions = get_predictions()
     return jsonify(predictions)
 
