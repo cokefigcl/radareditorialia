@@ -14,7 +14,7 @@ app = Flask(__name__)
 # Fallback temporal si Railway no carga NEWSAPI_KEY
 if not os.getenv('NEWSAPI_KEY'):
     os.environ['NEWSAPI_KEY'] = "89f88b93d0634e1ab94c3a5fd018bc1a"
-    print("️ Usando NEWSAPI_KEY hardcodeada")
+    print("⚠️ Usando NEWSAPI_KEY hardcodeada")
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'trends.db')
 
@@ -46,7 +46,6 @@ init_db()
 
 # ==================== CATEGORÍAS EXPANDIDAS ====================
 CATEGORIES = [
-    # Categorías originales (temas)
     {'name': 'Eléctrico', 'icon': '⚡', 'type': 'tema'},
     {'name': 'Automotriz', 'icon': '🚗', 'type': 'tema'},
     {'name': 'Belleza', 'icon': '💄', 'type': 'tema'},
@@ -55,21 +54,17 @@ CATEGORIES = [
     {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    
-    # Nuevas regiones
     {'name': 'Nacional', 'icon': '🇨🇱', 'type': 'region'},
-    {'name': 'Internacional', 'icon': '', 'type': 'region'},
-    {'name': 'Valparaíso', 'icon': '️', 'type': 'region'},
-    {'name': 'Metropolitana', 'icon': '️', 'type': 'region'},
+    {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
+    {'name': 'Valparaíso', 'icon': '🏖️', 'type': 'region'},
+    {'name': 'Metropolitana', 'icon': '🏙️', 'type': 'region'},
     {'name': 'Biobío', 'icon': '🌲', 'type': 'region'},
     {'name': 'Araucanía', 'icon': '🌳', 'type': 'region'},
     {'name': 'Los Ríos', 'icon': '🌊', 'type': 'region'},
     {'name': 'Los Lagos', 'icon': '🏔️', 'type': 'region'},
-    
-    # Nuevas secciones
     {'name': 'Deportes', 'icon': '⚽', 'type': 'seccion'},
-    {'name': 'Ciencia y Tecnología', 'icon': '', 'type': 'seccion'},
-    {'name': 'Cultura', 'icon': '', 'type': 'seccion'},
+    {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'seccion'},
+    {'name': 'Cultura', 'icon': '🎭', 'type': 'seccion'},
     {'name': 'Dopamina', 'icon': '🧠', 'type': 'seccion'},
     {'name': 'Salud', 'icon': '🏥', 'type': 'seccion'},
     {'name': 'Sociedad', 'icon': '👥', 'type': 'seccion'},
@@ -78,40 +73,120 @@ CATEGORIES = [
 
 REGIONS = ['Chile']
 
-# Temas de ejemplo por categoría
-TOPICS_BY_CATEGORY = {
-    'Eléctrico': ["Subsidios a la electromovilidad en Chile 2026", "Expansión de la red de carga", "Nuevas normativas de eficiencia energética", "Energía solar en hogares", "Baterías de litio: Chile como actor global"],
-    'Automotriz': ["Caída en ventas de autos nuevos", "Auge de autos usados importados", "Nuevas regulaciones de emisiones", "Competencia de marcas chinas", "Seguros automotrices: alzas"],
-    'Belleza': ["Boom del skincare coreano", "Cosmética natural en Chile", "Influencers de belleza y ventas", "Tendencias de maquillaje 2026", "Tratamientos capilares en auge"],
-    'Minería': ["Precio del cobre en máximos", "Litio: estrategia nacional", "Minería verde y descarbonización", "Automatización en faenas", "Conflictos socioambientales"],
-    'IA': ["Regulación de IA en Chile", "IA generativa y mundo laboral", "Startups chilenas de IA", "Deepfakes y desinformación", "IA en la educación"],
-    'Tendencias': ["Deuda de jóvenes y pagos digitales", "Crisis habitacional en Santiago", "Migración y mercado laboral", "Turismo interno post-pandemia", "Foodtech en Chile"],
-    'Tecnología': ["Expansión del 5G en regiones", "Ciberseguridad: ataques a empresas", "Fintech y bancarización digital", "Gaming y esports en crecimiento", "Transformación digital pymes"],
-    'Economía': ["Tasa de interés del Banco Central", "Inflación y canasta básica", "Reforma tributaria: impactos", "Desempleo y mercado laboral", "Dólar y economía local"],
-    'Nacional': ["Gobierno de Kast", "Reforma de pensiones", "Seguridad ciudadana", "Migración y fronteras", "Despidos en el sector público"],
-    'Internacional': ["Guerra en Ucrania", "Tensiones China-EEUU", "Crisis climática global", "Elecciones en Europa", "Conflictos en Medio Oriente"],
-    'Valparaíso': ["Puerto de Valparaíso", "Incendios forestales región", "Turismo en la costa", "Contaminación de la bahía", "Patrimonio UNESCO"],
-    'Metropolitana': ["Transporte en Santiago", "Smog en la capital", "Crisis habitacional", "Tráfico en autopistas", "Parques urbanos"],
-    'Biobío': ["Industria forestal", "Pesca artesanal", "Energía renovable", "Turismo en Concepción", "Desarrollo regional"],
-    'Araucanía': ["Conflicto mapuche", "Operativo de control", "Desarrollo regional", "Turismo en Temuco", "Educación intercultural"],
-    'Los Ríos': ["Industria salmonera", "Volcán Calbuco", "Turismo en Valdivia", "Contaminación de ríos", "Cerveza artesanal"],
-    'Los Lagos': ["Turismo en Puerto Varas", "Erupción de volcanes", "Industria pesquera", "Cambio climático", "Lagos y naturaleza"],
-    'Deportes': ["Selección chilena", "Campeonato Nacional", "Alexis Sánchez", "Juegos Olímpicos", "Fútbol femenino"],
-    'Ciencia y Tecnología': ["Inteligencia artificial", "Cambio climático", "Exploración espacial", "Ciberseguridad", "Energías limpias"],
-    'Cultura': ["Festivales en Chile", "Cine nacional", "Música chilena", "Arte contemporáneo", "Literatura latinoamericana"],
-    'Dopamina': ["Tendencias en TikTok", "Viral en redes sociales", "Memes de Chile", "Influencers locales", "Gaming y streamers"],
-    'Salud': ["Sistema de salud público", "Vacunación", "Salud mental", "Enfermedades crónicas", "Atención primaria"],
-    'Sociedad': ["Desigualdad social", "Educación pública", "Violencia de género", "Adulto mayor", "Derechos humanos"],
-    'TV y Espectáculos': ["Telenovelas chilenas", "Programas de TV", "Famosos de Chile", "Estrenos de cine", "Reality shows"]
+# Palabras clave para búsqueda en NewsAPI por categoría
+SEARCH_KEYWORDS = {
+    'Eléctrico': 'electromovilidad OR energía solar OR vehículos eléctricos Chile',
+    'Automotriz': 'autos OR vehículos OR automotriz Chile',
+    'Belleza': 'belleza OR cosmética OR skincare Chile',
+    'Minería': 'minería OR cobre OR litio Chile',
+    'IA': 'inteligencia artificial OR IA Chile',
+    'Tendencias': 'tendencias Chile 2026',
+    'Tecnología': 'tecnología OR 5G OR startups Chile',
+    'Economía': 'economía OR dólar OR inflación Chile',
+    'Nacional': 'Chile gobierno política nacional',
+    'Internacional': 'internacional mundo',
+    'Valparaíso': 'Valparaíso región',
+    'Metropolitana': 'Santiago metropolitana',
+    'Biobío': 'Biobío Concepción',
+    'Araucanía': 'Araucanía Temuco',
+    'Los Ríos': 'Los Ríos Valdivia',
+    'Los Lagos': 'Los Lagos Puerto Montt',
+    'Deportes': 'deportes fútbol Chile',
+    'Ciencia y Tecnología': 'ciencia tecnología investigación',
+    'Cultura': 'cultura arte Chile',
+    'Dopamina': 'redes sociales viral TikTok',
+    'Salud': 'salud medicina Chile',
+    'Sociedad': 'sociedad Chile',
+    'TV y Espectáculos': 'televisión espectáculos Chile'
 }
 
 def get_trends_for_category(category):
-    if category and category != 'all' and category in TOPICS_BY_CATEGORY:
-        return TOPICS_BY_CATEGORY[category]
-    all_trends = [t for topics in TOPICS_BY_CATEGORY.values() for t in topics]
-    import random
-    random.shuffle(all_trends)
-    return all_trends[:5]
+    """Obtiene tendencias REALES desde NewsAPI para una categoría"""
+    if not category or category == 'all':
+        return []
+    
+    keywords = SEARCH_KEYWORDS.get(category, category)
+    newsapi_key = os.getenv('NEWSAPI_KEY')
+    
+    # Intentar con NewsAPI
+    if newsapi_key:
+        try:
+            url = 'https://newsapi.org/v2/everything'
+            params = {
+                'q': keywords,
+                'from': (datetime.now() - timedelta(days=3)).strftime('%Y-%m-%d'),
+                'to': datetime.now().strftime('%Y-%m-%d'),
+                'sortBy': 'publishedAt',
+                'language': 'es',
+                'pageSize': 10,
+                'apiKey': newsapi_key
+            }
+            response = requests.get(url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                articles = data.get('articles', [])
+                
+                trends = []
+                seen = set()
+                for article in articles:
+                    title = article.get('title', '').strip()
+                    if title and title not in seen and len(title) > 15:
+                        seen.add(title)
+                        trends.append({
+                            'topic': title,
+                            'source': article.get('source', {}).get('name', 'Medio'),
+                            'region': 'Chile'
+                        })
+                    if len(trends) >= 5:
+                        break
+                
+                if trends:
+                    print(f"[DEBUG] Tendencias reales para {category}: {len(trends)}")
+                    return trends
+        except Exception as e:
+            print(f"[DEBUG] Error NewsAPI en tendencias: {str(e)}")
+    
+    # Fallback a GDELT
+    try:
+        url = 'https://api.gdeltproject.org/api/v2/doc/doc'
+        params = {
+            'query': category + ' Chile',
+            'mode': 'artlist',
+            'format': 'json',
+            'startdatetime': (datetime.now() - timedelta(days=3)).strftime('%Y%m%d%H%M%S'),
+            'enddatetime': datetime.now().strftime('%Y%m%d%H%M%S'),
+            'maxrecords': 15,
+            'sourcelang': 'spa',
+            'sort': 'DateDesc'
+        }
+        response = requests.get(url, params=params, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            articles = data.get('articles', [])
+            
+            trends = []
+            seen = set()
+            for article in articles:
+                title = article.get('title', '').strip()
+                if title and title not in seen and len(title) > 15:
+                    seen.add(title)
+                    trends.append({
+                        'topic': title,
+                        'source': article.get('domain', 'Medio'),
+                        'region': 'Chile'
+                    })
+                if len(trends) >= 5:
+                    break
+            
+            if trends:
+                print(f"[DEBUG] Tendencias GDELT para {category}: {len(trends)}")
+                return trends
+    except Exception as e:
+        print(f"[DEBUG] Error GDELT en tendencias: {str(e)}")
+    
+    return []
 
 # ==================== BÚSQUEDA DE NOTICIAS ====================
 
@@ -399,7 +474,8 @@ def get_regions():
 def get_trending():
     category = request.args.get('category', 'all')
     limit = int(request.args.get('limit', 5))
-    return jsonify([{'topic': t, 'source': 'Tendencias ' + (category if category != 'all' else 'Chile'), 'region': 'Chile'} for t in get_trends_for_category(category)[:limit]])
+    trends = get_trends_for_category(category)
+    return jsonify(trends[:limit])
 
 @app.route('/api/debug', methods=['GET'])
 def debug():
