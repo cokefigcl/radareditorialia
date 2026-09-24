@@ -560,4 +560,28 @@ def analyze():
         
         if 'noticias_reales' not in analysis:
             analysis['noticias_reales'] = news if news else []
+        
+        score = analysis.get('puntaje_relevancia', 5)
+        
+        conn = get_db()
+        conn.cursor().execute('INSERT INTO trends (topic, topic2, category, region, mode, analysis, score) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                              (topic, topic2 if mode == 'compare' else None, category, region, mode, json.dumps(analysis, ensure_ascii=False), score))
+        conn.commit()
+        conn.close()
+        
+        print(f"[ANALYZE] Completado. Fallback: {used_fallback}")
+        print(f"{'='*60}\n")
+        
+        return jsonify({
+            'topic': topic, 'topic2': topic2, 'category': category, 'region': region,
+            'mode': mode, 'lens': lens,
+            'analysis': analysis, 'score': score, 'used_fallback': used_fallback,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        print(f"[ERROR] {str(e)}")
+        topic = request.json.get('topic', 'Tema') if request.json else 'Tema'
+        return jsonify({'topic': topic, 'analysis': generate_fallback(topic, None, None, None, 'standard', []), 'score': 5, 'warning': f'Error: {str(e)}'}), 200
 
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
