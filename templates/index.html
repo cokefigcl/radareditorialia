@@ -30,6 +30,7 @@
             font-size: 14px;
             margin: 4px;
             color: #333;
+            white-space: nowrap;
         }
         .filter-btn.active {
             background: #007bff;
@@ -94,6 +95,8 @@
             font-size: 14px;
             font-weight: 600;
             transition: all 0.2s;
+            min-width: 140px;
+            text-align: center;
         }
         .mode-btn:hover { border-color: #007bff; }
         .mode-btn.active {
@@ -114,6 +117,7 @@
             border-radius: 20px;
             cursor: pointer;
             font-size: 13px;
+            white-space: nowrap;
         }
         .lens-btn:hover { border-color: #28a745; }
         .lens-btn.active {
@@ -286,7 +290,7 @@
 </head>
 <body>
     <div class="container">
-        <h1> Radar Editorial con IA</h1>
+        <h1>📰 Radar Editorial con IA</h1>
         <h3>📂 Categorías</h3>
         <div id="categoryFilters"></div>
     </div>
@@ -306,7 +310,7 @@
             <button class="mode-btn active" onclick="selectMode('standard')">📊 Estándar</button>
             <button class="mode-btn" onclick="selectMode('briefing')">⚡ Briefing</button>
             <button class="mode-btn" onclick="selectMode('devil')">😈 Abogado del Diablo</button>
-            <button class="mode-btn" onclick="selectMode('compare')">️ Comparador</button>
+            <button class="mode-btn" onclick="selectMode('compare')">⚖️ Comparador</button>
         </div>
         
         <div class="input-group">
@@ -317,8 +321,8 @@
         </div>
         
         <div id="lensSelector" class="lens-selector">
-            <button class="lens-btn active" onclick="selectLens('')"> Sin lente</button>
-            <button class="lens-btn" onclick="selectLens('data')"> Datos</button>
+            <button class="lens-btn active" onclick="selectLens('')">🎯 Sin lente</button>
+            <button class="lens-btn" onclick="selectLens('data')">🔍 Datos</button>
             <button class="lens-btn" onclick="selectLens('controversy')">🔥 Polémico</button>
             <button class="lens-btn" onclick="selectLens('human')">👥 Humano</button>
             <button class="lens-btn" onclick="selectLens('economic')">💰 Económico</button>
@@ -341,7 +345,7 @@
     
     <div class="footer">
         <div>Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - <a href="https://ltv.cl" target="_blank">LTV.cl</a></div>
-        <div class="version">Versión 5.2.0 | Última actualización: Septiembre 2026</div>
+        <div class="version">Versión 5.2.1 | Última actualización: Septiembre 2026</div>
     </div>
 
     <script>
@@ -422,8 +426,10 @@
                 const res = await fetch(url);
                 const trends = await res.json();
                 
+                console.log('[TRENDS] Respuesta:', trends);
+                
                 if (!trends || trends.length === 0) {
-                    list.innerHTML = '<p>No hay tendencias disponibles para esta categoría. Intenta con otra.</p>';
+                    list.innerHTML = '<p>No hay tendencias disponibles para esta categoría. Intenta con otra o haz clic en Actualizar.</p>';
                     return;
                 }
                 
@@ -436,6 +442,7 @@
                 });
                 list.innerHTML = html;
             } catch (err) {
+                console.error('[TRENDS] Error:', err);
                 list.innerHTML = '<p>Error cargando tendencias</p>';
             }
         }
@@ -528,7 +535,7 @@
         }
 
         function getScoreLabel(score) {
-            if (score >= 9) return ' CRÍTICA';
+            if (score >= 9) return '🔴 CRÍTICA';
             if (score >= 7) return '✅ ALTA';
             if (score >= 4) return '⚠️ MEDIA';
             return '🔵 BAJA';
@@ -563,7 +570,7 @@
                     html += '</div>';
                 }
                 if (a.preguntas_fuente && a.preguntas_fuente.length) {
-                    html += '<h4>❓ Preguntas para tu Fuente</h4><ul>';
+                    html += '<h4> Preguntas para tu Fuente</h4><ul>';
                     a.preguntas_fuente.forEach(function(q) { html += '<li>' + q + '</li>'; });
                     html += '</ul>';
                 }
@@ -656,7 +663,7 @@
                 }
                 
                 if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) {
-                    html += '<h4>📚 Fuentes sugeridas</h4><ul>';
+                    html += '<h4> Fuentes sugeridas</h4><ul>';
                     a.fuentes_sugeridas.forEach(function(f) { html += '<li>🔗 ' + f + '</li>'; });
                     html += '</ul>';
                 }
@@ -670,11 +677,11 @@
                     if (news.url) {
                         html += '<div class="news-title"><a href="' + news.url + '" target="_blank">📰 ' + news.titulo + '</a></div>';
                     } else {
-                        html += '<div class="news-title"> ' + news.titulo + '</div>';
+                        html += '<div class="news-title">📰 ' + news.titulo + '</div>';
                     }
                     html += '<div class="news-meta">';
-                    if (news.fuente) html += '📡 ' + news.fuente;
-                    if (news.fecha) html += ' |  ' + news.fecha;
+                    if (news.fuente) html += ' ' + news.fuente;
+                    if (news.fecha) html += ' | 📅 ' + news.fecha;
                     html += '</div></div>';
                 });
                 html += '</div>';
@@ -704,19 +711,19 @@
                     const category = item.category || 'General';
                     const mode = item.mode || 'standard';
                     const date = item.created_at ? new Date(item.created_at).toLocaleString('es-CL') : '';
-                    const modeLabels = {'standard': '📊', 'briefing': '⚡', 'devil': '😈', 'compare': '⚖️'};
+                    const modeLabels = {'standard': '📊', 'briefing': '', 'devil': '😈', 'compare': '⚖️'};
                     
                     html += '<div class="history-item">';
                     html += '<div class="history-header">';
                     html += '<div><div class="history-topic">' + modeLabels[mode] + ' ' + item.topic + (item.topic2 ? ' vs ' + item.topic2 : '') + '</div>';
-                    html += '<div class="history-meta"> ' + category + ' | 📅 ' + date + '</div></div>';
+                    html += '<div class="history-meta">📂 ' + category + ' | 📅 ' + date + '</div></div>';
                     if (score > 0 && mode === 'standard') {
                         html += '<span class="score-badge ' + getScoreClass(score) + '">' + score + '/10</span>';
                     }
                     html += '</div>';
                     html += '<div class="history-actions">';
                     html += '<button class="btn-small btn-analyze" onclick="reAnalyze(\'' + item.topic.replace(/'/g, "\\'") + '\', \'' + (item.category || '') + '\', \'' + mode + '\')">🔄 Re-analizar</button>';
-                    html += '<button class="btn-small btn-delete" onclick="deleteAnalysis(' + item.id + ')">️ Eliminar</button>';
+                    html += '<button class="btn-small btn-delete" onclick="deleteAnalysis(' + item.id + ')">🗑️ Eliminar</button>';
                     html += '</div></div>';
                 });
                 list.innerHTML = html;
