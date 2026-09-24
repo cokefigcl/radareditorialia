@@ -6,6 +6,7 @@ import sqlite3
 import requests
 import re
 from datetime import datetime, timedelta
+from pytrends.request import TrendReq
 
 load_dotenv()
 
@@ -14,7 +15,7 @@ app = Flask(__name__)
 # Fallback temporal si Railway no carga NEWSAPI_KEY
 if not os.getenv('NEWSAPI_KEY'):
     os.environ['NEWSAPI_KEY'] = "89f88b93d0634e1ab94c3a5fd018bc1a"
-    print("⚠️ Usando NEWSAPI_KEY hardcodeada")
+    print("️ Usando NEWSAPI_KEY hardcodeada")
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'trends.db')
 
@@ -59,15 +60,15 @@ CATEGORIES = [
     {'name': 'Valparaíso', 'icon': '🏖️', 'type': 'region'},
     {'name': 'Metropolitana', 'icon': '🏙️', 'type': 'region'},
     {'name': 'Biobío', 'icon': '🌲', 'type': 'region'},
-    {'name': 'Araucanía', 'icon': '', 'type': 'region'},
-    {'name': 'Los Ríos', 'icon': '', 'type': 'region'},
+    {'name': 'Araucanía', 'icon': '🌳', 'type': 'region'},
+    {'name': 'Los Ríos', 'icon': '🌊', 'type': 'region'},
     {'name': 'Los Lagos', 'icon': '🏔️', 'type': 'region'},
     {'name': 'Deportes', 'icon': '⚽', 'type': 'seccion'},
-    {'name': 'Ciencia y Tecnología', 'icon': '', 'type': 'seccion'},
-    {'name': 'Cultura', 'icon': '', 'type': 'seccion'},
+    {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'seccion'},
+    {'name': 'Cultura', 'icon': '🎭', 'type': 'seccion'},
     {'name': 'Dopamina', 'icon': '🧠', 'type': 'seccion'},
     {'name': 'Salud', 'icon': '🏥', 'type': 'seccion'},
-    {'name': 'Sociedad', 'icon': '👥', 'type': 'seccion'},
+    {'name': 'Sociedad', 'icon': '', 'type': 'seccion'},
     {'name': 'TV y Espectáculos', 'icon': '📺', 'type': 'seccion'}
 ]
 
@@ -100,18 +101,129 @@ SEARCH_KEYWORDS = {
     'TV y Espectáculos': 'televisión OR espectáculos OR farándula'
 }
 
+# ==================== GOOGLE TRENDS ====================
+
+def get_google_trends_data():
+    """Obtiene tendencias ascendentes de Google Trends en Chile"""
+    try:
+        pytrends = TrendReq(hl='es-CL', tz=-240)
+        
+        # Obtener tendencias diarias en Chile
+        trending_searches = pytrends.trending_searches(pn='chile')
+        
+        if trending_searches.empty:
+            return []
+        
+        # Tomar los top 10
+        topics = trending_searches[0].head(10).tolist()
+        
+        print(f"[TRENDS] Google Trends encontró {len(topics)} temas")
+        
+        return topics
+    except Exception as e:
+        print(f"[TRENDS] Error Google Trends: {str(e)}")
+        return []
+
+def calculate_prediction_score(topic, news_count):
+    """Calcula score de predicción basado en volumen y noticias"""
+    # Score base por noticias encontradas
+    news_score = min(news_count * 20, 60)  # Máximo 60 puntos
+    
+    # Score por volumen de búsqueda (simulado con noticias)
+    volume_score = min(news_count * 10, 30)  # Máximo 30 puntos
+    
+    # Score base mínimo
+    base_score = 10
+    
+    total = base_score + news_score + volume_score
+    return min(total, 100)
+
+def get_predictions():
+    """Genera predicciones cruzando Google Trends + NewsAPI"""
+    print("[PREDICT] Generando predicciones...")
+    
+    # 1. Obtener temas de Google Trends
+    gt_topics = get_google_trends_data()
+    
+    if not gt_topics:
+        print("[PREDICT] No hay datos de Google Trends")
+        return []
+    
+    predictions = []
+    
+    # 2. Para cada tema, buscar noticias y calcular score
+    for topic in gt_topics[:10]:
+        print(f"[PREDICT] Analizando: {topic}")
+        
+        # Buscar noticias
+        news = search_news(topic, max_results=3)
+        news_count = len(news)
+        
+        # Calcular score
+        score = calculate_prediction_score(topic, news_count)
+        
+        # Solo incluir si tiene score > 30
+        if score >= 30:
+            # Determinar categoría más probable
+            category = guess_category(topic)
+            
+            # Generar alerta si score > 70
+            alert_level = None
+            if score >= 85:
+                alert_level = 'critical'
+            elif score >= 70:
+                alert_level = 'high'
+            
+            predictions.append({
+                'topic': topic,
+                'score': score,
+                'category': category,
+                'news_count': news_count,
+                'news': news,
+                'alert_level': alert_level,
+                'timestamp': datetime.now().isoformat()
+            })
+    
+    # Ordenar por score descendente
+    predictions.sort(key=lambda x: x['score'], reverse=True)
+    
+    print(f"[PREDICT] Generadas {len(predictions)} predicciones")
+    
+    return predictions[:10]
+
+def guess_category(topic):
+    """Intenta adivinar la categoría de un tema"""
+    topic_lower = topic.lower()
+    
+    category_keywords = {
+        'Deportes': ['fútbol', 'deporte', 'selección', 'campeonato', 'juego'],
+        'Economía': ['dólar', 'inflación', 'economía', 'peso', 'banco central'],
+        'Nacional': ['gobierno', 'presidente', 'kongreso', 'ley', 'chile'],
+        'Internacional': ['eeuu', 'europa', 'guerra', 'mundial'],
+        'Tecnología': ['tecnología', 'app', 'digital', 'startup', 'ia'],
+        'Salud': ['salud', 'virus', 'vacuna', 'hospital', 'médico'],
+        'Sociedad': ['sociedad', 'protesta', 'derechos', 'educación'],
+        'TV y Espectáculos': ['actor', 'actriz', 'show', 'tv', 'famoso'],
+        'Ciencia y Tecnología': ['ciencia', 'investigación', 'descubrimiento'],
+    }
+    
+    for category, keywords in category_keywords.items():
+        for keyword in keywords:
+            if keyword in topic_lower:
+                return category
+    
+    return 'Tendencias'
+
 def get_trends_for_category(category):
     """Obtiene tendencias REALES desde NewsAPI o GDELT"""
     if not category or category == 'all':
-        # Si es "all", usar término genérico
         category = 'Chile'
     
     keywords = SEARCH_KEYWORDS.get(category, category)
     newsapi_key = os.getenv('NEWSAPI_KEY')
     
-    print(f"[TRENDS] Buscando tendencias para: {category} con keywords: {keywords}")
+    print(f"[TRENDS] Buscando tendencias para: {category}")
     
-    # Intentar con NewsAPI
     if newsapi_key and len(newsapi_key) > 10:
         try:
             url = 'https://newsapi.org/v2/everything'
@@ -125,12 +237,10 @@ def get_trends_for_category(category):
                 'apiKey': newsapi_key
             }
             response = requests.get(url, params=params, timeout=10)
-            print(f"[TRENDS] NewsAPI status: {response.status_code}")
             
             if response.status_code == 200:
                 data = response.json()
                 articles = data.get('articles', [])
-                print(f"[TRENDS] NewsAPI artículos: {len(articles)}")
                 
                 trends = []
                 seen = set()
@@ -147,17 +257,11 @@ def get_trends_for_category(category):
                         break
                 
                 if trends:
-                    print(f"[TRENDS] ✅ NewsAPI encontró {len(trends)} tendencias")
                     return trends
-                else:
-                    print(f"[TRENDS] ⚠️ NewsAPI no devolvió artículos válidos")
-            else:
-                print(f"[TRENDS] ❌ NewsAPI error: {response.text[:200]}")
         except Exception as e:
-            print(f"[TRENDS]  NewsAPI error: {str(e)}")
+            print(f"[TRENDS] NewsAPI error: {str(e)}")
     
-    # Fallback a GDELT
-    print(f"[TRENDS] Intentando GDELT...")
+    # Fallback GDELT
     try:
         url = 'https://api.gdeltproject.org/api/v2/doc/doc'
         params = {
@@ -171,12 +275,10 @@ def get_trends_for_category(category):
             'sort': 'DateDesc'
         }
         response = requests.get(url, params=params, timeout=15)
-        print(f"[TRENDS] GDELT status: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
             articles = data.get('articles', [])
-            print(f"[TRENDS] GDELT artículos: {len(articles)}")
             
             trends = []
             seen = set()
@@ -192,13 +294,10 @@ def get_trends_for_category(category):
                 if len(trends) >= 5:
                     break
             
-            if trends:
-                print(f"[TRENDS] ✅ GDELT encontró {len(trends)} tendencias")
-                return trends
+            return trends
     except Exception as e:
-        print(f"[TRENDS] ❌ GDELT error: {str(e)}")
+        print(f"[TRENDS] GDELT error: {str(e)}")
     
-    print(f"[TRENDS] ❌ No se encontraron tendencias para {category}")
     return []
 
 # ==================== BÚSQUEDA DE NOTICIAS ====================
@@ -489,6 +588,12 @@ def get_trending():
     limit = int(request.args.get('limit', 5))
     trends = get_trends_for_category(category)
     return jsonify(trends[:limit])
+
+@app.route('/api/predictions', methods=['GET'])
+def get_predictions_route():
+    """Endpoint para obtener predicciones basadas en Google Trends"""
+    predictions = get_predictions()
+    return jsonify(predictions)
 
 @app.route('/api/debug', methods=['GET'])
 def debug():
