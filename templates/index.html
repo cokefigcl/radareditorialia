@@ -77,7 +77,6 @@
             padding: 10px 20px;
             border: 2px solid #ddd;
             background: white;
-            color: #333;
             border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
@@ -100,7 +99,6 @@
             padding: 8px 16px;
             border: 2px solid #ddd;
             background: white;
-            color: #333;
             border-radius: 20px;
             cursor: pointer;
             font-size: 13px;
@@ -249,6 +247,15 @@
         .mode-devil { background: #dc3545; color: white; }
         .mode-compare { background: #6f42c1; color: white; }
         .mode-standard { background: #6c757d; color: white; }
+        .category-group { margin-bottom: 12px; }
+        .category-group-title {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
     </style>
 </head>
 <body>
@@ -260,7 +267,7 @@
     
     <div class="container">
         <div class="trending-section">
-            <h3> Tendencias en Chile</h3>
+            <h3>🔥 Tendencias en Chile</h3>
             <div id="trendingList"><p>Cargando...</p></div>
         </div>
     </div>
@@ -308,7 +315,7 @@
     
     <div class="footer">
         <div>Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - <a href="https://ltv.cl" target="_blank">LTV.cl</a></div>
-        <div class="version">Versión 5.0.0 | Última actualización: Septiembre 2026</div>
+        <div class="version">Versión 5.1.0 | Última actualización: Septiembre 2026</div>
     </div>
 
     <script>
@@ -331,10 +338,35 @@
 
         function renderFilters() {
             const catContainer = document.getElementById('categoryFilters');
-            let html = '<button class="filter-btn active" onclick="selectCategory(\'all\')">Todas</button>';
-            categories.forEach(function(cat) {
+            
+            const temas = categories.filter(c => c.type === 'tema');
+            const regiones = categories.filter(c => c.type === 'region');
+            const secciones = categories.filter(c => c.type === 'seccion');
+            
+            let html = '';
+            
+            html += '<div class="category-group">';
+            html += '<div class="category-group-title">📂 TEMAS</div>';
+            html += '<button class="filter-btn active" onclick="selectCategory(\'all\')">Todas</button>';
+            temas.forEach(function(cat) {
                 html += '<button class="filter-btn" onclick="selectCategory(\'' + cat.name + '\')">' + cat.icon + ' ' + cat.name + '</button>';
             });
+            html += '</div>';
+            
+            html += '<div class="category-group">';
+            html += '<div class="category-group-title">📍 REGIONES</div>';
+            regiones.forEach(function(cat) {
+                html += '<button class="filter-btn" onclick="selectCategory(\'' + cat.name + '\')">' + cat.icon + ' ' + cat.name + '</button>';
+            });
+            html += '</div>';
+            
+            html += '<div class="category-group">';
+            html += '<div class="category-group-title">📰 SECCIONES</div>';
+            secciones.forEach(function(cat) {
+                html += '<button class="filter-btn" onclick="selectCategory(\'' + cat.name + '\')">' + cat.icon + ' ' + cat.name + '</button>';
+            });
+            html += '</div>';
+            
             catContainer.innerHTML = html;
             
             const catSelect = document.getElementById('categorySelect');
@@ -391,7 +423,6 @@
             buttons.forEach(function(btn) { btn.classList.remove('active'); });
             event.target.classList.add('active');
             
-            // Mostrar/ocultar segundo campo y lentes
             const topic2Input = document.getElementById('topic2Input');
             const lensSelector = document.getElementById('lensSelector');
             
@@ -496,7 +527,6 @@
             const score = data.score || a.puntaje_relevancia || 0;
             let html = '';
             
-            // Modo Briefing
             if (data.mode === 'briefing') {
                 if (a.resumen_ejecutivo) {
                     html += '<div style="background: #d1ecf1; padding: 15px; border-radius: 8px; border-left: 4px solid #17a2b8; margin-bottom: 20px;">';
@@ -510,31 +540,30 @@
                     html += '</ul>';
                 }
                 if (a.datos_duros && a.datos_duros.length) {
-                    html += '<h4>📊 Datos Duros a Verificar</h4><div>';
+                    html += '<h4> Datos Duros a Verificar</h4><div>';
                     a.datos_duros.forEach(function(d) { html += '<span class="tag">' + d + '</span>'; });
                     html += '</div>';
                 }
                 if (a.timeline_sugerido) {
-                    html += '<h4>⏰ Timeline Sugerido</h4><p>' + a.timeline_sugerido + '</p>';
+                    html += '<h4> Timeline Sugerido</h4><p>' + a.timeline_sugerido + '</p>';
                 }
             }
             
-            // Modo Abogado del Diablo
             else if (data.mode === 'devil') {
                 if (a.cobertura_mainstream) {
                     html += '<div style="background: #f8d7da; padding: 15px; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 20px;">';
-                    html += '<h4 style="margin-top:0; color: #721c24;">📰 Lo que todos dicen</h4>';
+                    html += '<h4 style="margin-top:0; color: #721c24;"> Lo que todos dicen</h4>';
                     html += '<p style="margin-bottom:0; line-height: 1.6;">' + a.cobertura_mainstream + '</p>';
                     html += '</div>';
                 }
                 if (a.angulo_ciego) {
                     html += '<div style="background: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 20px;">';
-                    html += '<h4 style="margin-top:0; color: #155724;"> Tu ángulo único</h4>';
+                    html += '<h4 style="margin-top:0; color: #155724;">💡 Tu ángulo único</h4>';
                     html += '<p style="margin-bottom:0; line-height: 1.6;">' + a.angulo_ciego + '</p>';
                     html += '</div>';
                 }
                 if (a.riesgos_sesgos && a.riesgos_sesgos.length) {
-                    html += '<h4>️ Riesgos y Sesgos</h4><div>';
+                    html += '<h4>⚠️ Riesgos y Sesgos</h4><div>';
                     a.riesgos_sesgos.forEach(function(r) { html += '<span class="tag">' + r + '</span>'; });
                     html += '</div>';
                 }
@@ -543,16 +572,15 @@
                 }
             }
             
-            // Modo Comparador
             else if (data.mode === 'compare') {
                 if (a.mas_recorrido) {
                     html += '<div style="background: #e2e3f5; padding: 15px; border-radius: 8px; border-left: 4px solid #6f42c1; margin-bottom: 20px;">';
-                    html += '<h4 style="margin-top:0; color: #383d41;"> Más Recorrido</h4>';
+                    html += '<h4 style="margin-top:0; color: #383d41;">📊 Más Recorrido</h4>';
                     html += '<p style="margin-bottom:0; line-height: 1.6;">' + a.mas_recorrido + '</p>';
                     html += '</div>';
                 }
                 if (a.fuentes_comunes && a.fuentes_comunes.length) {
-                    html += '<h4> Fuentes Comunes</h4><div>';
+                    html += '<h4>🔗 Fuentes Comunes</h4><div>';
                     a.fuentes_comunes.forEach(function(f) { html += '<span class="tag">' + f + '</span>'; });
                     html += '</div>';
                 }
@@ -564,7 +592,6 @@
                 }
             }
             
-            // Modo Estándar
             else {
                 if (score > 0) {
                     html += '<div style="margin-bottom: 20px;">';
@@ -589,7 +616,7 @@
                 }
                 
                 if (a.senales_clave && a.senales_clave.length) {
-                    html += '<h4> Señales clave</h4><div>';
+                    html += '<h4>🔍 Señales clave</h4><div>';
                     a.senales_clave.forEach(function(s) { html += '<span class="tag">' + s + '</span>'; });
                     html += '</div>';
                 }
@@ -607,19 +634,18 @@
                 }
             }
             
-            // Noticias (todos los modos)
             if (a.noticias_reales && Array.isArray(a.noticias_reales) && a.noticias_reales.length > 0) {
                 html += '<div class="news-section">';
                 html += '<h4>📰 Noticias Reales Encontradas (' + a.noticias_reales.length + ')</h4>';
                 a.noticias_reales.forEach(function(news) {
                     html += '<div class="news-item">';
                     if (news.url) {
-                        html += '<div class="news-title"><a href="' + news.url + '" target="_blank">📰 ' + news.titulo + '</a></div>';
+                        html += '<div class="news-title"><a href="' + news.url + '" target="_blank"> ' + news.titulo + '</a></div>';
                     } else {
                         html += '<div class="news-title">📰 ' + news.titulo + '</div>';
                     }
                     html += '<div class="news-meta">';
-                    if (news.fuente) html += ' ' + news.fuente;
+                    if (news.fuente) html += '📡 ' + news.fuente;
                     if (news.fecha) html += ' | 📅 ' + news.fecha;
                     html += '</div></div>';
                 });
@@ -655,14 +681,14 @@
                     html += '<div class="history-item">';
                     html += '<div class="history-header">';
                     html += '<div><div class="history-topic">' + modeLabels[mode] + ' ' + item.topic + (item.topic2 ? ' vs ' + item.topic2 : '') + '</div>';
-                    html += '<div class="history-meta">📂 ' + category + ' | 📅 ' + date + '</div></div>';
+                    html += '<div class="history-meta">📂 ' + category + ' |  ' + date + '</div></div>';
                     if (score > 0 && mode === 'standard') {
                         html += '<span class="score-badge ' + getScoreClass(score) + '">' + score + '/10</span>';
                     }
                     html += '</div>';
                     html += '<div class="history-actions">';
                     html += '<button class="btn-small btn-analyze" onclick="reAnalyze(\'' + item.topic.replace(/'/g, "\\'") + '\', \'' + (item.category || '') + '\', \'' + mode + '\')">🔄 Re-analizar</button>';
-                    html += '<button class="btn-small btn-delete" onclick="deleteAnalysis(' + item.id + ')">️ Eliminar</button>';
+                    html += '<button class="btn-small btn-delete" onclick="deleteAnalysis(' + item.id + ')">🗑️ Eliminar</button>';
                     html += '</div></div>';
                 });
                 list.innerHTML = html;
