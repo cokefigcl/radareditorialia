@@ -14,7 +14,7 @@ app = Flask(__name__)
 # Fallback temporal si Railway no carga NEWSAPI_KEY
 if not os.getenv('NEWSAPI_KEY'):
     os.environ['NEWSAPI_KEY'] = "89f88b93d0634e1ab94c3a5fd018bc1a"
-    print("⚠️ Usando NEWSAPI_KEY hardcodeada")
+    print("️ Usando NEWSAPI_KEY hardcodeada")
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'trends.db')
 
@@ -44,20 +44,42 @@ def init_db():
 
 init_db()
 
+# ==================== CATEGORÍAS EXPANDIDAS ====================
 CATEGORIES = [
-    {'name': 'Eléctrico', 'icon': ''},
-    {'name': 'Automotriz', 'icon': '🚗'},
-    {'name': 'Belleza', 'icon': ''},
-    {'name': 'Minería', 'icon': '⛏️'},
-    {'name': 'IA', 'icon': '🤖'},
-    {'name': 'Tendencias', 'icon': '📈'},
-    {'name': 'Tecnología', 'icon': '💻'},
-    {'name': 'Economía', 'icon': '💰'}
+    # Categorías originales (temas)
+    {'name': 'Eléctrico', 'icon': '⚡', 'type': 'tema'},
+    {'name': 'Automotriz', 'icon': '🚗', 'type': 'tema'},
+    {'name': 'Belleza', 'icon': '💄', 'type': 'tema'},
+    {'name': 'Minería', 'icon': '⛏️', 'type': 'tema'},
+    {'name': 'IA', 'icon': '🤖', 'type': 'tema'},
+    {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
+    {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
+    {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
+    
+    # Nuevas regiones
+    {'name': 'Nacional', 'icon': '🇨🇱', 'type': 'region'},
+    {'name': 'Internacional', 'icon': '', 'type': 'region'},
+    {'name': 'Valparaíso', 'icon': '️', 'type': 'region'},
+    {'name': 'Metropolitana', 'icon': '️', 'type': 'region'},
+    {'name': 'Biobío', 'icon': '🌲', 'type': 'region'},
+    {'name': 'Araucanía', 'icon': '🌳', 'type': 'region'},
+    {'name': 'Los Ríos', 'icon': '🌊', 'type': 'region'},
+    {'name': 'Los Lagos', 'icon': '🏔️', 'type': 'region'},
+    
+    # Nuevas secciones
+    {'name': 'Deportes', 'icon': '⚽', 'type': 'seccion'},
+    {'name': 'Ciencia y Tecnología', 'icon': '', 'type': 'seccion'},
+    {'name': 'Cultura', 'icon': '', 'type': 'seccion'},
+    {'name': 'Dopamina', 'icon': '🧠', 'type': 'seccion'},
+    {'name': 'Salud', 'icon': '🏥', 'type': 'seccion'},
+    {'name': 'Sociedad', 'icon': '👥', 'type': 'seccion'},
+    {'name': 'TV y Espectáculos', 'icon': '📺', 'type': 'seccion'}
 ]
 
 REGIONS = ['Chile']
 
-TRENDS_BY_CATEGORY = {
+# Temas de ejemplo por categoría
+TOPICS_BY_CATEGORY = {
     'Eléctrico': ["Subsidios a la electromovilidad en Chile 2026", "Expansión de la red de carga", "Nuevas normativas de eficiencia energética", "Energía solar en hogares", "Baterías de litio: Chile como actor global"],
     'Automotriz': ["Caída en ventas de autos nuevos", "Auge de autos usados importados", "Nuevas regulaciones de emisiones", "Competencia de marcas chinas", "Seguros automotrices: alzas"],
     'Belleza': ["Boom del skincare coreano", "Cosmética natural en Chile", "Influencers de belleza y ventas", "Tendencias de maquillaje 2026", "Tratamientos capilares en auge"],
@@ -65,16 +87,33 @@ TRENDS_BY_CATEGORY = {
     'IA': ["Regulación de IA en Chile", "IA generativa y mundo laboral", "Startups chilenas de IA", "Deepfakes y desinformación", "IA en la educación"],
     'Tendencias': ["Deuda de jóvenes y pagos digitales", "Crisis habitacional en Santiago", "Migración y mercado laboral", "Turismo interno post-pandemia", "Foodtech en Chile"],
     'Tecnología': ["Expansión del 5G en regiones", "Ciberseguridad: ataques a empresas", "Fintech y bancarización digital", "Gaming y esports en crecimiento", "Transformación digital pymes"],
-    'Economía': ["Tasa de interés del Banco Central", "Inflación y canasta básica", "Reforma tributaria: impactos", "Desempleo y mercado laboral", "Dólar y economía local"]
+    'Economía': ["Tasa de interés del Banco Central", "Inflación y canasta básica", "Reforma tributaria: impactos", "Desempleo y mercado laboral", "Dólar y economía local"],
+    'Nacional': ["Gobierno de Kast", "Reforma de pensiones", "Seguridad ciudadana", "Migración y fronteras", "Despidos en el sector público"],
+    'Internacional': ["Guerra en Ucrania", "Tensiones China-EEUU", "Crisis climática global", "Elecciones en Europa", "Conflictos en Medio Oriente"],
+    'Valparaíso': ["Puerto de Valparaíso", "Incendios forestales región", "Turismo en la costa", "Contaminación de la bahía", "Patrimonio UNESCO"],
+    'Metropolitana': ["Transporte en Santiago", "Smog en la capital", "Crisis habitacional", "Tráfico en autopistas", "Parques urbanos"],
+    'Biobío': ["Industria forestal", "Pesca artesanal", "Energía renovable", "Turismo en Concepción", "Desarrollo regional"],
+    'Araucanía': ["Conflicto mapuche", "Operativo de control", "Desarrollo regional", "Turismo en Temuco", "Educación intercultural"],
+    'Los Ríos': ["Industria salmonera", "Volcán Calbuco", "Turismo en Valdivia", "Contaminación de ríos", "Cerveza artesanal"],
+    'Los Lagos': ["Turismo en Puerto Varas", "Erupción de volcanes", "Industria pesquera", "Cambio climático", "Lagos y naturaleza"],
+    'Deportes': ["Selección chilena", "Campeonato Nacional", "Alexis Sánchez", "Juegos Olímpicos", "Fútbol femenino"],
+    'Ciencia y Tecnología': ["Inteligencia artificial", "Cambio climático", "Exploración espacial", "Ciberseguridad", "Energías limpias"],
+    'Cultura': ["Festivales en Chile", "Cine nacional", "Música chilena", "Arte contemporáneo", "Literatura latinoamericana"],
+    'Dopamina': ["Tendencias en TikTok", "Viral en redes sociales", "Memes de Chile", "Influencers locales", "Gaming y streamers"],
+    'Salud': ["Sistema de salud público", "Vacunación", "Salud mental", "Enfermedades crónicas", "Atención primaria"],
+    'Sociedad': ["Desigualdad social", "Educación pública", "Violencia de género", "Adulto mayor", "Derechos humanos"],
+    'TV y Espectáculos': ["Telenovelas chilenas", "Programas de TV", "Famosos de Chile", "Estrenos de cine", "Reality shows"]
 }
 
 def get_trends_for_category(category):
-    if category and category != 'all' and category in TRENDS_BY_CATEGORY:
-        return TRENDS_BY_CATEGORY[category]
-    all_trends = [t for trends in TRENDS_BY_CATEGORY.values() for t in trends]
+    if category and category != 'all' and category in TOPICS_BY_CATEGORY:
+        return TOPICS_BY_CATEGORY[category]
+    all_trends = [t for topics in TOPICS_BY_CATEGORY.values() for t in topics]
     import random
     random.shuffle(all_trends)
     return all_trends[:5]
+
+# ==================== BÚSQUEDA DE NOTICIAS ====================
 
 def search_news(topic, max_results=5):
     print(f"[DEBUG] Buscando noticias para: {topic}")
@@ -149,8 +188,9 @@ def search_news(topic, max_results=5):
     
     return []
 
+# ==================== ANÁLISIS CON IA ====================
+
 def analyze_with_qwen(prompt, mode='standard'):
-    """Analiza con Qwen y retorna (analysis, error)"""
     api_key = os.getenv('QWEN_API_KEY')
     if not api_key:
         return None, "QWEN_API_KEY no configurada"
@@ -196,7 +236,6 @@ def analyze_with_qwen(prompt, mode='standard'):
             
             print(f"[DEBUG] Texto recibido ({len(analysis_text)} chars)")
             
-            # Buscar JSON con regex
             match = re.search(r'\{.*\}', analysis_text, re.DOTALL)
             if match:
                 json_str = match.group(0)
@@ -219,8 +258,6 @@ def analyze_with_qwen(prompt, mode='standard'):
         return None, f"Error de conexión: {str(e)}"
 
 def generate_analysis(topic, topic2, category, region, mode, lens, news):
-    """Genera el prompt según el modo seleccionado"""
-    
     news_text = "\n\nNoticias encontradas:\n" + "\n".join([f"- {n['titulo']}" for n in news[:5]]) if news else ""
     
     if mode == 'briefing':
@@ -275,7 +312,6 @@ Responde SOLO con JSON válido:
 }}"""
     
     else:
-        # Modo estándar con lentes
         lens_instruction = ""
         if lens == 'data':
             lens_instruction = "\nENFOQUE: Prioriza estadísticas, cifras, datos duros y fuentes oficiales."
@@ -307,7 +343,6 @@ Responde SOLO con JSON válido:
     return prompt
 
 def generate_fallback(topic, topic2, category, region, mode, news):
-    """Genera análisis de fallback"""
     if mode == 'briefing':
         return {
             'resumen_ejecutivo': f'El tema "{topic}" en {region or "Chile"} requiere atención periodística.',
@@ -321,7 +356,7 @@ def generate_fallback(topic, topic2, category, region, mode, news):
             'cobertura_mainstream': f'Los medios están cubriendo "{topic}" de forma convencional.',
             'angulo_ciego': 'Nadie está preguntando sobre las consecuencias a largo plazo.',
             'riesgos_sesgos': ['Sesgo de confirmación', 'Falta de fuentes diversas'],
-            'pregunta_incomoda': '¿Qué利益 hay detrás de esta narrativa?',
+            'pregunta_incomoda': '¿Qué interés hay detrás de esta narrativa?',
             'noticias_reales': news if news else []
         }
     elif mode == 'compare' and topic2:
@@ -345,6 +380,8 @@ def generate_fallback(topic, topic2, category, region, mode, news):
             'titulares_ejemplo': [f"Análisis: {topic}"],
             'noticias_reales': news if news else []
         }
+
+# ==================== RUTAS ====================
 
 @app.route('/')
 def index():
@@ -409,8 +446,8 @@ def analyze():
         topic2 = data.get('topic2', '').strip()
         category = data.get('category')
         region = data.get('region')
-        mode = data.get('mode', 'standard')  # standard, briefing, devil, compare
-        lens = data.get('lens', '')  # data, controversy, human, economic
+        mode = data.get('mode', 'standard')
+        lens = data.get('lens', '')
         
         if not topic:
             return jsonify({'error': 'Falta el tema'}), 400
