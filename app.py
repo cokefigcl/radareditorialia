@@ -59,12 +59,12 @@ CATEGORIES = [
     {'name': 'Valparaíso', 'icon': '🏖️', 'type': 'region'},
     {'name': 'Metropolitana', 'icon': '🏙️', 'type': 'region'},
     {'name': 'Biobío', 'icon': '🌲', 'type': 'region'},
-    {'name': 'Araucanía', 'icon': '🌳', 'type': 'region'},
-    {'name': 'Los Ríos', 'icon': '🌊', 'type': 'region'},
+    {'name': 'Araucanía', 'icon': '', 'type': 'region'},
+    {'name': 'Los Ríos', 'icon': '', 'type': 'region'},
     {'name': 'Los Lagos', 'icon': '🏔️', 'type': 'region'},
     {'name': 'Deportes', 'icon': '⚽', 'type': 'seccion'},
-    {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'seccion'},
-    {'name': 'Cultura', 'icon': '🎭', 'type': 'seccion'},
+    {'name': 'Ciencia y Tecnología', 'icon': '', 'type': 'seccion'},
+    {'name': 'Cultura', 'icon': '', 'type': 'seccion'},
     {'name': 'Dopamina', 'icon': '🧠', 'type': 'seccion'},
     {'name': 'Salud', 'icon': '🏥', 'type': 'seccion'},
     {'name': 'Sociedad', 'icon': '👥', 'type': 'seccion'},
@@ -75,46 +75,49 @@ REGIONS = ['Chile']
 
 # Palabras clave para búsqueda en NewsAPI por categoría
 SEARCH_KEYWORDS = {
-    'Eléctrico': 'electromovilidad OR energía solar OR vehículos eléctricos Chile',
-    'Automotriz': 'autos OR vehículos OR automotriz Chile',
-    'Belleza': 'belleza OR cosmética OR skincare Chile',
-    'Minería': 'minería OR cobre OR litio Chile',
-    'IA': 'inteligencia artificial OR IA Chile',
-    'Tendencias': 'tendencias Chile 2026',
-    'Tecnología': 'tecnología OR 5G OR startups Chile',
-    'Economía': 'economía OR dólar OR inflación Chile',
-    'Nacional': 'Chile gobierno política nacional',
-    'Internacional': 'internacional mundo',
-    'Valparaíso': 'Valparaíso región',
-    'Metropolitana': 'Santiago metropolitana',
-    'Biobío': 'Biobío Concepción',
-    'Araucanía': 'Araucanía Temuco',
-    'Los Ríos': 'Los Ríos Valdivia',
-    'Los Lagos': 'Los Lagos Puerto Montt',
-    'Deportes': 'deportes fútbol Chile',
-    'Ciencia y Tecnología': 'ciencia tecnología investigación',
-    'Cultura': 'cultura arte Chile',
-    'Dopamina': 'redes sociales viral TikTok',
-    'Salud': 'salud medicina Chile',
-    'Sociedad': 'sociedad Chile',
-    'TV y Espectáculos': 'televisión espectáculos Chile'
+    'Eléctrico': 'electromovilidad OR energía solar OR vehículos eléctricos',
+    'Automotriz': 'autos OR vehículos OR automotriz',
+    'Belleza': 'belleza OR cosmética OR skincare',
+    'Minería': 'minería OR cobre OR litio',
+    'IA': 'inteligencia artificial OR IA',
+    'Tendencias': 'tendencias',
+    'Tecnología': 'tecnología OR 5G OR startups',
+    'Economía': 'economía OR dólar OR inflación',
+    'Nacional': 'Chile',
+    'Internacional': 'internacional',
+    'Valparaíso': 'Valparaíso',
+    'Metropolitana': 'Santiago',
+    'Biobío': 'Biobío OR Concepción',
+    'Araucanía': 'Araucanía OR Temuco',
+    'Los Ríos': 'Valdivia OR Los Ríos',
+    'Los Lagos': 'Puerto Montt OR Los Lagos',
+    'Deportes': 'deportes OR fútbol',
+    'Ciencia y Tecnología': 'ciencia OR tecnología',
+    'Cultura': 'cultura OR arte',
+    'Dopamina': 'redes sociales OR viral',
+    'Salud': 'salud OR medicina',
+    'Sociedad': 'sociedad',
+    'TV y Espectáculos': 'televisión OR espectáculos OR farándula'
 }
 
 def get_trends_for_category(category):
-    """Obtiene tendencias REALES desde NewsAPI para una categoría"""
+    """Obtiene tendencias REALES desde NewsAPI o GDELT"""
     if not category or category == 'all':
-        return []
+        # Si es "all", usar término genérico
+        category = 'Chile'
     
     keywords = SEARCH_KEYWORDS.get(category, category)
     newsapi_key = os.getenv('NEWSAPI_KEY')
     
+    print(f"[TRENDS] Buscando tendencias para: {category} con keywords: {keywords}")
+    
     # Intentar con NewsAPI
-    if newsapi_key:
+    if newsapi_key and len(newsapi_key) > 10:
         try:
             url = 'https://newsapi.org/v2/everything'
             params = {
                 'q': keywords,
-                'from': (datetime.now() - timedelta(days=3)).strftime('%Y-%m-%d'),
+                'from': (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d'),
                 'to': datetime.now().strftime('%Y-%m-%d'),
                 'sortBy': 'publishedAt',
                 'language': 'es',
@@ -122,10 +125,12 @@ def get_trends_for_category(category):
                 'apiKey': newsapi_key
             }
             response = requests.get(url, params=params, timeout=10)
+            print(f"[TRENDS] NewsAPI status: {response.status_code}")
             
             if response.status_code == 200:
                 data = response.json()
                 articles = data.get('articles', [])
+                print(f"[TRENDS] NewsAPI artículos: {len(articles)}")
                 
                 trends = []
                 seen = set()
@@ -142,29 +147,36 @@ def get_trends_for_category(category):
                         break
                 
                 if trends:
-                    print(f"[DEBUG] Tendencias reales para {category}: {len(trends)}")
+                    print(f"[TRENDS] ✅ NewsAPI encontró {len(trends)} tendencias")
                     return trends
+                else:
+                    print(f"[TRENDS] ⚠️ NewsAPI no devolvió artículos válidos")
+            else:
+                print(f"[TRENDS] ❌ NewsAPI error: {response.text[:200]}")
         except Exception as e:
-            print(f"[DEBUG] Error NewsAPI en tendencias: {str(e)}")
+            print(f"[TRENDS]  NewsAPI error: {str(e)}")
     
     # Fallback a GDELT
+    print(f"[TRENDS] Intentando GDELT...")
     try:
         url = 'https://api.gdeltproject.org/api/v2/doc/doc'
         params = {
-            'query': category + ' Chile',
+            'query': keywords + ' Chile',
             'mode': 'artlist',
             'format': 'json',
-            'startdatetime': (datetime.now() - timedelta(days=3)).strftime('%Y%m%d%H%M%S'),
+            'startdatetime': (datetime.now() - timedelta(days=7)).strftime('%Y%m%d%H%M%S'),
             'enddatetime': datetime.now().strftime('%Y%m%d%H%M%S'),
-            'maxrecords': 15,
+            'maxrecords': 20,
             'sourcelang': 'spa',
             'sort': 'DateDesc'
         }
-        response = requests.get(url, params=params, timeout=10)
+        response = requests.get(url, params=params, timeout=15)
+        print(f"[TRENDS] GDELT status: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
             articles = data.get('articles', [])
+            print(f"[TRENDS] GDELT artículos: {len(articles)}")
             
             trends = []
             seen = set()
@@ -181,11 +193,12 @@ def get_trends_for_category(category):
                     break
             
             if trends:
-                print(f"[DEBUG] Tendencias GDELT para {category}: {len(trends)}")
+                print(f"[TRENDS] ✅ GDELT encontró {len(trends)} tendencias")
                 return trends
     except Exception as e:
-        print(f"[DEBUG] Error GDELT en tendencias: {str(e)}")
+        print(f"[TRENDS] ❌ GDELT error: {str(e)}")
     
+    print(f"[TRENDS] ❌ No se encontraron tendencias para {category}")
     return []
 
 # ==================== BÚSQUEDA DE NOTICIAS ====================
@@ -547,28 +560,4 @@ def analyze():
         
         if 'noticias_reales' not in analysis:
             analysis['noticias_reales'] = news if news else []
-        
-        score = analysis.get('puntaje_relevancia', 5)
-        
-        conn = get_db()
-        conn.cursor().execute('INSERT INTO trends (topic, topic2, category, region, mode, analysis, score) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                              (topic, topic2 if mode == 'compare' else None, category, region, mode, json.dumps(analysis, ensure_ascii=False), score))
-        conn.commit()
-        conn.close()
-        
-        print(f"[ANALYZE] Completado. Fallback: {used_fallback}")
-        print(f"{'='*60}\n")
-        
-        return jsonify({
-            'topic': topic, 'topic2': topic2, 'category': category, 'region': region,
-            'mode': mode, 'lens': lens,
-            'analysis': analysis, 'score': score, 'used_fallback': used_fallback,
-            'timestamp': datetime.now().isoformat()
-        })
-    except Exception as e:
-        print(f"[ERROR] {str(e)}")
-        topic = request.json.get('topic', 'Tema') if request.json else 'Tema'
-        return jsonify({'topic': topic, 'analysis': generate_fallback(topic, None, None, None, 'standard', []), 'score': 5, 'warning': f'Error: {str(e)}'}), 200
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
