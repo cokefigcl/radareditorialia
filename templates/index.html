@@ -50,10 +50,22 @@
             background: rgba(255,255,255,0.15);
             border-radius: 8px;
             cursor: pointer;
+            transition: all 0.2s;
         }
-        .trending-item:hover { background: rgba(255,255,255,0.25); }
-        .trending-topic { font-weight: 600; font-size: 16px; }
+        .trending-item:hover { background: rgba(255,255,255,0.25); transform: translateX(5px); }
+        .trending-topic { font-weight: 600; font-size: 15px; line-height: 1.4; }
         .trending-source { font-size: 12px; opacity: 0.8; margin-top: 5px; }
+        .trending-refresh {
+            float: right;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .trending-refresh:hover { background: rgba(255,255,255,0.3); }
         input[type="text"], select {
             padding: 12px;
             font-size: 16px;
@@ -256,19 +268,33 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+        .live-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #28a745;
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📰 Radar Editorial con IA</h1>
+        <h1> Radar Editorial con IA</h1>
         <h3>📂 Categorías</h3>
         <div id="categoryFilters"></div>
     </div>
     
     <div class="container">
         <div class="trending-section">
-            <h3>🔥 Tendencias en Chile</h3>
-            <div id="trendingList"><p>Cargando...</p></div>
+            <h3><span class="live-indicator"></span>Tendencias en Tiempo Real<button class="trending-refresh" onclick="loadTrending()">🔄 Actualizar</button></h3>
+            <div id="trendingList"><p>Cargando tendencias reales...</p></div>
         </div>
     </div>
     
@@ -280,7 +306,7 @@
             <button class="mode-btn active" onclick="selectMode('standard')">📊 Estándar</button>
             <button class="mode-btn" onclick="selectMode('briefing')">⚡ Briefing</button>
             <button class="mode-btn" onclick="selectMode('devil')">😈 Abogado del Diablo</button>
-            <button class="mode-btn" onclick="selectMode('compare')">⚖️ Comparador</button>
+            <button class="mode-btn" onclick="selectMode('compare')">️ Comparador</button>
         </div>
         
         <div class="input-group">
@@ -291,8 +317,8 @@
         </div>
         
         <div id="lensSelector" class="lens-selector">
-            <button class="lens-btn active" onclick="selectLens('')">🎯 Sin lente</button>
-            <button class="lens-btn" onclick="selectLens('data')">🔍 Datos</button>
+            <button class="lens-btn active" onclick="selectLens('')"> Sin lente</button>
+            <button class="lens-btn" onclick="selectLens('data')"> Datos</button>
             <button class="lens-btn" onclick="selectLens('controversy')">🔥 Polémico</button>
             <button class="lens-btn" onclick="selectLens('human')">👥 Humano</button>
             <button class="lens-btn" onclick="selectLens('economic')">💰 Económico</button>
@@ -309,13 +335,13 @@
     </div>
     
     <div class="container">
-        <h2> Historial de Análisis</h2>
+        <h2>📚 Historial de Análisis</h2>
         <div id="historyList"><p>Cargando...</p></div>
     </div>
     
     <div class="footer">
         <div>Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - <a href="https://ltv.cl" target="_blank">LTV.cl</a></div>
-        <div class="version">Versión 5.1.0 | Última actualización: Septiembre 2026</div>
+        <div class="version">Versión 5.2.0 | Última actualización: Septiembre 2026</div>
     </div>
 
     <script>
@@ -390,20 +416,22 @@
 
         async function loadTrending() {
             const list = document.getElementById('trendingList');
-            list.innerHTML = '<p>Cargando...</p>';
+            list.innerHTML = '<p>🔄 Cargando tendencias reales...</p>';
             try {
                 const url = '/api/trending?category=' + encodeURIComponent(currentCategory) + '&limit=5';
                 const res = await fetch(url);
                 const trends = await res.json();
-                if (trends.length === 0) {
-                    list.innerHTML = '<p>No hay tendencias.</p>';
+                
+                if (!trends || trends.length === 0) {
+                    list.innerHTML = '<p>No hay tendencias disponibles para esta categoría. Intenta con otra.</p>';
                     return;
                 }
+                
                 let html = '';
                 trends.forEach(function(t, i) {
-                    html += '<div class="trending-item" onclick="useTrend(\'' + t.topic.replace(/'/g, "\\'") + '\')">';
+                    html += '<div class="trending-item" onclick="useTrend(\'' + t.topic.replace(/'/g, "\\'").replace(/"/g, '&quot;') + '\')">';
                     html += '<div class="trending-topic">' + (i + 1) + '. ' + t.topic + '</div>';
-                    html += '<div class="trending-source">📊 ' + t.source + ' | ' + t.region + '</div>';
+                    html += '<div class="trending-source">📊 ' + (t.source || 'Medio') + ' | ' + (t.region || 'Chile') + '</div>';
                     html += '</div>';
                 });
                 list.innerHTML = html;
@@ -500,7 +528,7 @@
         }
 
         function getScoreLabel(score) {
-            if (score >= 9) return '🔴 CRÍTICA';
+            if (score >= 9) return ' CRÍTICA';
             if (score >= 7) return '✅ ALTA';
             if (score >= 4) return '⚠️ MEDIA';
             return '🔵 BAJA';
@@ -540,19 +568,19 @@
                     html += '</ul>';
                 }
                 if (a.datos_duros && a.datos_duros.length) {
-                    html += '<h4> Datos Duros a Verificar</h4><div>';
+                    html += '<h4>📊 Datos Duros a Verificar</h4><div>';
                     a.datos_duros.forEach(function(d) { html += '<span class="tag">' + d + '</span>'; });
                     html += '</div>';
                 }
                 if (a.timeline_sugerido) {
-                    html += '<h4> Timeline Sugerido</h4><p>' + a.timeline_sugerido + '</p>';
+                    html += '<h4>⏰ Timeline Sugerido</h4><p>' + a.timeline_sugerido + '</p>';
                 }
             }
             
             else if (data.mode === 'devil') {
                 if (a.cobertura_mainstream) {
                     html += '<div style="background: #f8d7da; padding: 15px; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 20px;">';
-                    html += '<h4 style="margin-top:0; color: #721c24;"> Lo que todos dicen</h4>';
+                    html += '<h4 style="margin-top:0; color: #721c24;">📰 Lo que todos dicen</h4>';
                     html += '<p style="margin-bottom:0; line-height: 1.6;">' + a.cobertura_mainstream + '</p>';
                     html += '</div>';
                 }
@@ -575,7 +603,7 @@
             else if (data.mode === 'compare') {
                 if (a.mas_recorrido) {
                     html += '<div style="background: #e2e3f5; padding: 15px; border-radius: 8px; border-left: 4px solid #6f42c1; margin-bottom: 20px;">';
-                    html += '<h4 style="margin-top:0; color: #383d41;">📊 Más Recorrido</h4>';
+                    html += '<h4 style="margin-top:0; color: #383d41;"> Más Recorrido</h4>';
                     html += '<p style="margin-bottom:0; line-height: 1.6;">' + a.mas_recorrido + '</p>';
                     html += '</div>';
                 }
@@ -640,13 +668,13 @@
                 a.noticias_reales.forEach(function(news) {
                     html += '<div class="news-item">';
                     if (news.url) {
-                        html += '<div class="news-title"><a href="' + news.url + '" target="_blank"> ' + news.titulo + '</a></div>';
+                        html += '<div class="news-title"><a href="' + news.url + '" target="_blank">📰 ' + news.titulo + '</a></div>';
                     } else {
-                        html += '<div class="news-title">📰 ' + news.titulo + '</div>';
+                        html += '<div class="news-title"> ' + news.titulo + '</div>';
                     }
                     html += '<div class="news-meta">';
                     if (news.fuente) html += '📡 ' + news.fuente;
-                    if (news.fecha) html += ' | 📅 ' + news.fecha;
+                    if (news.fecha) html += ' |  ' + news.fecha;
                     html += '</div></div>';
                 });
                 html += '</div>';
@@ -676,19 +704,19 @@
                     const category = item.category || 'General';
                     const mode = item.mode || 'standard';
                     const date = item.created_at ? new Date(item.created_at).toLocaleString('es-CL') : '';
-                    const modeLabels = {'standard': '', 'briefing': '⚡', 'devil': '😈', 'compare': '️'};
+                    const modeLabels = {'standard': '📊', 'briefing': '⚡', 'devil': '😈', 'compare': '⚖️'};
                     
                     html += '<div class="history-item">';
                     html += '<div class="history-header">';
                     html += '<div><div class="history-topic">' + modeLabels[mode] + ' ' + item.topic + (item.topic2 ? ' vs ' + item.topic2 : '') + '</div>';
-                    html += '<div class="history-meta">📂 ' + category + ' |  ' + date + '</div></div>';
+                    html += '<div class="history-meta"> ' + category + ' | 📅 ' + date + '</div></div>';
                     if (score > 0 && mode === 'standard') {
                         html += '<span class="score-badge ' + getScoreClass(score) + '">' + score + '/10</span>';
                     }
                     html += '</div>';
                     html += '<div class="history-actions">';
                     html += '<button class="btn-small btn-analyze" onclick="reAnalyze(\'' + item.topic.replace(/'/g, "\\'") + '\', \'' + (item.category || '') + '\', \'' + mode + '\')">🔄 Re-analizar</button>';
-                    html += '<button class="btn-small btn-delete" onclick="deleteAnalysis(' + item.id + ')">🗑️ Eliminar</button>';
+                    html += '<button class="btn-small btn-delete" onclick="deleteAnalysis(' + item.id + ')">️ Eliminar</button>';
                     html += '</div></div>';
                 });
                 list.innerHTML = html;
