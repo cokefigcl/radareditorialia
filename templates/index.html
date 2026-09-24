@@ -97,6 +97,7 @@
             transition: all 0.2s;
             min-width: 140px;
             text-align: center;
+            color: #333;
         }
         .mode-btn:hover { border-color: #007bff; }
         .mode-btn.active {
@@ -118,6 +119,7 @@
             cursor: pointer;
             font-size: 13px;
             white-space: nowrap;
+            color: #333;
         }
         .lens-btn:hover { border-color: #28a745; }
         .lens-btn.active {
@@ -286,13 +288,107 @@
             50% { opacity: 0.5; }
             100% { opacity: 1; }
         }
+        .prediction-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 5px solid #007bff;
+            transition: all 0.3s;
+        }
+        .prediction-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .prediction-card.critical {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+        .prediction-card.high {
+            border-left-color: #f57f17;
+            background: #fffef5;
+        }
+        .prediction-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .prediction-topic {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            flex: 1;
+        }
+        .prediction-score {
+            font-size: 24px;
+            font-weight: bold;
+            padding: 8px 16px;
+            border-radius: 20px;
+            min-width: 80px;
+            text-align: center;
+        }
+        .score-high { background: #e8f5e9; color: #2e7d32; }
+        .score-medium { background: #fff8e1; color: #f57f17; }
+        .score-low { background: #ffebee; color: #c62828; }
+        .prediction-meta {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+            font-size: 13px;
+            color: #666;
+        }
+        .prediction-alert {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 13px;
+            color: #856404;
+        }
+        .prediction-news {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .prediction-news-item {
+            font-size: 13px;
+            color: #555;
+            margin: 5px 0;
+            padding-left: 15px;
+        }
+        .prediction-news-item::before {
+            content: "📰 ";
+        }
+        .predictions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .predictions-refresh {
+            background: #6c757d;
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+        .predictions-refresh:hover { background: #5a6268; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📰 Radar Editorial con IA</h1>
+        <h1> Radar Editorial con IA</h1>
         <h3>📂 Categorías</h3>
         <div id="categoryFilters"></div>
+    </div>
+    
+    <!-- SECCIÓN DE PREDICCIONES -->
+    <div class="container">
+        <div class="predictions-header">
+            <h3>🔮 Predicciones en Tiempo Real</h3>
+            <button class="predictions-refresh" onclick="loadPredictions()">🔄 Actualizar</button>
+        </div>
+        <div id="predictionsList"><p>Cargando predicciones...</p></div>
     </div>
     
     <div class="container">
@@ -323,7 +419,7 @@
         <div id="lensSelector" class="lens-selector">
             <button class="lens-btn active" onclick="selectLens('')">🎯 Sin lente</button>
             <button class="lens-btn" onclick="selectLens('data')">🔍 Datos</button>
-            <button class="lens-btn" onclick="selectLens('controversy')">🔥 Polémico</button>
+            <button class="lens-btn" onclick="selectLens('controversy')"> Polémico</button>
             <button class="lens-btn" onclick="selectLens('human')">👥 Humano</button>
             <button class="lens-btn" onclick="selectLens('economic')">💰 Económico</button>
         </div>
@@ -345,7 +441,7 @@
     
     <div class="footer">
         <div>Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - <a href="https://ltv.cl" target="_blank">LTV.cl</a></div>
-        <div class="version">Versión 5.2.1 | Última actualización: Septiembre 2026</div>
+        <div class="version">Versión 6.0.0 | Última actualización: Septiembre 2026</div>
     </div>
 
     <script>
@@ -360,6 +456,7 @@
                 categories = await catRes.json();
                 renderFilters();
                 loadTrending();
+                loadPredictions();
                 loadHistory();
             } catch (err) {
                 console.error('Error:', err);
@@ -391,7 +488,7 @@
             html += '</div>';
             
             html += '<div class="category-group">';
-            html += '<div class="category-group-title">📰 SECCIONES</div>';
+            html += '<div class="category-group-title"> SECCIONES</div>';
             secciones.forEach(function(cat) {
                 html += '<button class="filter-btn" onclick="selectCategory(\'' + cat.name + '\')">' + cat.icon + ' ' + cat.name + '</button>';
             });
@@ -426,10 +523,8 @@
                 const res = await fetch(url);
                 const trends = await res.json();
                 
-                console.log('[TRENDS] Respuesta:', trends);
-                
                 if (!trends || trends.length === 0) {
-                    list.innerHTML = '<p>No hay tendencias disponibles para esta categoría. Intenta con otra o haz clic en Actualizar.</p>';
+                    list.innerHTML = '<p>No hay tendencias disponibles. Intenta con otra categoría.</p>';
                     return;
                 }
                 
@@ -444,6 +539,60 @@
             } catch (err) {
                 console.error('[TRENDS] Error:', err);
                 list.innerHTML = '<p>Error cargando tendencias</p>';
+            }
+        }
+
+        async function loadPredictions() {
+            const list = document.getElementById('predictionsList');
+            list.innerHTML = '<p> Generando predicciones con IA...</p>';
+            
+            try {
+                const res = await fetch('/api/predictions');
+                const predictions = await res.json();
+                
+                console.log('[PREDICT] Respuesta:', predictions);
+                
+                if (!predictions || predictions.length === 0) {
+                    list.innerHTML = '<p>No hay predicciones disponibles en este momento. Intenta actualizar.</p>';
+                    return;
+                }
+                
+                let html = '';
+                predictions.forEach(function(p) {
+                    const scoreClass = p.score >= 70 ? 'score-high' : (p.score >= 40 ? 'score-medium' : 'score-low');
+                    const cardClass = p.alert_level === 'critical' ? 'critical' : (p.alert_level === 'high' ? 'high' : '');
+                    
+                    html += '<div class="prediction-card ' + cardClass + '">';
+                    html += '<div class="prediction-header">';
+                    html += '<div class="prediction-topic">' + p.topic + '</div>';
+                    html += '<div class="prediction-score ' + scoreClass + '">' + p.score + '%</div>';
+                    html += '</div>';
+                    
+                    html += '<div class="prediction-meta">';
+                    html += '<span>📂 ' + (p.category || 'General') + '</span>';
+                    html += '<span>📰 ' + p.news_count + ' noticias</span>';
+                    html += '</div>';
+                    
+                    if (p.alert_level) {
+                        const alertText = p.alert_level === 'critical' ? ' ALERTA CRÍTICA: Tema con alto potencial de viralización' : '️ ALERTA: Tema en crecimiento acelerado';
+                        html += '<div class="prediction-alert">' + alertText + '</div>';
+                    }
+                    
+                    if (p.news && p.news.length > 0) {
+                        html += '<div class="prediction-news">';
+                        p.news.forEach(function(n) {
+                            html += '<div class="prediction-news-item">' + n.titulo + '</div>';
+                        });
+                        html += '</div>';
+                    }
+                    
+                    html += '</div>';
+                });
+                
+                list.innerHTML = html;
+            } catch (err) {
+                console.error('[PREDICT] Error:', err);
+                list.innerHTML = '<p>Error cargando predicciones</p>';
             }
         }
 
@@ -570,7 +719,7 @@
                     html += '</div>';
                 }
                 if (a.preguntas_fuente && a.preguntas_fuente.length) {
-                    html += '<h4> Preguntas para tu Fuente</h4><ul>';
+                    html += '<h4>❓ Preguntas para tu Fuente</h4><ul>';
                     a.preguntas_fuente.forEach(function(q) { html += '<li>' + q + '</li>'; });
                     html += '</ul>';
                 }
@@ -610,7 +759,7 @@
             else if (data.mode === 'compare') {
                 if (a.mas_recorrido) {
                     html += '<div style="background: #e2e3f5; padding: 15px; border-radius: 8px; border-left: 4px solid #6f42c1; margin-bottom: 20px;">';
-                    html += '<h4 style="margin-top:0; color: #383d41;"> Más Recorrido</h4>';
+                    html += '<h4 style="margin-top:0; color: #383d41;">📊 Más Recorrido</h4>';
                     html += '<p style="margin-bottom:0; line-height: 1.6;">' + a.mas_recorrido + '</p>';
                     html += '</div>';
                 }
@@ -651,7 +800,7 @@
                 }
                 
                 if (a.senales_clave && a.senales_clave.length) {
-                    html += '<h4>🔍 Señales clave</h4><div>';
+                    html += '<h4> Señales clave</h4><div>';
                     a.senales_clave.forEach(function(s) { html += '<span class="tag">' + s + '</span>'; });
                     html += '</div>';
                 }
@@ -663,7 +812,7 @@
                 }
                 
                 if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) {
-                    html += '<h4> Fuentes sugeridas</h4><ul>';
+                    html += '<h4>📚 Fuentes sugeridas</h4><ul>';
                     a.fuentes_sugeridas.forEach(function(f) { html += '<li>🔗 ' + f + '</li>'; });
                     html += '</ul>';
                 }
@@ -671,17 +820,17 @@
             
             if (a.noticias_reales && Array.isArray(a.noticias_reales) && a.noticias_reales.length > 0) {
                 html += '<div class="news-section">';
-                html += '<h4>📰 Noticias Reales Encontradas (' + a.noticias_reales.length + ')</h4>';
+                html += '<h4> Noticias Reales Encontradas (' + a.noticias_reales.length + ')</h4>';
                 a.noticias_reales.forEach(function(news) {
                     html += '<div class="news-item">';
                     if (news.url) {
                         html += '<div class="news-title"><a href="' + news.url + '" target="_blank">📰 ' + news.titulo + '</a></div>';
                     } else {
-                        html += '<div class="news-title">📰 ' + news.titulo + '</div>';
+                        html += '<div class="news-title"> ' + news.titulo + '</div>';
                     }
                     html += '<div class="news-meta">';
-                    if (news.fuente) html += ' ' + news.fuente;
-                    if (news.fecha) html += ' | 📅 ' + news.fecha;
+                    if (news.fuente) html += '📡 ' + news.fuente;
+                    if (news.fecha) html += ' |  ' + news.fecha;
                     html += '</div></div>';
                 });
                 html += '</div>';
@@ -711,7 +860,7 @@
                     const category = item.category || 'General';
                     const mode = item.mode || 'standard';
                     const date = item.created_at ? new Date(item.created_at).toLocaleString('es-CL') : '';
-                    const modeLabels = {'standard': '📊', 'briefing': '', 'devil': '😈', 'compare': '⚖️'};
+                    const modeLabels = {'standard': '📊', 'briefing': '⚡', 'devil': '😈', 'compare': '⚖️'};
                     
                     html += '<div class="history-item">';
                     html += '<div class="history-header">';
@@ -722,7 +871,7 @@
                     }
                     html += '</div>';
                     html += '<div class="history-actions">';
-                    html += '<button class="btn-small btn-analyze" onclick="reAnalyze(\'' + item.topic.replace(/'/g, "\\'") + '\', \'' + (item.category || '') + '\', \'' + mode + '\')">🔄 Re-analizar</button>';
+                    html += '<button class="btn-small btn-analyze" onclick="reAnalyze(\'' + item.topic.replace(/'/g, "\\'") + '\', \'' + (item.category || '') + '\', \'' + mode + '\')"> Re-analizar</button>';
                     html += '<button class="btn-small btn-delete" onclick="deleteAnalysis(' + item.id + ')">🗑️ Eliminar</button>';
                     html += '</div></div>';
                 });
