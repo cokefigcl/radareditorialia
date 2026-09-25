@@ -39,36 +39,30 @@ def init_db():
 
 init_db()
 
-# ==================== CATEGORÍAS REORGANIZADAS ====================
+# ==================== CATEGORÍAS ====================
 CATEGORIES = [
-    # Temas
     {'name': 'Eléctrico', 'icon': '', 'type': 'tema'},
-    {'name': 'Automotriz', 'icon': '', 'type': 'tema'},
+    {'name': 'Automotriz', 'icon': '🚗', 'type': 'tema'},
     {'name': 'Belleza', 'icon': '💄', 'type': 'tema'},
-    {'name': 'Minería', 'icon': '️', 'type': 'tema'},
-    {'name': 'IA', 'icon': '', 'type': 'tema'},
+    {'name': 'Minería', 'icon': '⛏️', 'type': 'tema'},
+    {'name': 'IA', 'icon': '🤖', 'type': 'tema'},
     {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    
-    # Regiones (solo 3)
-    {'name': 'Chile', 'icon': '🇱', 'type': 'region'},
+    {'name': 'Chile', 'icon': '🇨🇱', 'type': 'region'},
     {'name': 'Regiones', 'icon': '🗺️', 'type': 'region'},
     {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
-    
-    # Otros temas (antes "Secciones")
     {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
     {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
     {'name': 'Cultura', 'icon': '🎭', 'type': 'otros'},
-    {'name': 'Ocio', 'icon': '', 'type': 'otros'},
-    {'name': 'Salud', 'icon': '', 'type': 'otros'},
-    {'name': 'Sociedad', 'icon': '', 'type': 'otros'},
+    {'name': 'Ocio', 'icon': '🎮', 'type': 'otros'},
+    {'name': 'Salud', 'icon': '🏥', 'type': 'otros'},
+    {'name': 'Sociedad', 'icon': '👥', 'type': 'otros'},
     {'name': 'TV y Espectáculos', 'icon': '📺', 'type': 'otros'}
 ]
 
 REGIONS = ['Chile']
 
-# Palabras clave actualizadas
 SEARCH_KEYWORDS = {
     'Eléctrico': 'empresas eléctricas OR transmisión eléctrica OR distribución eléctrica OR Enel OR Colbún OR CGE OR AES Andes',
     'Automotriz': 'autos OR vehículos OR electromovilidad OR autos eléctricos OR patentes',
@@ -110,10 +104,9 @@ FALLBACK_TRENDS = [
     {'topic': 'Inteligencia artificial transforma empresas chilenas', 'source': 'Pulso', 'region': 'Chile'}
 ]
 
-# ==================== PANEL DE ESTADO (DÓLAR, CLIMA, APIs) ====================
+# ==================== PANEL DE ESTADO ====================
 
 def get_mindicador_data():
-    """Obtiene datos de mindicador.cl (dólar, UF, UTM)"""
     try:
         print("[STATUS] Consultando mindicador.cl...")
         response = requests.get('https://mindicador.cl/api', timeout=10)
@@ -131,7 +124,6 @@ def get_mindicador_data():
         return {'status': 'error'}
 
 def get_weather_santiago():
-    """Obtiene clima de Santiago desde Open-Meteo"""
     try:
         print("[STATUS] Consultando Open-Meteo...")
         url = 'https://api.open-meteo.com/v1/forecast'
@@ -157,29 +149,33 @@ def get_weather_santiago():
         return {'status': 'error'}
 
 def check_api_status():
-    """Verifica estado de las APIs"""
-    status = {
-        'gdelt': 'unknown',
-        'qwen': 'unknown'
-    }
+    status = {'gdelt': 'unknown', 'qwen': 'unknown'}
     
-    # Verificar GDELT
     try:
-        response = requests.get('https://api.gdeltproject.org/api/v2/doc/doc?query=Chile&mode=artlist&format=json&maxrecords=1', timeout=5)
+        url = 'https://api.gdeltproject.org/api/v2/doc/doc'
+        params = {
+            'query': 'Chile',
+            'mode': 'artlist',
+            'format': 'json',
+            'startdatetime': (datetime.now() - timedelta(days=1)).strftime('%Y%m%d%H%M%S'),
+            'enddatetime': datetime.now().strftime('%Y%m%d%H%M%S'),
+            'maxrecords': 1,
+            'sourcelang': 'spa'
+        }
+        response = requests.get(url, params=params, timeout=15)
         status['gdelt'] = 'ok' if response.status_code == 200 else 'error'
-    except:
+        print(f"[STATUS] GDELT status: {response.status_code}")
+    except Exception as e:
+        print(f"[STATUS] GDELT error: {str(e)}")
         status['gdelt'] = 'error'
     
-    # Verificar Qwen
     api_key = os.getenv('QWEN_API_KEY')
     status['qwen'] = 'ok' if api_key and len(api_key) > 10 else 'error'
     
     return status
 
 def get_status_panel():
-    """Obtiene todos los datos del panel de estado"""
     print("[STATUS] Generando panel de estado...")
-    
     mindicador = get_mindicador_data()
     weather = get_weather_santiago()
     apis = check_api_status()
@@ -191,7 +187,7 @@ def get_status_panel():
         'timestamp': datetime.now().isoformat()
     }
 
-# ==================== PREDICCIONES (GDELT + RESPALDO) ====================
+# ==================== PREDICCIONES ====================
 
 def get_gdelt_predictions():
     try:
