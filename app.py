@@ -6,6 +6,7 @@ import sqlite3
 import requests
 import re
 from datetime import datetime, timedelta
+from collections import Counter
 
 load_dotenv()
 
@@ -50,12 +51,12 @@ CATEGORIES = [
     {'name': 'Minería', 'icon': '⛏️', 'type': 'tema'},
     {'name': 'IA', 'icon': '🤖', 'type': 'tema'},
     {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
-    {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
+    {'name': 'Tecnología', 'icon': '', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
     {'name': 'Nacional', 'icon': '🇨🇱', 'type': 'region'},
-    {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
-    {'name': 'Valparaíso', 'icon': '🏖️', 'type': 'region'},
-    {'name': 'Metropolitana', 'icon': '🏙️', 'type': 'region'},
+    {'name': 'Internacional', 'icon': '', 'type': 'region'},
+    {'name': 'Valparaíso', 'icon': '️', 'type': 'region'},
+    {'name': 'Metropolitana', 'icon': '️', 'type': 'region'},
     {'name': 'Biobío', 'icon': '🌲', 'type': 'region'},
     {'name': 'Araucanía', 'icon': '🌳', 'type': 'region'},
     {'name': 'Los Ríos', 'icon': '🌊', 'type': 'region'},
@@ -95,107 +96,127 @@ SEARCH_KEYWORDS = {
     'TV y Espectáculos': 'televisión OR espectáculos'
 }
 
-# ==================== SISTEMA DE PREDICCIÓN INFALIBLE ====================
-
-def get_seed_topics():
-    """Temas que siempre son relevantes en Chile para validar en tiempo real"""
-    return [
-        {'topic': 'Reforma de pensiones en Chile', 'category': 'Nacional'},
-        {'topic': 'Delincuencia y seguridad en Santiago', 'category': 'Sociedad'},
-        {'topic': 'Precio del dólar y economía chilena', 'category': 'Economía'},
-        {'topic': 'Selección chilena de fútbol', 'category': 'Deportes'},
-        {'topic': 'Crisis habitacional en Chile', 'category': 'Sociedad'},
-        {'topic': 'Avance de la inteligencia artificial en Chile', 'category': 'Tecnología'},
-        {'topic': 'Nuevas leyes de tránsito en Chile', 'category': 'Nacional'},
-        {'topic': 'Precio del cobre y minería', 'category': 'Economía'},
-        {'topic': 'Salud pública y listas de espera en Chile', 'category': 'Salud'},
-        {'topic': 'Educación y universidades en Chile', 'category': 'Sociedad'},
-        {'topic': 'Farándula y televisión en Chile', 'category': 'TV y Espectáculos'},
-        {'topic': 'Medio ambiente y cambio climático en Chile', 'category': 'Ciencia y Tecnología'}
-    ]
+# ==================== PREDICCIONES CON UNA SOLA API CALL ====================
 
 def get_predictions():
-    """Valida temas semilla en tiempo real con NewsAPI para generar predicciones reales"""
-    print("[PREDICT] Generando predicciones con validación en tiempo real...")
+    """Obtiene predicciones con UNA sola llamada a NewsAPI (método infalible)"""
+    print("[PREDICT] Generando predicciones (1 API call)...")
     newsapi_key = os.getenv('NEWSAPI_KEY')
     
     if not newsapi_key:
-        print("[PREDICT] Sin API key, no se pueden generar predicciones")
+        print("[PREDICT] Sin API key")
         return []
     
-    seed_topics = get_seed_topics()
-    predictions = []
-    
-    for seed in seed_topics:
-        topic = seed['topic']
-        category = seed['category']
+    try:
+        # UNA sola búsqueda: noticias de Chile de las últimas 24h
+        url = 'https://newsapi.org/v2/everything'
+        params = {
+            'q': 'Chile',
+            'from': (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'),
+            'to': datetime.now().strftime('%Y-%m-%d'),
+            'sortBy': 'publishedAt',
+            'language': 'es',
+            'pageSize': 50,  # Pedimos 50 para tener variedad
+            'apiKey': newsapi_key
+        }
         
-        try:
-            # Buscar noticias de las últimas 24 horas para este tema
-            url = 'https://newsapi.org/v2/everything'
-            params = {
-                'q': topic,
-                'from': (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'),
-                'to': datetime.now().strftime('%Y-%m-%d'),
-                'sortBy': 'publishedAt',
-                'language': 'es',
-                'pageSize': 5,
-                'apiKey': newsapi_key
-            }
-            response = requests.get(url, params=params, timeout=8)
-            
-            news_items = []
-            news_count = 0
-            
-            if response.status_code == 200:
-                data = response.json()
-                articles = data.get('articles', [])
-                news_count = len(articles)
+        response = requests.get(url, params=params, timeout=15)
+        
+        if response.status_code != 200:
+            print(f"[PREDICT] NewsAPI error: {response.status_code}")
+            return []
+        
+        data = response.json()
+        articles = data.get('articles', [])
+        
+        if not articles:
+            print("[PREDICT] No hay artículos")
+            return []
+        
+        # Agrupar noticias por tema (primeras 5 palabras del título)
+        topic_groups = {}
+        for article in articles:
+            title = article.get('title', '').strip()
+            if title and len(title) > 15:
+                # Extraer tema (primeras 5 palabras)
+                words = title.split()[:6]
+                topic_key = ' '.join(words)
                 
-                for article in articles[:3]:
-                    title = article.get('title', '').strip()
-                    if title and len(title) > 10:
-                        news_items.append({
-                            'titulo': title,
-                            'fuente': article.get('source', {}).get('name', 'Medio'),
-                            'url': article.get('url', ''),
-                            'fecha': article.get('publishedAt', '')[:10]
-                        })
+                if topic_key not in topic_groups:
+                    topic_groups[topic_key] = {
+                        'topic': title,
+                        'count': 0,
+                        'news': [],
+                        'category': guess_category(title)
+                    }
+                
+                topic_groups[topic_key]['count'] += 1
+                if len(topic_groups[topic_key]['news']) < 3:
+                    topic_groups[topic_key]['news'].append({
+                        'titulo': title,
+                        'fuente': article.get('source', {}).get('name', 'Medio'),
+                        'url': article.get('url', ''),
+                        'fecha': article.get('publishedAt', '')[:10]
+                    })
+        
+        # Calcular scores y generar predicciones
+        predictions = []
+        for topic_key, group in topic_groups.items():
+            count = group['count']
             
-            # Calcular score basado en volumen de noticias en 24h
-            # 0 noticias = 20 pts, 1-2 noticias = 50 pts, 3+ noticias = 80+ pts
-            if news_count == 0:
-                score = 20
-            elif news_count <= 2:
-                score = 50
+            # Score basado en frecuencia
+            if count >= 5:
+                score = 90
+                alert_level = 'critical'
+            elif count >= 3:
+                score = 75
+                alert_level = 'high'
+            elif count >= 2:
+                score = 60
+                alert_level = None
             else:
-                score = min(80 + (news_count * 5), 95)
+                score = 40
+                alert_level = None
             
-            # Solo mostrar si tiene actividad reciente (score >= 40)
-            if score >= 40:
-                alert_level = 'critical' if score >= 85 else ('high' if score >= 70 else None)
-                
-                predictions.append({
-                    'topic': topic,
-                    'score': score,
-                    'category': category,
-                    'news_count': news_count,
-                    'news': news_items,
-                    'alert_level': alert_level,
-                    'source': 'NewsAPI 24h',
-                    'is_realtime': True,
-                    'timestamp': datetime.now().isoformat()
-                })
-                
-        except Exception as e:
-            print(f"[PREDICT] Error validando '{topic}': {str(e)}")
-            continue
-    
-    # Ordenar por score descendente
-    predictions.sort(key=lambda x: x['score'], reverse=True)
-    print(f"[PREDICT] ✅ Generadas {len(predictions)} predicciones válidas")
-    
-    return predictions[:8]
+            predictions.append({
+                'topic': group['topic'],
+                'score': score,
+                'category': group['category'],
+                'news_count': count,
+                'news': group['news'],
+                'alert_level': alert_level,
+                'source': 'NewsAPI Chile 24h',
+                'is_realtime': True,
+                'timestamp': datetime.now().isoformat()
+            })
+        
+        # Ordenar por score y tomar top 8
+        predictions.sort(key=lambda x: x['score'], reverse=True)
+        print(f"[PREDICT] ✅ Generadas {len(predictions[:8])} predicciones")
+        
+        return predictions[:8]
+        
+    except Exception as e:
+        print(f"[PREDICT] Error: {str(e)}")
+        return []
+
+def guess_category(topic):
+    topic_lower = topic.lower()
+    category_keywords = {
+        'Deportes': ['fútbol', 'deporte', 'selección', 'campeonato'],
+        'Economía': ['dólar', 'inflación', 'economía', 'peso', 'cobre'],
+        'Nacional': ['gobierno', 'presidente', 'congreso', 'ley', 'chile'],
+        'Internacional': ['eeuu', 'europa', 'guerra', 'mundial'],
+        'Tecnología': ['tecnología', 'app', 'digital', 'ia', 'inteligencia'],
+        'Salud': ['salud', 'hospital', 'médico', 'vacuna'],
+        'Sociedad': ['sociedad', 'educación', 'migración', 'vivienda'],
+        'TV y Espectáculos': ['actor', 'actriz', 'tv', 'famoso', 'farándula'],
+    }
+    for category, keywords in category_keywords.items():
+        for keyword in keywords:
+            if keyword in topic_lower:
+                return category
+    return 'Tendencias'
 
 def is_spanish_title(title):
     spanish_words = ['el', 'la', 'los', 'las', 'de', 'del', 'al', 'y', 'que', 'por', 'para', 'con', 'chile', 'santiago', 'gobierno', 'presidente', 'ley', 'nuevo', 'más']
