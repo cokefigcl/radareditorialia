@@ -43,20 +43,20 @@ init_db()
 CATEGORIES = [
     {'name': 'Eléctrico', 'icon': '', 'type': 'tema'},
     {'name': 'Automotriz', 'icon': '', 'type': 'tema'},
-    {'name': 'Belleza', 'icon': '', 'type': 'tema'},
-    {'name': 'Minería', 'icon': '️', 'type': 'tema'},
-    {'name': 'IA', 'icon': '', 'type': 'tema'},
+    {'name': 'Belleza', 'icon': '💄', 'type': 'tema'},
+    {'name': 'Minería', 'icon': '⛏️', 'type': 'tema'},
+    {'name': 'IA', 'icon': '🤖', 'type': 'tema'},
     {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
-    {'name': 'Tecnología', 'icon': '', 'type': 'tema'},
-    {'name': 'Economía', 'icon': '', 'type': 'tema'},
+    {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
+    {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
     {'name': 'Chile', 'icon': '🇨', 'type': 'region'},
     {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
-    {'name': 'Deportes', 'icon': '', 'type': 'otros'},
+    {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
     {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
-    {'name': 'Cultura', 'icon': '', 'type': 'otros'},
+    {'name': 'Cultura', 'icon': '🎭', 'type': 'otros'},
     {'name': 'Ocio', 'icon': '🎮', 'type': 'otros'},
-    {'name': 'Salud', 'icon': '', 'type': 'otros'},
-    {'name': 'Sociedad', 'icon': '', 'type': 'otros'},
+    {'name': 'Salud', 'icon': '🏥', 'type': 'otros'},
+    {'name': 'Sociedad', 'icon': '👥', 'type': 'otros'},
     {'name': 'TV y Espectáculos', 'icon': '📺', 'type': 'otros'}
 ]
 
@@ -102,29 +102,25 @@ FALLBACK_TRENDS = [
     {'topic': 'Inteligencia artificial transforma empresas chilenas', 'source': 'Pulso', 'region': 'Chile'}
 ]
 
-# ==================== FILTRO DE ESPAÑOL MEJORADO ====================
-
-ENGLISH_WORDS = ['the', 'and', 'for', 'that', 'this', 'with', 'from', 'are', 'has', 'was', 'were', 'been', 'have', 'will', 'would', 'could', 'should', 'about', 'after', 'before', 'between', 'through', 'during', 'without', 'against', 'within', 'toward', 'towards', 'among', 'along', 'across', 'behind', 'beyond', 'beside', 'beneath', 'below', 'above', 'over', 'under', 'upon', 'into', 'onto', 'unto', 'out', 'off', 'up', 'down', 'in', 'on', 'at', 'to', 'by', 'as', 'of', 'or', 'nor', 'but', 'yet', 'so', 'if', 'then', 'than', 'too', 'very', 'just', 'only', 'also', 'even', 'still', 'already', 'always', 'never', 'often', 'sometimes', 'usually', 'perhaps', 'maybe', 'however', 'therefore', 'thus', 'hence', 'according', 'despite', 'although', 'though', 'while', 'whilst', 'whereas', 'where', 'when', 'whenever', 'why', 'because', 'since', 'until', 'unless', 'whether', 'either', 'neither', 'both', 'each', 'every', 'all', 'any', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'not', 'own', 'same', 'different', 'new', 'old', 'big', 'small', 'large', 'long', 'short', 'high', 'low', 'right', 'left', 'first', 'last', 'next', 'final', 'important', 'major', 'minor', 'public', 'private', 'social', 'political', 'economic', 'international', 'national', 'local', 'global', 'general', 'specific', 'special', 'common', 'recent', 'current', 'following', 'including', 'according', 'based', 'related', 'associated', 'involved', 'focused', 'centered', 'aimed', 'designed', 'intended', 'expected', 'required', 'needed', 'used', 'found', 'taken', 'given', 'made', 'said', 'told', 'asked', 'called', 'named', 'known', 'seen', 'shown', 'reported', 'announced', 'released', 'published', 'launched', 'started', 'began', 'ended', 'finished', 'completed', 'achieved', 'reached', 'gained', 'lost', 'won', 'beat', 'defeated', 'defeats', 'faces', 'faces', 'amid', 'says', 'said', 'told', 'reports', 'announces', 'launches', 'opens', 'closes', 'signs', 'agrees', 'backs', 'supports', 'opposes', 'criticizes', 'blames', 'accuses', 'denies', 'admits', 'confirms', 'reveals', 'exposes', 'investigates', 'probes', 'examines', 'reviews', 'evaluates', 'assesses', 'analyzes', 'studies', 'researches', 'explores', 'discovers', 'finds', 'identifies', 'recognizes', 'acknowledges', 'accepts', 'rejects', 'refuses', 'declines', 'agrees', 'approves', 'authorizes', 'permits', 'allows', 'enables', 'prevents', 'stops', 'blocks', 'bans', 'restricts', 'limits', 'reduces', 'increases', 'raises', 'lowers', 'cuts', 'boosts', 'improves', 'enhances', 'strengthens', 'weakens', 'damages', 'harms', 'hurts', 'helps', 'supports', 'assists', 'aids', 'serves', 'provides', 'offers', 'gives', 'delivers', 'supplies', 'produces', 'creates', 'builds', 'develops', 'establishes', 'sets', 'forms', 'shapes', 'makes', 'does', 'acts', 'works', 'runs', 'operates', 'manages', 'leads', 'heads', 'directs', 'controls', 'governs', 'rules', 'regulates', 'oversees', 'monitors', 'watches', 'observes', 'tracks', 'follows', 'pursues', 'chases', 'seeks', 'searches', 'looks', 'finds', 'discovers', 'uncovers', 'exposes', 'reveals', 'shows', 'displays', 'demonstrates', 'proves', 'confirms', 'verifies', 'validates', 'tests', 'checks', 'examines', 'inspects', 'reviews', 'evaluates', 'assesses', 'measures', 'calculates', 'computes', 'estimates', 'predicts', 'forecasts', 'projects', 'plans', 'prepares', 'organizes', 'arranges', 'coordinates', 'manages', 'handles', 'deals', 'addresses', 'tackles', 'confronts', 'faces', 'meets', 'encounters', 'experiences', 'suffers', 'endures', 'survives', 'overcomes', 'defeats', 'beats', 'wins', 'loses', 'fails', 'succeeds', 'achieves', 'accomplishes', 'completes', 'finishes', 'ends', 'concludes', 'closes', 'opens', 'begins', 'starts', 'launches', 'initiates', 'introduces', 'presents', 'proposes', 'suggests', 'recommends', 'advises', 'warns', 'alerts', 'notifies', 'informs', 'tells', 'says', 'states', 'declares', 'announces', 'proclaims', 'asserts', 'claims', 'argues', 'contends', 'maintains', 'insists', 'emphasizes', 'stresses', 'highlights', 'underlines', 'notes', 'mentions', 'refers', 'points', 'indicates', 'suggests', 'implies', 'means', 'signifies', 'represents', 'stands', 'serves', 'acts', 'functions', 'works', 'operates', 'performs', 'executes', 'implements', 'applies', 'uses', 'employs', 'utilizes', 'adopts', 'embraces', 'accepts', 'receives', 'gets', 'obtains', 'acquires', 'gains', 'earns', 'wins', 'secures', 'captures', 'takes', 'grabs', 'seizes', 'holds', 'keeps', 'retains', 'maintains', 'preserves', 'protects', 'defends', 'guards', 'shields', 'covers', 'hides', 'conceals', 'reveals', 'exposes', 'shows', 'displays', 'presents', 'offers', 'provides', 'supplies', 'delivers', 'sends', 'transmits', 'communicates', 'shares', 'distributes', 'spreads', 'disseminates', 'publishes', 'broadcasts', 'airs', 'streams', 'posts', 'uploads', 'downloads', 'accesses', 'visits', 'enters', 'leaves', 'exits', 'departs', 'arrives', 'reaches', 'approaches', 'nears', 'comes', 'goes', 'moves', 'travels', 'journeys', 'flies', 'drives', 'rides', 'walks', 'runs', 'jumps', 'falls', 'drops', 'rises', 'climbs', 'ascends', 'descends', 'sinks', 'floats', 'swims', 'dives', 'plunges', 'crashes', 'collides', 'hits', 'strikes', 'beats', 'pounds', 'knocks', 'taps', 'touches', 'feels', 'senses', 'perceives', 'notices', 'observes', 'watches', 'sees', 'looks', 'views', 'seeks', 'searches', 'hunts', 'tracks', 'traces', 'follows', 'pursues', 'chases', 'catches', 'captures', 'arrests', 'detains', 'holds', 'releases', 'frees', 'liberates', 'rescues', 'saves', 'protects', 'defends', 'attacks', 'assaults', 'invades', 'occupies', 'controls', 'dominates', 'rules', 'governs', 'leads', 'guides', 'directs', 'instructs', 'teaches', 'educates', 'trains', 'coaches', 'mentors', 'advises', 'counsels', 'helps', 'assists', 'supports', 'backs', 'endorses', 'approves', 'authorizes', 'permits', 'allows', 'enables', 'empowers', 'strengthens', 'boosts', 'enhances', 'improves', 'upgrades', 'updates', 'renews', 'restores', 'repairs', 'fixes', 'resolves', 'solves', 'addresses', 'handles', 'manages', 'deals', 'tackles', 'confronts', 'faces', 'meets', 'encounters', 'experiences', 'undergoes', 'suffers', 'endures', 'bears', 'carries', 'holds', 'contains', 'includes', 'comprises', 'consists', 'features', 'highlights', 'emphasizes', 'stresses', 'focuses', 'centers', 'concentrates', 'targets', 'aims', 'directs', 'points', 'guides', 'leads', 'drives', 'pushes', 'pulls', 'draws', 'attracts', 'appeals', 'interests', 'engages', 'involves', 'includes', 'encompasses', 'covers', 'spans', 'extends', 'reaches', 'stretches', 'expands', 'grows', 'develops', 'evolves', 'progresses', 'advances', 'improves', 'enhances', 'strengthens', 'builds', 'constructs', 'creates', 'produces', 'generates', 'yields', 'delivers', 'provides', 'supplies', 'offers', 'presents', 'introduces', 'launches', 'unveils', 'reveals', 'announces', 'declares', 'proclaims', 'states', 'says', 'tells', 'informs', 'notifies', 'alerts', 'warns', 'cautions', 'advises', 'recommends', 'suggests', 'proposes', 'offers', 'invites', 'encourages', 'urges', 'presses', 'pushes', 'forces', 'compels', 'requires', 'demands', 'requests', 'asks', 'seeks', 'looks', 'searches', 'hunts', 'explores', 'investigates', 'examines', 'studies', 'analyzes', 'evaluates', 'assesses', 'reviews', 'considers', 'weighs', 'balances', 'compares', 'contrasts', 'matches', 'pairs', 'links', 'connects', 'joins', 'unites', 'combines', 'merges', 'blends', 'mixes', 'integrates', 'incorporates', 'includes', 'adds', 'inserts', 'places', 'puts', 'sets', 'positions', 'locates', 'finds', 'discovers', 'identifies', 'recognizes', 'acknowledges', 'admits', 'confesses', 'denies', 'rejects', 'refuses', 'declines', 'dismisses', 'ignores', 'overlooks', 'misses', 'loses', 'drops', 'falls', 'declines', 'decreases', 'reduces', 'cuts', 'slashes', 'trims', 'shrinks', 'contracts', 'compresses', 'squeezes', 'presses', 'pushes', 'forces', 'drives', 'propels', 'moves', 'shifts', 'transfers', 'transports', 'carries', 'brings', 'takes', 'delivers', 'sends', 'ships', 'exports', 'imports', 'trades', 'sells', 'buys', 'purchases', 'acquires', 'obtains', 'gets', 'receives', 'accepts', 'takes', 'grabs', 'seizes', 'captures', 'catches', 'arrests', 'detains', 'holds', 'keeps', 'retains', 'maintains', 'preserves', 'conserves', 'saves', 'stores', 'stocks', 'supplies', 'provides', 'offers', 'gives', 'donates', 'contributes', 'invests', 'spends', 'pays', 'costs', 'prices', 'values', 'worth', 'earns', 'makes', 'generates', 'produces', 'yields', 'returns', 'profits', 'gains', 'benefits', 'helps', 'aids', 'assists', 'supports', 'backs', 'endorses', 'approves', 'sanctions', 'authorizes', 'permits', 'allows', 'enables', 'facilitates', 'promotes', 'encourages', 'fosters', 'nurtures', 'cultivates', 'develops', 'grows', 'expands', 'extends', 'increases', 'raises', 'boosts', 'lifts', 'elevates', 'enhances', 'improves', 'upgrades', 'updates', 'modernizes', 'renovates', 'rebuilds', 'reconstructs', 'restores', 'repairs', 'fixes', 'corrects', 'adjusts', 'modifies', 'changes', 'alters', 'transforms', 'converts', 'turns', 'shifts', 'switches', 'replaces', 'substitutes', 'exchanges', 'swaps', 'trades', 'barters', 'negotiates', 'bargains', 'deals', 'agrees', 'settles', 'resolves', 'solves', 'fixes', 'addresses', 'handles', 'manages', 'operates', 'runs', 'controls', 'directs', 'leads', 'heads', 'guides', 'steers', 'navigates', 'pilots', 'drives', 'rides', 'flies', 'sails', 'travels', 'journeys', 'visits', 'tours', 'explores', 'discovers', 'finds', 'locates', 'spots', 'identifies', 'recognizes', 'distinguishes', 'differentiates', 'separates', 'divides', 'splits', 'breaks', 'cracks', 'fractures', 'damages', 'harms', 'hurts', 'injures', 'wounds', 'kills', 'destroys', 'ruins', 'wrecks', 'demolishes', 'razes', 'flattens', 'levels', 'clears', 'cleans', 'washes', 'scrubs', 'wipes', 'dries', 'heats', 'cools', 'freezes', 'melts', 'boils', 'burns', 'ignites', 'lights', 'shines', 'glows', 'radiates', 'emits', 'releases', 'discharges', 'emits', 'produces', 'generates', 'creates', 'makes', 'builds', 'constructs', 'erects', 'raises', 'lifts', 'elevates', 'hoists', 'pulls', 'drags', 'hauls', 'tows', 'pushes', 'shoves', 'thrusts', 'drives', 'forces', 'compels', 'presses', 'squeezes', 'crushes', 'smashes', 'breaks', 'shatters', 'cracks', 'splits', 'tears', 'rips', 'cuts', 'slices', 'chops', 'dices', 'minces', 'grinds', 'crushes', 'pulverizes', 'powders', 'dusts', 'sprays', 'splashes', 'spills', 'pours', 'flows', 'streams', 'runs', 'races', 'rushes', 'hurries', 'speeds', 'accelerates', 'quickens', 'hastens', 'expedites', 'slows', 'delays', 'postpones', 'defers', 'waits', 'pauses', 'stops', 'halts', 'ceases', 'ends', 'finishes', 'completes', 'concludes', 'terminates', 'closes', 'shuts', 'locks', 'seals', 'opens', 'unlocks', 'unseals', 'reveals', 'exposes', 'unveils', 'uncovers', 'discloses', 'divulges', 'leaks', 'spills', 'shares', 'tells', 'informs', 'notifies', 'announces', 'declares', 'proclaims', 'broadcasts', 'publishes', 'prints', 'writes', 'types', 'records', 'documents', 'files', 'stores', 'saves', 'backs', 'copies', 'duplicates', 'reproduces', 'replicates', 'repeats', 'echoes', 'mirrors', 'reflects', 'shows', 'displays', 'exhibits', 'presents', 'demonstrates', 'illustrates', 'explains', 'clarifies', 'elucidates', 'illuminates', 'highlights', 'emphasizes', 'stresses', 'underlines', 'underscores', 'accentuates', 'features', 'spotlights', 'showcases', 'promotes', 'advertises', 'markets', 'sells', 'peddles', 'pushes', 'plugs', 'endorses', 'supports', 'backs', 'champions', 'advocates', 'defends', 'protects', 'shields', 'guards', 'watches', 'monitors', 'tracks', 'follows', 'traces', 'pursues', 'hunts', 'searches', 'seeks', 'looks', 'peers', 'gazes', 'stares', 'glances', 'glimpses', 'notices', 'spots', 'observes', 'witnesses', 'sees', 'views', 'watches', 'looks', 'appears', 'emerges', 'arises', 'surfaces', 'comes', 'arrives', 'reaches', 'attains', 'achieves', 'accomplishes', 'fulfills', 'realizes', 'actualizes', 'materializes', 'happens', 'occurs', 'takes', 'unfolds', 'develops', 'evolves', 'progresses', 'advances', 'moves', 'proceeds', 'continues', 'persists', 'endures', 'lasts', 'remains', 'stays', 'lingers', 'dwells', 'resides', 'lives', 'exists', 'survives', 'thrives', 'flourishes', 'blooms', 'blossoms', 'grows', 'matures', 'ages', 'weathers', 'endures', 'withstands', 'resists', 'opposes', 'fights', 'battles', 'combats', 'struggles', 'strives', 'endeavors', 'attempts', 'tries', 'tests', 'experiments', 'explores', 'investigates', 'researches', 'studies', 'learns', 'discovers', 'finds', 'uncovers', 'reveals', 'exposes', 'unmasks', ' unmasks', ' unmasks', 'unveils', 'discloses', 'divulges', 'leaks', 'betrays', 'cheats', 'deceives', 'tricks', 'fools', 'misleads', 'misguides', 'confuses', 'bewilders', 'puzzles', 'baffles', 'stumps', 'stuns', 'shocks', 'surprises', 'amazes', 'astonishes', 'astounds', 'impresses', 'moves', 'touches', 'affects', 'influences', 'impacts', 'shapes', 'molds', 'forms', 'creates', 'makes', 'builds', 'constructs', 'designs', 'plans', 'schemes', 'plots', 'conspires', 'colludes', 'cooperates', 'collaborates', 'partners', 'teams', 'joins', 'unites', 'merges', 'combines', 'blends', 'mixes', 'mingles', 'integrates', 'incorporates', 'includes', 'contains', 'holds', 'carries', 'bears', 'supports', 'sustains', 'maintains', 'keeps', 'retains', 'preserves', 'conserves', 'saves', 'rescues', 'rescues', 'salvages', 'recovers', 'retrieves', 'restores', 'returns', 'gives', 'back', 'replaces', 'substitutes', 'swaps', 'exchanges', 'trades', 'switches', 'shifts', 'changes', 'alters', 'modifies', 'adjusts', 'adapts', 'accommodates', 'fits', 'suits', 'matches', 'pairs', 'couples', 'links', 'connects', 'joins', 'attaches', 'fastens', 'secures', 'binds', 'ties', 'binds', 'wraps', 'covers', 'wraps', 'envelops', 'surrounds', 'encircles', 'encloses', 'contains', 'holds', 'houses', 'shelters', 'protects', 'shields', 'guards', 'defends', 'secures', 'safeguards', 'preserves', 'conserves', 'maintains', 'sustains', 'supports', 'upholds', 'backs', 'endorses', 'approves', 'sanctions', 'authorizes', 'permits', 'allows', 'enables', 'empowers', 'equips', 'arms', 'supplies', 'provides', 'furnishes', 'equips', 'outfits', 'prepares', 'readies', 'sets', 'arranges', 'organizes', 'coordinates', 'manages', 'directs', 'controls', 'oversees', 'supervises', 'monitors', 'watches', 'observes', 'tracks', 'follows', 'pursues', 'chases', 'hunts', 'searches', 'seeks', 'looks', 'finds', 'locates', 'discovers', 'identifies', 'recognizes', 'acknowledges', 'accepts', 'embraces', 'welcomes', 'greets', 'receives', 'gets', 'obtains', 'acquires', 'gains', 'earns', 'wins', 'secures', 'captures', 'seizes', 'grabs', 'takes', 'snatches', 'steals', 'robs', 'loots', 'plunders', 'pillages', 'ravages', 'devastates', 'destroys', 'ruins', 'wrecks', 'demolishes', 'razes', 'flattens', 'levels', 'clears', 'empties', 'drains', 'exhausts', 'depletes', 'consumes', 'uses', 'spends', 'expends', 'wastes', 'squanders', 'fritters', 'dissipates', 'scatters', 'disperses', 'spreads', 'distributes', 'allocates', 'assigns', 'allots', 'apportions', 'divides', 'shares', 'splits', 'partitions', 'separates', 'isolates', 'detaches', 'disconnects', 'severs', 'cuts', 'breaks', 'snaps', 'cracks', 'fractures', 'splinters', 'shatters', 'smashes', 'crushes', 'pulverizes', 'grinds', 'mills', 'powders', 'crumbles', 'disintegrates', 'dissolves', 'melts', 'thaws', 'freezes', 'chills', 'cools', 'warms', 'heats', 'boils', 'simmer', 'cooks', 'bakes', 'roasts', 'fries', 'grills', 'broils', 'toasts', 'burns', 'singes', 'chars', 'scorches', 'sears', 'brands', 'marks', 'labels', 'tags', 'tickets', 'prices', 'values', 'estimates', 'assesses', 'evaluates', 'appraises', 'judges', 'rates', 'ranks', 'grades', 'scores', 'marks', 'checks', 'tests', 'examines', 'inspects', 'reviews', 'audits', 'surveys', 'polls', 'samples', 'measures', 'weighs', 'gauges', 'calculates', 'computes', 'figures', 'totals', 'sums', 'adds', 'subtracts', 'multiplies', 'divides', 'splits', 'halves', 'doubles', 'triples', 'quadruples', 'multiplies', 'increases', 'grows', 'expands', 'swells', 'inflates', 'bloated', 'bloats', 'puffs', 'pads', 'fills', 'stuffs', 'packs', 'crams', 'jams', 'crowds', 'packs', 'squeezes', 'presses', 'compresses', 'condenses', 'concentrates', 'focuses', 'centers', 'targets', 'aims', 'directs', 'points', 'levels', 'trains', 'trains', 'trains', 'trains', 'coaches', 'mentors', 'tutors', 'teaches', 'instructs', 'educates', 'schools', 'trains', 'drills', 'exercises', 'practices', 'rehearses', 'prepares', 'readies', 'sets', 'arranges', 'organizes', 'plans', 'schemes', 'plots', 'designs', 'drafts', 'sketches', 'draws', 'paints', 'colors', 'tints', 'shades', 'tones', 'highlights', 'shadows', 'darkens', 'dims', 'fades', 'blurs', 'smudges', 'stains', 'spots', 'dots', 'speckles', 'freckles', 'marks', 'scratches', 'scrapes', 'rubs', 'wipes', 'cleans', 'washes', 'rinses', 'soaks', 'drenches', 'douses', 'splashes', 'sprays', 'sprinkles', 'scatters', 'spreads', 'disperses', 'diffuses', 'radiates', 'emanates', 'issues', 'flows', 'streams', 'pours', 'gushes', 'surges', 'floods', 'inundates', 'swamps', 'overwhelms', 'overcomes', 'defeats', 'conquers', 'subdues', 'crushes', 'quells', 'suppresses', 'represses', 'oppresses', 'dominates', 'controls', 'commands', 'orders', 'directs', 'instructs', 'tells', 'says', 'speaks', 'talks', 'converses', 'chats', 'discusses', 'debates', 'argues', 'disputes', 'contests', 'challenges', 'questions', 'queries', 'asks', 'inquires', 'investigates', 'probes', 'examines', 'inspects', 'scrutinizes', 'analyzes', 'studies', 'researches', 'explores', 'delves', 'digs', 'mines', 'extracts', 'removes', 'takes', 'withdraws', 'pulls', 'draws', 'drags', 'hauls', 'tows', 'tugs', 'yanks', 'jerks', 'snatches', 'grabs', 'seizes', 'captures', 'catches', 'traps', 'snags', 'hooks', 'lands', 'nets', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', 'bags', '......']
+# ==================== FILTRO DE ESPAÑOL ====================
 
 def is_spanish_text(text):
-    """Verifica si un texto está en español descartando inglés"""
+    """Verifica si un texto está en español"""
     if not text:
         return False
     
     text_lower = text.lower()
     
-    # Palabras clave que indican español
     spanish_indicators = [
         'el ', 'la ', 'los ', 'las ', 'un ', 'una ', 'de ', 'del ', 'al ',
         'que ', 'por ', 'para ', 'con ', 'sin ', 'sobre ', 'entre ',
         'chile', 'santiago', 'gobierno', 'presidente', 'ministro', 'ley',
         'nuevo', 'nueva', 'más', 'menos', 'hoy', 'ayer', 'mañana',
-        'año', 'mes', 'semana', 'día', 'hora', 'minuto',
+        'año', 'mes', 'semana', 'día', 'hora',
         'ciudad', 'país', 'región', 'provincia', 'comuna',
         'política', 'economía', 'sociedad', 'cultura', 'deporte',
         'salud', 'educación', 'trabajo', 'vivienda', 'seguridad',
         'justicia', 'congreso', 'senado', 'cámara', 'diputado',
-        'senador', 'alcalde', 'gobernador', 'intendente',
         'empresa', 'mercado', 'precio', 'costo', 'valor',
         'aumento', 'baja', 'subida', 'caída', 'crecimiento',
         'crisis', 'problema', 'solución', 'medida', 'acción',
@@ -142,22 +138,17 @@ def is_spanish_text(text):
         'internacional', 'global', 'local', 'regional', 'municipal'
     ]
     
-    # Contar indicadores españoles
     spanish_count = sum(1 for word in spanish_indicators if word in text_lower)
     
-    # Si tiene al menos 2 indicadores españoles, es español
     if spanish_count >= 2:
         return True
     
-    # Verificar si parece inglés (muchas palabras comunes en inglés)
     english_common = ['the ', 'and ', 'for ', 'that ', 'this ', 'with ', 'from ', 'are ', 'has ', 'was ', 'were ', 'been ', 'have ', 'will ', 'would ', 'could ', 'should ', 'about ', 'after ', 'before ', 'between ', 'through ', 'during ', 'without ', 'against ', 'within ', 'toward ', 'among ', 'along ', 'across ', 'behind ', 'beyond ', 'beside ', 'beneath ', 'below ', 'above ', 'over ', 'under ', 'upon ', 'into ', 'onto ', 'unto ']
     english_count = sum(1 for word in english_common if word in text_lower)
     
-    # Si tiene más palabras en inglés que en español, no es español
     if english_count > spanish_count:
         return False
     
-    # Longitud mínima para ser considerado
     if len(text) < 15:
         return False
     
@@ -246,7 +237,7 @@ def get_status_panel():
         'timestamp': datetime.now().isoformat()
     }
 
-# ==================== PREDICCIONES CON FILTRO ESPAÑOL ESTRICTO ====================
+# ==================== PREDICCIONES ====================
 
 def get_gdelt_predictions():
     try:
@@ -259,7 +250,6 @@ def get_gdelt_predictions():
             'startdatetime': (datetime.now() - timedelta(days=1)).strftime('%Y%m%d%H%M%S'),
             'enddatetime': datetime.now().strftime('%Y%m%d%H%M%S'),
             'maxrecords': 80,
-            'sourcelang': 'spa',
             'sort': 'DateDesc'
         }
         response = requests.get(url, params=params, timeout=15)
@@ -273,7 +263,6 @@ def get_gdelt_predictions():
             for article in articles:
                 title = article.get('title', '').strip()
                 
-                # FILTRO ESTRICTO DE ESPAÑOL
                 if not title or len(title) < 20:
                     continue
                 if not is_spanish_text(title):
@@ -338,43 +327,85 @@ def guess_category(topic):
             return category
     return 'Tendencias'
 
-def is_spanish_title(title):
-    return is_spanish_text(title)
+# ==================== TENDENCIAS (CORREGIDO) ====================
 
 def get_trends_for_category(category):
+    """Obtiene tendencias reales desde GDELT con filtros relajados"""
     if not category or category == 'all':
         category = 'Chile'
+    
     keywords = SEARCH_KEYWORDS.get(category, category)
-    print(f"[TRENDS] Buscando tendencias para: {category}")
+    print(f"[TRENDS] Buscando tendencias para: {category} (keywords: {keywords})")
     
     try:
         url = 'https://api.gdeltproject.org/api/v2/doc/doc'
         params = {
-            'query': keywords + ' Chile', 'mode': 'artlist', 'format': 'json',
-            'startdatetime': (datetime.now() - timedelta(days=7)).strftime('%Y%m%d%H%M%S'),
+            'query': keywords,
+            'mode': 'artlist',
+            'format': 'json',
+            'startdatetime': (datetime.now() - timedelta(days=3)).strftime('%Y%m%d%H%M%S'),
             'enddatetime': datetime.now().strftime('%Y%m%d%H%M%S'),
-            'maxrecords': 30, 'sourcelang': 'spa', 'sort': 'DateDesc'
+            'maxrecords': 30,
+            'sort': 'DateDesc'
         }
+        
+        print(f"[TRENDS] Consultando GDELT con: {params}")
         response = requests.get(url, params=params, timeout=15)
+        
+        print(f"[TRENDS] GDELT status: {response.status_code}")
+        
         if response.status_code == 200:
             data = response.json()
+            articles = data.get('articles', [])
+            print(f"[TRENDS] GDELT devolvió {len(articles)} artículos")
+            
             trends = []
             seen = set()
-            for article in data.get('articles', []):
+            
+            for article in articles:
                 title = article.get('title', '').strip()
-                if title and title not in seen and len(title) > 15 and is_spanish_text(title):
+                
+                if not title or len(title) < 15:
+                    continue
+                
+                if title in seen:
+                    continue
+                
+                # Filtro de español más permisivo
+                title_lower = title.lower()
+                spanish_indicators = ['el ', 'la ', 'los ', 'las ', 'de ', 'del ', 'al ', 'que ', 'por ', 'para ', 'con ', 'chile', 'santiago', 'gobierno', 'presidente', 'ley', 'nuevo', 'más', 'hoy', 'ayer']
+                
+                is_spanish = any(word in title_lower for word in spanish_indicators)
+                
+                if is_spanish:
                     seen.add(title)
-                    trends.append({'topic': title, 'source': article.get('domain', 'Medio'), 'region': 'Chile'})
+                    trends.append({
+                        'topic': title,
+                        'source': article.get('domain', 'Medio'),
+                        'region': 'Chile'
+                    })
+                    print(f"[TRENDS] ✅ Agregado: {title[:50]}...")
+                
                 if len(trends) >= 5:
                     break
+            
             if trends:
                 print(f"[TRENDS] ✅ GDELT: {len(trends)} tendencias en español")
                 return trends
+            else:
+                print(f"[TRENDS] ️ GDELT no devolvió tendencias en español")
+        else:
+            print(f"[TRENDS] ❌ GDELT error HTTP: {response.status_code}")
+            
     except Exception as e:
-        print(f"[TRENDS] GDELT error: {str(e)}")
+        print(f"[TRENDS] ❌ GDELT error: {str(e)}")
+        import traceback
+        traceback.print_exc()
     
     print(f"[TRENDS] Usando datos de respaldo para {category}")
     return FALLBACK_TRENDS[:5]
+
+# ==================== BÚSQUEDA DE NOTICIAS ====================
 
 def search_news(topic, max_results=5):
     try:
@@ -383,7 +414,7 @@ def search_news(topic, max_results=5):
             'query': topic, 'mode': 'artlist', 'format': 'json',
             'startdatetime': (datetime.now() - timedelta(days=14)).strftime('%Y%m%d%H%M%S'),
             'enddatetime': datetime.now().strftime('%Y%m%d%H%M%S'),
-            'maxrecords': max_results * 5, 'sourcelang': 'spa'
+            'maxrecords': max_results * 5, 'sort': 'DateDesc'
         }
         response = requests.get(url, params=params, timeout=15)
         if response.status_code == 200:
@@ -401,6 +432,8 @@ def search_news(topic, max_results=5):
     except Exception as e:
         print(f"[DEBUG] GDELT error: {str(e)}")
     return []
+
+# ==================== ANÁLISIS CON IA ====================
 
 def analyze_with_qwen(prompt, mode='standard'):
     api_key = os.getenv('QWEN_API_KEY')
@@ -454,6 +487,8 @@ def generate_fallback(topic, topic2, category, region, mode, news):
     if mode == 'devil': return {'cobertura_mainstream': f'Medios cubren "{topic}" convencionalmente.', 'angulo_ciego': 'Nadie pregunta consecuencias.', 'riesgos_sesgos': ['Sesgo confirmación', 'Falta fuentes'], 'pregunta_incomoda': '¿Qué interés hay?', 'noticias_reales': news if news else []}
     if mode == 'compare' and topic2: return {'tema_a': topic, 'tema_b': topic2, 'mas_recorrido': f'{topic} tiene más recorrido.', 'fuentes_comunes': ['Expertos', 'Organismos'], 'angulo_conector': 'Ambos reflejan cambios.', 'recomendacion': f'Cubrir {topic} primero.', 'noticias_reales': news if news else []}
     return {'puntaje_relevancia': 5, 'justificacion_puntaje': 'Análisis automático', 'hipotesis': f'Tendencia "{topic}" muestra relevancia.', 'senales_clave': ['Aumento menciones', 'Nuevas regulaciones'], 'angulos_periodisticos': ['Impacto económico', 'Perspectivas expertos'], 'fuentes_sugeridas': ['Organismos', 'Expertos'], 'titulares_ejemplo': [f"Análisis: {topic}"], 'noticias_reales': news if news else []}
+
+# ==================== RUTAS ====================
 
 @app.route('/')
 def index(): return render_template('index.html')
