@@ -6,501 +6,88 @@
     <title>Radar Editorial con IA</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-            color: #333;
-        }
-        
-        .topbar {
-            background: white;
-            padding: 12px 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        .topbar-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #1a1a1a;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; }
+        .topbar { background: white; padding: 12px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; position: sticky; top: 0; z-index: 100; }
+        .topbar-title { font-size: 18px; font-weight: 700; color: #1a1a1a; }
         .topbar-title span { color: #007bff; }
-        
-        .status-bar {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            flex-wrap: wrap;
-            font-size: 12px;
-        }
-        .status-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            padding: 4px 10px;
-            background: #f8f9fa;
-            border-radius: 12px;
-        }
+        .status-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+        .status-item { display: flex; align-items: center; gap: 5px; padding: 4px 10px; background: #f8f9fa; border-radius: 12px; }
         .status-item .label { color: #666; }
         .status-item .value { font-weight: 600; color: #333; }
         .status-ok { color: #28a745; }
         .status-error { color: #dc3545; }
-        
-        .category-bar {
-            background: white;
-            padding: 10px 20px;
-            border-bottom: 1px solid #e0e0e0;
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        .category-bar .group-label {
-            font-size: 11px;
-            color: #666;
-            font-weight: 600;
-            text-transform: uppercase;
-            margin-right: 5px;
-        }
-        .cat-btn {
-            padding: 5px 12px;
-            border: 1px solid #ddd;
-            background: white;
-            border-radius: 15px;
-            cursor: pointer;
-            font-size: 12px;
-            color: #333;
-            white-space: nowrap;
-        }
-        .cat-btn.active {
-            background: #007bff;
-            color: white;
-            border-color: #007bff;
-        }
+        .category-bar { background: white; padding: 10px 20px; border-bottom: 1px solid #e0e0e0; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .category-bar .group-label { font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase; margin-right: 5px; }
+        .cat-btn { padding: 5px 12px; border: 1px solid #ddd; background: white; border-radius: 15px; cursor: pointer; font-size: 12px; color: #333; white-space: nowrap; }
+        .cat-btn.active { background: #007bff; color: white; border-color: #007bff; }
         .cat-btn:hover { border-color: #007bff; }
-        .cat-separator {
-            width: 1px;
-            height: 20px;
-            background: #ddd;
-            margin: 0 5px;
-        }
-        
-        .main-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 15px;
-            padding: 15px 20px;
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-        @media (max-width: 1200px) {
-            .main-grid { grid-template-columns: 1fr 1fr; }
-        }
-        @media (max-width: 768px) {
-            .main-grid { grid-template-columns: 1fr; }
-        }
-        
-        .module {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            display: flex;
-            flex-direction: column;
-            max-height: 75vh;
-            overflow: hidden;
-        }
-        .module-header {
-            padding: 15px 20px;
-            border-bottom: 1px solid #e0e0e0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        .module-header h3 {
-            font-size: 16px;
-            font-weight: 700;
-        }
-        .module-header button {
-            background: rgba(255,255,255,0.2);
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 11px;
-        }
+        .cat-separator { width: 1px; height: 20px; background: #ddd; margin: 0 5px; }
+        .main-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; padding: 15px 20px; max-width: 1600px; margin: 0 auto; }
+        @media (max-width: 1200px) { .main-grid { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; } }
+        .module { background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; flex-direction: column; max-height: 75vh; overflow: hidden; }
+        .module-header { padding: 15px 20px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .module-header h3 { font-size: 16px; font-weight: 700; }
+        .module-header button { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; }
         .module-header button:hover { background: rgba(255,255,255,0.3); }
-        
-        .module-body {
-            padding: 15px 20px;
-            overflow-y: auto;
-            flex: 1;
-        }
-        
-        .module-analysis .module-header {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        }
-        
-        .trend-item {
-            padding: 10px;
-            margin-bottom: 8px;
-            background: #f8f9fa;
-            border-radius: 6px;
-            cursor: pointer;
-            border-left: 3px solid #667eea;
-            transition: all 0.2s;
-        }
-        .trend-item:hover {
-            background: #e9ecef;
-            transform: translateX(3px);
-        }
-        .trend-item .topic {
-            font-size: 13px;
-            font-weight: 600;
-            color: #333;
-            line-height: 1.3;
-        }
-        .trend-item .meta {
-            font-size: 11px;
-            color: #666;
-            margin-top: 4px;
-        }
-        
-        .prediction-item {
-            padding: 12px;
-            margin-bottom: 10px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #007bff;
-        }
-        .prediction-item.critical {
-            border-left-color: #dc3545;
-            background: #fff5f5;
-        }
-        .prediction-item.high {
-            border-left-color: #f57f17;
-            background: #fffef5;
-        }
-        .prediction-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 8px;
-        }
-        .prediction-topic {
-            font-size: 14px;
-            font-weight: 700;
-            color: #333;
-            flex: 1;
-            line-height: 1.3;
-        }
-        .prediction-score {
-            font-size: 18px;
-            font-weight: bold;
-            padding: 4px 10px;
-            border-radius: 15px;
-            min-width: 55px;
-            text-align: center;
-            margin-left: 10px;
-        }
+        .module-body { padding: 15px 20px; overflow-y: auto; flex: 1; }
+        .module-analysis .module-header { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .trend-item { padding: 10px; margin-bottom: 8px; background: #f8f9fa; border-radius: 6px; cursor: pointer; border-left: 3px solid #667eea; transition: all 0.2s; }
+        .trend-item:hover { background: #e9ecef; transform: translateX(3px); }
+        .trend-item .topic { font-size: 13px; font-weight: 600; color: #333; line-height: 1.3; }
+        .trend-item .meta { font-size: 11px; color: #666; margin-top: 4px; }
+        .prediction-item { padding: 12px; margin-bottom: 10px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff; }
+        .prediction-item.critical { border-left-color: #dc3545; background: #fff5f5; }
+        .prediction-item.high { border-left-color: #f57f17; background: #fffef5; }
+        .prediction-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .prediction-topic { font-size: 14px; font-weight: 700; color: #333; flex: 1; line-height: 1.3; }
+        .prediction-score { font-size: 18px; font-weight: bold; padding: 4px 10px; border-radius: 15px; min-width: 55px; text-align: center; margin-left: 10px; }
         .score-high { background: #e8f5e9; color: #2e7d32; }
         .score-medium { background: #fff8e1; color: #f57f17; }
         .score-low { background: #ffebee; color: #c62828; }
-        .prediction-meta {
-            font-size: 11px;
-            color: #666;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        .prediction-alert {
-            background: #fff3cd;
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 11px;
-            color: #856404;
-            margin-top: 8px;
-        }
-        .prediction-news {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid #e0e0e0;
-        }
-        .prediction-news-item {
-            font-size: 11px;
-            color: #555;
-            margin: 3px 0;
-            padding-left: 12px;
-        }
+        .prediction-meta { font-size: 11px; color: #666; display: flex; gap: 10px; flex-wrap: wrap; }
+        .prediction-alert { background: #fff3cd; padding: 6px 10px; border-radius: 4px; font-size: 11px; color: #856404; margin-top: 8px; }
+        .prediction-news { margin-top: 8px; padding-top: 8px; border-top: 1px solid #e0e0e0; }
+        .prediction-news-item { font-size: 11px; color: #555; margin: 3px 0; padding-left: 12px; }
         .prediction-news-item::before { content: "📰 "; }
-        .realtime-badge {
-            display: inline-block;
-            background: #dc3545;
-            color: white;
-            padding: 1px 6px;
-            border-radius: 8px;
-            font-size: 9px;
-            font-weight: bold;
-            margin-left: 6px;
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        .analysis-form {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .analysis-form input, .analysis-form select {
-            padding: 8px 12px;
-            font-size: 13px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-        }
+        .realtime-badge { display: inline-block; background: #dc3545; color: white; padding: 1px 6px; border-radius: 8px; font-size: 9px; font-weight: bold; margin-left: 6px; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .analysis-form { display: flex; flex-direction: column; gap: 10px; }
+        .analysis-form input, .analysis-form select { padding: 8px 12px; font-size: 13px; border: 1px solid #ddd; border-radius: 6px; }
         .analysis-form input { flex: 1; }
-        .form-row {
-            display: flex;
-            gap: 8px;
-        }
-        .mode-btns, .lens-btns {
-            display: flex;
-            gap: 5px;
-            flex-wrap: wrap;
-        }
-        .mode-btn, .lens-btn {
-            padding: 6px 12px;
-            border: 1px solid #ddd;
-            background: white;
-            border-radius: 15px;
-            cursor: pointer;
-            font-size: 11px;
-            color: #333;
-            white-space: nowrap;
-            position: relative;
-        }
-        .mode-btn.active {
-            background: #007bff;
-            color: white;
-            border-color: #007bff;
-        }
-        .lens-btn.active {
-            background: #28a745;
-            color: white;
-            border-color: #28a745;
-        }
-        
-        .tooltip-container {
-            position: relative;
-            display: inline-block;
-        }
-        .tooltip-text {
-            visibility: hidden;
-            width: 220px;
-            background: #333;
-            color: white;
-            text-align: left;
-            border-radius: 8px;
-            padding: 10px 12px;
-            position: absolute;
-            z-index: 200;
-            bottom: 125%;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 11px;
-            line-height: 1.4;
-            opacity: 0;
-            transition: opacity 0.2s;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            pointer-events: none;
-        }
-        .tooltip-text::after {
-            content: "";
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            margin-left: -6px;
-            border-width: 6px;
-            border-style: solid;
-            border-color: #333 transparent transparent transparent;
-        }
-        .tooltip-container.show-tooltip .tooltip-text {
-            visibility: visible;
-            opacity: 1;
-        }
-        .tooltip-text strong {
-            display: block;
-            margin-bottom: 4px;
-            font-size: 12px;
-        }
-        
-        .analyze-btn {
-            background: #007bff;
-            color: white;
-            padding: 10px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-        }
+        .form-row { display: flex; gap: 8px; }
+        .mode-btns, .lens-btns { display: flex; gap: 5px; flex-wrap: wrap; }
+        .mode-btn, .lens-btn { padding: 6px 12px; border: 1px solid #ddd; background: white; border-radius: 15px; cursor: pointer; font-size: 11px; color: #333; white-space: nowrap; position: relative; }
+        .mode-btn.active { background: #007bff; color: white; border-color: #007bff; }
+        .lens-btn.active { background: #28a745; color: white; border-color: #28a745; }
+        .tooltip-container { position: relative; display: inline-block; }
+        .tooltip-text { visibility: hidden; width: 220px; background: #333; color: white; text-align: left; border-radius: 8px; padding: 10px 12px; position: absolute; z-index: 200; bottom: 125%; left: 50%; transform: translateX(-50%); font-size: 11px; line-height: 1.4; opacity: 0; transition: opacity 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.2); pointer-events: none; }
+        .tooltip-text::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -6px; border-width: 6px; border-style: solid; border-color: #333 transparent transparent transparent; }
+        .tooltip-container.show-tooltip .tooltip-text { visibility: visible; opacity: 1; }
+        .tooltip-text strong { display: block; margin-bottom: 4px; font-size: 12px; }
+        .analyze-btn { background: #007bff; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; }
         .analyze-btn:hover { background: #0056b3; }
         .analyze-btn:disabled { background: #ccc; }
-        
-        .analysis-result {
-            margin-top: 15px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        .analysis-result h4 {
-            font-size: 14px;
-            margin: 10px 0 5px 0;
-            color: #333;
-        }
-        .analysis-result p, .analysis-result li {
-            font-size: 13px;
-            line-height: 1.5;
-        }
-        .score-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 15px;
-            font-weight: bold;
-            font-size: 12px;
-        }
-        .tag {
-            display: inline-block;
-            background: #e9ecef;
-            padding: 3px 8px;
-            margin: 2px;
-            border-radius: 4px;
-            font-size: 11px;
-        }
-        
-        /* ============================================ */
-        /* LOADERS CON MASCOTAS - VERSIÓN FINAL        */
-        /* ============================================ */
-        
-        /* GATA VIDENTE - Para predicciones */
-        .gata-loader {
-            width: 80px;
-            height: 80px;
-            animation: gata-float 3s ease-in-out infinite;
-            filter: drop-shadow(0 0 15px rgba(138, 43, 226, 0.6));
-        }
-
-        @keyframes gata-float {
-            0%, 100% { 
-                transform: translateY(0) rotate(-2deg);
-                filter: drop-shadow(0 0 15px rgba(138, 43, 226, 0.6));
-            }
-            50% { 
-                transform: translateY(-10px) rotate(2deg);
-                filter: drop-shadow(0 0 25px rgba(138, 43, 226, 0.9));
-            }
-        }
-
-        .gata-loader-container {
-            text-align: center;
-            padding: 25px 20px;
-            position: relative;
-        }
-
-        .gata-loader-text {
-            font-size: 13px;
-            color: #6a1b9a;
-            margin-top: 12px;
-            font-weight: 600;
-            font-style: italic;
-            animation: text-fade 2s infinite;
-        }
-
-        /* PERRO DETECTIVE - Para tendencias */
-        .perro-loader {
-            width: 80px;
-            height: 80px;
-            animation: perro-search 2s ease-in-out infinite;
-            filter: drop-shadow(0 0 10px rgba(255, 152, 0, 0.4));
-        }
-
-        @keyframes perro-search {
-            0%, 100% { transform: translateX(0) rotate(0deg); }
-            25% { transform: translateX(-5px) rotate(-5deg); }
-            50% { transform: translateX(0) rotate(0deg); }
-            75% { transform: translateX(5px) rotate(5deg); }
-        }
-
-        .perro-loader-container {
-            text-align: center;
-            padding: 25px 20px;
-            position: relative;
-        }
-
-        .perro-loader-text {
-            font-size: 13px;
-            color: #e65100;
-            margin-top: 12px;
-            font-weight: 600;
-            animation: text-fade 1.5s infinite;
-        }
-
-        /* Análisis - Gata girando */
-        .analysis-loader {
-            width: 70px;
-            height: 70px;
-            animation: spin-pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes spin-pulse {
-            0% { transform: rotate(0deg) scale(1); }
-            50% { transform: rotate(180deg) scale(1.1); }
-            100% { transform: rotate(360deg) scale(1); }
-        }
-
-        .analysis-loader-container {
-            text-align: center;
-            padding: 25px 20px;
-        }
-
-        .analysis-loader-text {
-            font-size: 13px;
-            color: #c2185b;
-            margin-top: 12px;
-            font-weight: 600;
-            animation: text-fade 1.5s infinite;
-        }
-
-        @keyframes text-fade {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 30px 20px;
-            color: #999;
-            font-size: 13px;
-        }
-        
-        .footer {
-            text-align: center;
-            padding: 15px;
-            color: #666;
-            font-size: 11px;
-        }
+        .analysis-result { margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; max-height: 400px; overflow-y: auto; }
+        .analysis-result h4 { font-size: 14px; margin: 10px 0 5px 0; color: #333; }
+        .analysis-result p, .analysis-result li { font-size: 13px; line-height: 1.5; }
+        .score-badge { display: inline-block; padding: 4px 10px; border-radius: 15px; font-weight: bold; font-size: 12px; }
+        .tag { display: inline-block; background: #e9ecef; padding: 3px 8px; margin: 2px; border-radius: 4px; font-size: 11px; }
+        .gata-loader, .perro-loader, .analysis-loader { width: 80px; height: 80px; }
+        .gata-loader { animation: gata-float 3s ease-in-out infinite; filter: drop-shadow(0 0 15px rgba(138, 43, 226, 0.6)); }
+        @keyframes gata-float { 0%, 100% { transform: translateY(0) rotate(-2deg); filter: drop-shadow(0 0 15px rgba(138, 43, 226, 0.6)); } 50% { transform: translateY(-10px) rotate(2deg); filter: drop-shadow(0 0 25px rgba(138, 43, 226, 0.9)); } }
+        .gata-loader-container, .perro-loader-container, .analysis-loader-container { text-align: center; padding: 25px 20px; position: relative; }
+        .gata-loader-text, .perro-loader-text, .analysis-loader-text { font-size: 13px; margin-top: 12px; font-weight: 600; animation: text-fade 1.5s infinite; }
+        .gata-loader-text { color: #6a1b9a; font-style: italic; }
+        .perro-loader-text { color: #e65100; }
+        .analysis-loader-text { color: #c2185b; }
+        .perro-loader { animation: perro-search 2s ease-in-out infinite; filter: drop-shadow(0 0 10px rgba(255, 152, 0, 0.4)); }
+        @keyframes perro-search { 0%, 100% { transform: translateX(0) rotate(0deg); } 25% { transform: translateX(-5px) rotate(-5deg); } 50% { transform: translateX(0) rotate(0deg); } 75% { transform: translateX(5px) rotate(5deg); } }
+        .analysis-loader { width: 70px; height: 70px; animation: spin-pulse 2s ease-in-out infinite; }
+        @keyframes spin-pulse { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.1); } 100% { transform: rotate(360deg) scale(1); } }
+        @keyframes text-fade { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .empty-state { text-align: center; padding: 30px 20px; color: #999; font-size: 13px; }
+        .footer { text-align: center; padding: 15px; color: #666; font-size: 11px; }
         .footer a { color: #007bff; text-decoration: none; }
     </style>
 </head>
@@ -528,11 +115,10 @@
     </div>
     
     <div class="main-grid">
-        
         <div class="module">
             <div class="module-header">
                 <h3>🔥 Tendencias</h3>
-                <button onclick="loadTrending()">🔄</button>
+                <button onclick="loadTrending(true)">🔄</button>
             </div>
             <div class="module-body" id="trendingList">
                 <div class="perro-loader-container">
@@ -545,7 +131,7 @@
         <div class="module">
             <div class="module-header">
                 <h3>🔮 Predicciones</h3>
-                <button onclick="loadPredictions()">🔄</button>
+                <button onclick="loadPredictions(true)">🔄</button>
             </div>
             <div class="module-body" id="predictionsList">
                 <div class="gata-loader-container">
@@ -563,63 +149,31 @@
                 <div class="analysis-form">
                     <input type="text" id="topicInput" placeholder="Tema a analizar...">
                     <input type="text" id="topic2Input" placeholder="Segundo tema (comparador)" style="display: none;">
-                    
                     <div class="form-row">
                         <select id="categorySelect"><option value="">Categoría</option></select>
                         <select id="regionSelect"><option value="Chile">Chile</option></select>
                     </div>
-                    
                     <div>
                         <div style="font-size: 11px; color: #666; margin-bottom: 5px;">Modo:</div>
                         <div class="mode-btns">
-                            <div class="tooltip-container">
-                                <button class="mode-btn active" onclick="selectMode('standard')">📊 Estándar</button>
-                                <span class="tooltip-text"><strong>Análisis Estándar</strong>Genera una hipótesis editorial, señales clave, ángulos periodísticos, fuentes sugeridas y titulares de ejemplo. Ideal para análisis general de cualquier tema.</span>
-                            </div>
-                            <div class="tooltip-container">
-                                <button class="mode-btn" onclick="selectMode('briefing')">⚡ Briefing</button>
-                                <span class="tooltip-text"><strong>Briefing Periodístico</strong>Genera un resumen ejecutivo, preguntas exactas para tu fuente, datos duros a verificar y timeline sugerido. Ideal cuando te asignan un tema a última hora.</span>
-                            </div>
-                            <div class="tooltip-container">
-                                <button class="mode-btn" onclick="selectMode('devil')">😈 Abogado del Diablo</button>
-                                <span class="tooltip-text"><strong>Abogado del Diablo</strong>Identifica lo que todos los medios ya están diciendo, revela el ángulo ciego que nadie está preguntando, señala riesgos/sesgos y plantea la pregunta incómoda. Ideal para encontrar ángulos únicos.</span>
-                            </div>
-                            <div class="tooltip-container">
-                                <button class="mode-btn" onclick="selectMode('compare')">⚖️ Comparar</button>
-                                <span class="tooltip-text"><strong>Comparador de Temas</strong>Compara dos temas periodísticos: cuál tiene más recorrido, fuentes comunes, ángulo conector y recomendación de cuál cubrir primero. Ideal cuando el editor tiene dos ideas.</span>
-                            </div>
+                            <div class="tooltip-container"><button class="mode-btn active" onclick="selectMode('standard')">📊 Estándar</button><span class="tooltip-text"><strong>Análisis Estándar</strong>Genera una hipótesis editorial, señales clave, ángulos periodísticos, fuentes sugeridas y titulares de ejemplo.</span></div>
+                            <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('briefing')">⚡ Briefing</button><span class="tooltip-text"><strong>Briefing Periodístico</strong>Genera un resumen ejecutivo, preguntas exactas para tu fuente, datos duros a verificar y timeline sugerido.</span></div>
+                            <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('devil')">😈 Abogado del Diablo</button><span class="tooltip-text"><strong>Abogado del Diablo</strong>Identifica lo que todos los medios ya están diciendo, revela el ángulo ciego y plantea la pregunta incómoda.</span></div>
+                            <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('compare')">⚖️ Comparar</button><span class="tooltip-text"><strong>Comparador de Temas</strong>Compara dos temas: cuál tiene más recorrido, fuentes comunes y recomendación de cuál cubrir primero.</span></div>
                         </div>
                     </div>
-                    
                     <div id="lensSelector">
                         <div style="font-size: 11px; color: #666; margin-bottom: 5px;">Lente:</div>
                         <div class="lens-btns">
-                            <div class="tooltip-container">
-                                <button class="lens-btn active" onclick="selectLens('')">🎯 Normal</button>
-                                <span class="tooltip-text"><strong>Sin Lente</strong>Análisis equilibrado sin enfoque específico. La IA evalúa el tema desde todas las perspectivas posibles.</span>
-                            </div>
-                            <div class="tooltip-container">
-                                <button class="lens-btn" onclick="selectLens('data')">📊 Datos</button>
-                                <span class="tooltip-text"><strong>Lente de Datos</strong>Prioriza estadísticas, cifras, datos duros y fuentes oficiales. Ideal para notas basadas en evidencia numérica.</span>
-                            </div>
-                            <div class="tooltip-container">
-                                <button class="lens-btn" onclick="selectLens('controversy')">🔥 Polémico</button>
-                                <span class="tooltip-text"><strong>Lente Polémico</strong>Busca conflictos, controversias, debates y posturas enfrentadas. Ideal para notas de opinión o temas divisivos.</span>
-                            </div>
-                            <div class="tooltip-container">
-                                <button class="lens-btn" onclick="selectLens('human')">👥 Humano</button>
-                                <span class="tooltip-text"><strong>Lente Humano</strong>Enfócate en cómo afecta a las personas, historias de vida e impacto humano. Ideal para crónicas y reportajes sociales.</span>
-                            </div>
-                            <div class="tooltip-container">
-                                <button class="lens-btn" onclick="selectLens('economic')">💰 Económico</button>
-                                <span class="tooltip-text"><strong>Lente Económico</strong>Analiza impacto financiero, costos, oportunidades de negocio y mercado. Ideal para notas de negocios y economía.</span>
-                            </div>
+                            <div class="tooltip-container"><button class="lens-btn active" onclick="selectLens('')">🎯 Normal</button><span class="tooltip-text"><strong>Sin Lente</strong>Análisis equilibrado sin enfoque específico.</span></div>
+                            <div class="tooltip-container"><button class="lens-btn" onclick="selectLens('data')">📊 Datos</button><span class="tooltip-text"><strong>Lente de Datos</strong>Prioriza estadísticas, cifras y fuentes oficiales.</span></div>
+                            <div class="tooltip-container"><button class="lens-btn" onclick="selectLens('controversy')">🔥 Polémico</button><span class="tooltip-text"><strong>Lente Polémico</strong>Busca conflictos, controversias y debates.</span></div>
+                            <div class="tooltip-container"><button class="lens-btn" onclick="selectLens('human')">👥 Humano</button><span class="tooltip-text"><strong>Lente Humano</strong>Enfócate en cómo afecta a las personas e impacto humano.</span></div>
+                            <div class="tooltip-container"><button class="lens-btn" onclick="selectLens('economic')">💰 Económico</button><span class="tooltip-text"><strong>Lente Económico</strong>Analiza impacto financiero, costos y mercado.</span></div>
                         </div>
                     </div>
-                    
                     <button class="analyze-btn" onclick="analyzeTrend()" id="analyzeBtn">Analizar</button>
                 </div>
-                
                 <div id="analysisResult"></div>
             </div>
         </div>
@@ -628,16 +182,16 @@
     <div style="max-width: 1600px; margin: 0 auto; padding: 0 20px 20px;">
         <div class="module" style="max-height: none;">
             <div class="module-header" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                <h3> Historial</h3>
+                <h3>📚 Historial</h3>
             </div>
             <div class="module-body" id="historyList" style="max-height: 300px;">
-                <div class="loading">Cargando...</div>
+                <div class="empty-state">Cargando...</div>
             </div>
         </div>
     </div>
     
     <div class="footer">
-        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | v6.6.0
+        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | v6.7.0
     </div>
 
     <script>
@@ -646,43 +200,11 @@
         let currentMode = 'standard';
         let currentLens = '';
 
-        // Frases temáticas divertidas
-        const gataPhrases = [
-            "🔮 La gata consulta la bola de cristal...",
-            "✨ Los astros revelan las tendencias...",
-            "🌙 El universo susurra secretos...",
-            "🔮 Prediciendo el futuro editorial...",
-            "⭐ Las estrellas se alinean...",
-            "🌌 La gata ve lo que viene...",
-            "🔮 Maybis está meditando...",
-            "✨ Visionando el mañana..."
-        ];
+        const gataPhrases = ["🔮 La gata consulta la bola de cristal...", "✨ Los astros revelan las tendencias...", "🌙 El universo susurra secretos...", "🔮 Prediciendo el futuro editorial...", "⭐ Las estrellas se alinean...", "🌌 La gata ve lo que viene...", "🔮 Maybis está meditando...", "✨ Visionando el mañana..."];
+        const perroPhrases = ["🔍 El perro husmea las noticias...", "🐕 Rastreando tendencias...", "👃 Olfateando titulares...", "🔎 Investigando el momento...", "📰 El detective busca pistas...", "🐾 Siguiendo el rastro...", "🔍 Uri está investigando...", "📋 Revisando cada detalle..."];
+        const analysisPhrases = ["🧠 La IA está pensando...", "🤖 Procesando datos...", "💡 Generando insights...", "📊 Analizando patrones...", "🎯 Apuntando al ángulo perfecto...", "✨ Creando magia editorial...", "🔮 La gata analiza el tema...", "⚡ Pensamiento profundo..."];
 
-        const perroPhrases = [
-            "🔍 El perro husmea las noticias...",
-            "🐕 Rastreando tendencias...",
-            "👃 Olfateando titulares...",
-            "🔎 Investigando el momento...",
-            "📰 El detective busca pistas...",
-            "🐾 Siguiendo el rastro...",
-            "🔍 Uri está investigando...",
-            "📋 Revisando cada detalle..."
-        ];
-
-        const analysisPhrases = [
-            "🧠 La IA está pensando...",
-            "🤖 Procesando datos...",
-            "💡 Generando insights...",
-            "📊 Analizando patrones...",
-            "🎯 Apuntando al ángulo perfecto...",
-            "✨ Creando magia editorial...",
-            "🔮 La gata analiza el tema...",
-            "⚡ Pensamiento profundo..."
-        ];
-
-        function getRandomPhrase(phrases) {
-            return phrases[Math.floor(Math.random() * phrases.length)];
-        }
+        function getRandomPhrase(phrases) { return phrases[Math.floor(Math.random() * phrases.length)]; }
 
         async function loadFilters() {
             try {
@@ -690,12 +212,10 @@
                 categories = await catRes.json();
                 renderFilters();
                 loadStatus();
-                loadTrending();
-                loadPredictions();
+                loadTrending(false);
+                loadPredictions(false);
                 loadHistory();
-            } catch (err) {
-                console.error('Error:', err);
-            }
+            } catch (err) { console.error('Error:', err); }
         }
 
         function renderFilters() {
@@ -706,9 +226,7 @@
             const renderBtns = (items, containerId, includeAll = false) => {
                 const container = document.getElementById(containerId);
                 let html = includeAll ? '<button class="cat-btn active" onclick="selectCategory(\'all\')">Todas</button>' : '';
-                items.forEach(cat => {
-                    html += `<button class="cat-btn" onclick="selectCategory('${cat.name}')">${cat.icon} ${cat.name}</button>`;
-                });
+                items.forEach(cat => { html += `<button class="cat-btn" onclick="selectCategory('${cat.name}')">${cat.icon} ${cat.name}</button>`; });
                 container.innerHTML = html;
             };
             
@@ -718,9 +236,7 @@
             
             const catSelect = document.getElementById('categorySelect');
             catSelect.innerHTML = '<option value="">Categoría</option>';
-            categories.forEach(cat => {
-                catSelect.innerHTML += `<option value="${cat.name}">${cat.icon} ${cat.name}</option>`;
-            });
+            categories.forEach(cat => { catSelect.innerHTML += `<option value="${cat.name}">${cat.icon} ${cat.name}</option>`; });
         }
 
         function selectCategory(cat) {
@@ -731,55 +247,40 @@
                     btn.classList.add('active');
                 }
             });
-            loadTrending();
+            loadTrending(false);
         }
 
         async function loadStatus() {
             try {
                 const res = await fetch('/api/status');
                 const status = await res.json();
-                
                 if (status.mindicador && status.mindicador.status === 'ok') {
                     document.getElementById('statusDolar').textContent = '$' + status.mindicador.dolar;
                     document.getElementById('statusUF').textContent = '$' + Math.round(status.mindicador.uf).toLocaleString();
-                } else {
-                    document.getElementById('statusDolar').textContent = '--';
-                    document.getElementById('statusUF').textContent = '--';
                 }
-                
                 if (status.weather && status.weather.status === 'ok') {
                     document.getElementById('statusClima').textContent = status.weather.temperature + '°C';
-                } else {
-                    document.getElementById('statusClima').textContent = '--';
                 }
-                
                 const gdeltEl = document.getElementById('statusGdelt');
-                gdeltEl.textContent = status.apis.gdelt === 'ok' ? '●' : '●';
-                gdeltEl.className = 'value ' + (status.apis.gdelt === 'ok' ? 'status-ok' : 'status-error');
-                
+                gdeltEl.textContent = '●';
+                gdeltEl.className = 'value ' + (status.apis.rss === 'ok' ? 'status-ok' : 'status-error');
                 const qwenEl = document.getElementById('statusQwen');
-                qwenEl.textContent = status.apis.qwen === 'ok' ? '●' : '●';
+                qwenEl.textContent = '●';
                 qwenEl.className = 'value ' + (status.apis.qwen === 'ok' ? 'status-ok' : 'status-error');
-            } catch (err) {
-                console.error('[STATUS] Error:', err);
-            }
+            } catch (err) { console.error('[STATUS] Error:', err); }
         }
 
-        async function loadTrending() {
+        async function loadTrending(force = false) {
             const list = document.getElementById('trendingList');
-            list.innerHTML = `
-                <div class="perro-loader-container">
-                    <img src="https://ltv.cl/x/uriweb.png" alt="Perro detective" class="perro-loader">
-                    <div class="perro-loader-text">${getRandomPhrase(perroPhrases)}</div>
-                </div>
-            `;
+            list.innerHTML = `<div class="perro-loader-container"><img src="https://ltv.cl/x/uriweb.png" alt="Perro detective" class="perro-loader"><div class="perro-loader-text">${getRandomPhrase(perroPhrases)}</div></div>`;
             try {
-                const url = '/api/trending?category=' + encodeURIComponent(currentCategory) + '&limit=8';
+                const refreshParam = force ? '&refresh=true' : '';
+                const url = '/api/trending?category=' + encodeURIComponent(currentCategory) + '&limit=8' + refreshParam;
                 const res = await fetch(url);
                 const trends = await res.json();
                 
                 if (!trends || trends.length === 0) {
-                    list.innerHTML = '<div class="empty-state">Sin tendencias disponibles</div>';
+                    list.innerHTML = '<div class="empty-state">Sin tendencias disponibles para esta categoría</div>';
                     return;
                 }
                 
@@ -791,26 +292,19 @@
                     </div>`;
                 });
                 list.innerHTML = html;
-            } catch (err) {
-                list.innerHTML = '<div class="empty-state">Error cargando</div>';
-            }
+            } catch (err) { list.innerHTML = '<div class="empty-state">Error cargando</div>'; }
         }
 
-        async function loadPredictions() {
+        async function loadPredictions(force = false) {
             const list = document.getElementById('predictionsList');
-            list.innerHTML = `
-                <div class="gata-loader-container">
-                    <img src="https://ltv.cl/x/maybisweb.png" alt="Gata vidente" class="gata-loader">
-                    <div class="gata-loader-text">${getRandomPhrase(gataPhrases)}</div>
-                </div>
-            `;
-            
+            list.innerHTML = `<div class="gata-loader-container"><img src="https://ltv.cl/x/maybisweb.png" alt="Gata vidente" class="gata-loader"><div class="gata-loader-text">${getRandomPhrase(gataPhrases)}</div></div>`;
             try {
-                const res = await fetch('/api/predictions');
+                const refreshParam = force ? '?refresh=true' : '';
+                const res = await fetch('/api/predictions' + refreshParam);
                 const predictions = await res.json();
                 
                 if (!predictions || predictions.length === 0) {
-                    list.innerHTML = '<div class="empty-state">Sin predicciones</div>';
+                    list.innerHTML = '<div class="empty-state">Sin predicciones disponibles</div>';
                     return;
                 }
                 
@@ -818,55 +312,40 @@
                 predictions.forEach(p => {
                     const scoreClass = p.score >= 70 ? 'score-high' : (p.score >= 40 ? 'score-medium' : 'score-low');
                     const cardClass = p.alert_level === 'critical' ? 'critical' : (p.alert_level === 'high' ? 'high' : '');
-                    
                     html += `<div class="prediction-item ${cardClass}">
                         <div class="prediction-top">
                             <div class="prediction-topic">${p.topic}${p.is_realtime ? '<span class="realtime-badge">LIVE</span>' : ''}</div>
                             <div class="prediction-score ${scoreClass}">${p.score}%</div>
                         </div>
                         <div class="prediction-meta">
-                            <span> ${p.category || 'General'}</span>
-                            <span>📰 ${p.news_count} noticias</span>
-                            <span>📡 ${p.source || 'GDELT'}</span>
+                            <span>📂 ${p.category || 'General'}</span>
+                            <span>📰 ${p.news_count} medios</span>
+                            <span>📡 ${p.source || 'IA'}</span>
                         </div>`;
-                    
                     if (p.alert_level) {
-                        const alertText = p.alert_level === 'critical' ? ' ALERTA CRÍTICA' : '️ ALERTA: Crecimiento acelerado';
+                        const alertText = p.alert_level === 'critical' ? '🚨 ALERTA CRÍTICA' : '⚠️ ALERTA: Crecimiento acelerado';
                         html += `<div class="prediction-alert">${alertText}</div>`;
                     }
-                    
                     if (p.news && p.news.length > 0) {
                         html += '<div class="prediction-news">';
-                        p.news.forEach(n => {
-                            html += `<div class="prediction-news-item">${n.titulo}</div>`;
-                        });
+                        p.news.forEach(n => { html += `<div class="prediction-news-item">${n.titulo}</div>`; });
                         html += '</div>';
                     }
-                    
                     html += '</div>';
                 });
-                
                 list.innerHTML = html;
-            } catch (err) {
-                list.innerHTML = '<div class="empty-state">Error cargando</div>';
-            }
+            } catch (err) { list.innerHTML = '<div class="empty-state">Error cargando</div>'; }
         }
 
-        function useTrend(topic) {
-            document.getElementById('topicInput').value = topic;
-        }
+        function useTrend(topic) { document.getElementById('topicInput').value = topic; }
 
         document.addEventListener('click', function(e) {
             const tooltipContainer = e.target.closest('.tooltip-container');
             if (tooltipContainer) {
-                document.querySelectorAll('.tooltip-container').forEach(tc => {
-                    if (tc !== tooltipContainer) tc.classList.remove('show-tooltip');
-                });
+                document.querySelectorAll('.tooltip-container').forEach(tc => { if (tc !== tooltipContainer) tc.classList.remove('show-tooltip'); });
                 tooltipContainer.classList.toggle('show-tooltip');
             } else {
-                document.querySelectorAll('.tooltip-container').forEach(tc => {
-                    tc.classList.remove('show-tooltip');
-                });
+                document.querySelectorAll('.tooltip-container').forEach(tc => { tc.classList.remove('show-tooltip'); });
             }
         });
 
@@ -874,20 +353,11 @@
             currentMode = mode;
             document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
-            
             const topic2Input = document.getElementById('topic2Input');
             const lensSelector = document.getElementById('lensSelector');
-            
-            if (mode === 'compare') {
-                topic2Input.style.display = 'block';
-                lensSelector.style.display = 'none';
-            } else if (mode === 'briefing' || mode === 'devil') {
-                topic2Input.style.display = 'none';
-                lensSelector.style.display = 'none';
-            } else {
-                topic2Input.style.display = 'none';
-                lensSelector.style.display = 'block';
-            }
+            if (mode === 'compare') { topic2Input.style.display = 'block'; lensSelector.style.display = 'none'; } 
+            else if (mode === 'briefing' || mode === 'devil') { topic2Input.style.display = 'none'; lensSelector.style.display = 'none'; } 
+            else { topic2Input.style.display = 'none'; lensSelector.style.display = 'block'; }
         }
 
         function selectLens(lens) {
@@ -908,22 +378,13 @@
             const btn = document.getElementById('analyzeBtn');
             btn.disabled = true;
             btn.textContent = 'Analizando...';
-            document.getElementById('analysisResult').innerHTML = `
-                <div class="analysis-loader-container">
-                    <img src="https://ltv.cl/x/maybisweb.png" alt="Analizando" class="analysis-loader">
-                    <div class="analysis-loader-text">${getRandomPhrase(analysisPhrases)}</div>
-                </div>
-            `;
+            document.getElementById('analysisResult').innerHTML = `<div class="analysis-loader-container"><img src="https://ltv.cl/x/maybisweb.png" alt="Analizando" class="analysis-loader"><div class="analysis-loader-text">${getRandomPhrase(analysisPhrases)}</div></div>`;
 
             try {
                 const res = await fetch('/api/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        topic, topic2, category, region,
-                        mode: currentMode,
-                        lens: currentLens
-                    })
+                    body: JSON.stringify({ topic, topic2, category, region, mode: currentMode, lens: currentLens })
                 });
                 const data = await res.json();
                 displayResult(data);
@@ -937,119 +398,57 @@
         }
 
         function displayResult(data) {
-            if (!data) {
-                document.getElementById('analysisResult').innerHTML = '<div class="empty-state">Sin datos</div>';
-                return;
-            }
-            
+            if (!data) { document.getElementById('analysisResult').innerHTML = '<div class="empty-state">Sin datos</div>'; return; }
             const a = data.analysis || {};
             const score = data.score || a.puntaje_relevancia || 0;
             let html = '<div class="analysis-result">';
             
             if (data.mode === 'standard' && score > 0) {
                 const scoreClass = score >= 7 ? 'score-high' : (score >= 4 ? 'score-medium' : 'score-low');
-                const scoreLabel = score >= 9 ? '🔴 CRÍTICA' : (score >= 7 ? '✅ ALTA' : (score >= 4 ? '⚠️ MEDIA' : ' BAJA'));
+                const scoreLabel = score >= 9 ? '🔴 CRÍTICA' : (score >= 7 ? '✅ ALTA' : (score >= 4 ? '⚠️ MEDIA' : '🔵 BAJA'));
                 html += `<div style="margin-bottom: 10px;"><span class="score-badge ${scoreClass}">${score}/10 - ${scoreLabel}</span></div>`;
             }
-            
-            if (a.resumen_ejecutivo) {
-                html += `<h4>📝 Resumen</h4><p>${a.resumen_ejecutivo}</p>`;
-            }
-            if (a.hipotesis) {
-                html += `<h4> Hipótesis</h4><p>${a.hipotesis}</p>`;
-            }
-            if (a.cobertura_mainstream) {
-                html += `<h4>📰 Cobertura actual</h4><p>${a.cobertura_mainstream}</p>`;
-            }
-            if (a.angulo_ciego) {
-                html += `<h4> Ángulo ciego</h4><p style="color: #28a745; font-weight: 600;">${a.angulo_ciego}</p>`;
-            }
-            if (a.pregunta_incomoda) {
-                html += `<h4>🔥 Pregunta incómoda</h4><p style="color: #dc3545; font-weight: 600;">${a.pregunta_incomoda}</p>`;
-            }
-            if (a.mas_recorrido) {
-                html += `<h4>📊 Más recorrido</h4><p>${a.mas_recorrido}</p>`;
-            }
-            if (a.recomendacion) {
-                html += `<h4>✅ Recomendación</h4><p style="font-weight: 600;">${a.recomendacion}</p>`;
-            }
-            if (a.preguntas_fuente && a.preguntas_fuente.length) {
-                html += '<h4>❓ Preguntas para fuente</h4><ul>';
-                a.preguntas_fuente.forEach(q => { html += `<li>${q}</li>`; });
-                html += '</ul>';
-            }
-            if (a.senales_clave && a.senales_clave.length) {
-                html += '<h4>🔍 Señales clave</h4><div>';
-                a.senales_clave.forEach(s => { html += `<span class="tag">${s}</span>`; });
-                html += '</div>';
-            }
-            if (a.angulos_periodisticos && a.angulos_periodisticos.length) {
-                html += '<h4>📝 Ángulos</h4><ul>';
-                a.angulos_periodisticos.forEach(ang => { html += `<li>${ang}</li>`; });
-                html += '</ul>';
-            }
-            if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) {
-                html += '<h4>📚 Fuentes</h4><ul>';
-                a.fuentes_sugeridas.forEach(f => { html += `<li>${f}</li>`; });
-                html += '</ul>';
-            }
-            if (a.titulares_ejemplo && a.titulares_ejemplo.length) {
-                html += '<h4> Titulares sugeridos</h4><ul>';
-                a.titulares_ejemplo.forEach(t => { html += `<li>📌 ${t}</li>`; });
-                html += '</ul>';
-            }
-            if (a.datos_duros && a.datos_duros.length) {
-                html += '<h4>📊 Datos a verificar</h4><div>';
-                a.datos_duros.forEach(d => { html += `<span class="tag">${d}</span>`; });
-                html += '</div>';
-            }
-            if (a.timeline_sugerido) {
-                html += `<h4>⏰ Timeline</h4><p>${a.timeline_sugerido}</p>`;
-            }
-            if (a.angulo_conector) {
-                html += `<h4>💡 Ángulo conector</h4><p>${a.angulo_conector}</p>`;
-            }
-            if (a.fuentes_comunes && a.fuentes_comunes.length) {
-                html += '<h4> Fuentes comunes</h4><div>';
-                a.fuentes_comunes.forEach(f => { html += `<span class="tag">${f}</span>`; });
-                html += '</div>';
-            }
-            if (a.riesgos_sesgos && a.riesgos_sesgos.length) {
-                html += '<h4>️ Riesgos</h4><div>';
-                a.riesgos_sesgos.forEach(r => { html += `<span class="tag">${r}</span>`; });
-                html += '</div>';
-            }
+            if (a.resumen_ejecutivo) html += `<h4>📝 Resumen</h4><p>${a.resumen_ejecutivo}</p>`;
+            if (a.hipotesis) html += `<h4>🎯 Hipótesis</h4><p>${a.hipotesis}</p>`;
+            if (a.cobertura_mainstream) html += `<h4>📰 Cobertura actual</h4><p>${a.cobertura_mainstream}</p>`;
+            if (a.angulo_ciego) html += `<h4>💡 Ángulo ciego</h4><p style="color: #28a745; font-weight: 600;">${a.angulo_ciego}</p>`;
+            if (a.pregunta_incomoda) html += `<h4>🔥 Pregunta incómoda</h4><p style="color: #dc3545; font-weight: 600;">${a.pregunta_incomoda}</p>`;
+            if (a.mas_recorrido) html += `<h4>📊 Más recorrido</h4><p>${a.mas_recorrido}</p>`;
+            if (a.recomendacion) html += `<h4>✅ Recomendación</h4><p style="font-weight: 600;">${a.recomendacion}</p>`;
+            if (a.preguntas_fuente && a.preguntas_fuente.length) { html += '<h4>❓ Preguntas para fuente</h4><ul>'; a.preguntas_fuente.forEach(q => { html += `<li>${q}</li>`; }); html += '</ul>'; }
+            if (a.senales_clave && a.senales_clave.length) { html += '<h4>🔍 Señales clave</h4><div>'; a.senales_clave.forEach(s => { html += `<span class="tag">${s}</span>`; }); html += '</div>'; }
+            if (a.angulos_periodisticos && a.angulos_periodisticos.length) { html += '<h4>📝 Ángulos</h4><ul>'; a.angulos_periodisticos.forEach(ang => { html += `<li>${ang}</li>`; }); html += '</ul>'; }
+            if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) { html += '<h4>📚 Fuentes</h4><ul>'; a.fuentes_sugeridas.forEach(f => { html += `<li>${f}</li>`; }); html += '</ul>'; }
+            if (a.titulares_ejemplo && a.titulares_ejemplo.length) { html += '<h4>📝 Titulares sugeridos</h4><ul>'; a.titulares_ejemplo.forEach(t => { html += `<li>📌 ${t}</li>`; }); html += '</ul>'; }
+            if (a.datos_duros && a.datos_duros.length) { html += '<h4>📊 Datos a verificar</h4><div>'; a.datos_duros.forEach(d => { html += `<span class="tag">${d}</span>`; }); html += '</div>'; }
+            if (a.timeline_sugerido) html += `<h4>⏰ Timeline</h4><p>${a.timeline_sugerido}</p>`;
+            if (a.angulo_conector) html += `<h4>💡 Ángulo conector</h4><p>${a.angulo_conector}</p>`;
+            if (a.fuentes_comunes && a.fuentes_comunes.length) { html += '<h4>🔗 Fuentes comunes</h4><div>'; a.fuentes_comunes.forEach(f => { html += `<span class="tag">${f}</span>`; }); html += '</div>'; }
+            if (a.riesgos_sesgos && a.riesgos_sesgos.length) { html += '<h4>⚠️ Riesgos</h4><div>'; a.riesgos_sesgos.forEach(r => { html += `<span class="tag">${r}</span>`; }); html += '</div>'; }
             
             if (a.noticias_reales && a.noticias_reales.length > 0) {
-                html += '<h4> Noticias</h4>';
+                html += '<h4>📰 Noticias</h4>';
                 a.noticias_reales.forEach(n => {
-                    if (n.url) {
-                        html += `<div style="font-size: 12px; margin: 4px 0;"><a href="${n.url}" target="_blank" style="color: #007bff;">📰 ${n.titulo}</a> <span style="color: #666;">- ${n.fuente}</span></div>`;
-                    } else {
-                        html += `<div style="font-size: 12px; margin: 4px 0;"> ${n.titulo} <span style="color: #666;">- ${n.fuente}</span></div>`;
-                    }
+                    if (n.url) html += `<div style="font-size: 12px; margin: 4px 0;"><a href="${n.url}" target="_blank" style="color: #007bff;">📰 ${n.titulo}</a> <span style="color: #666;">- ${n.fuente}</span></div>`;
+                    else html += `<div style="font-size: 12px; margin: 4px 0;">📰 ${n.titulo} <span style="color: #666;">- ${n.fuente}</span></div>`;
                 });
             }
-            
             html += '</div>';
             document.getElementById('analysisResult').innerHTML = html;
         }
 
         async function loadHistory() {
             const list = document.getElementById('historyList');
-            list.innerHTML = '<div class="loading">Cargando...</div>';
+            list.innerHTML = '<div class="empty-state">Cargando...</div>';
             try {
                 const res = await fetch('/api/history?limit=10');
                 const history = await res.json();
-                if (history.length === 0) {
-                    list.innerHTML = '<div class="empty-state">Sin análisis previos</div>';
-                    return;
-                }
+                if (history.length === 0) { list.innerHTML = '<div class="empty-state">Sin análisis previos</div>'; return; }
                 let html = '';
                 history.forEach(item => {
                     const score = item.score || 0;
                     const date = item.created_at ? new Date(item.created_at).toLocaleString('es-CL') : '';
-                    const modeLabels = {'standard': '', 'briefing': '⚡', 'devil': '😈', 'compare': '️'};
+                    const modeLabels = {'standard': '📊', 'briefing': '⚡', 'devil': '😈', 'compare': '⚖️'};
                     html += `<div class="trend-item" style="border-left-color: #4facfe;">
                         <div class="topic">${modeLabels[item.mode] || ''} ${item.topic}${item.topic2 ? ' vs ' + item.topic2 : ''}</div>
                         <div class="meta">📂 ${item.category || 'General'} | 📅 ${date} ${score > 0 ? '| Score: ' + score + '/10' : ''}</div>
@@ -1060,9 +459,7 @@
                     </div>`;
                 });
                 list.innerHTML = html;
-            } catch (err) {
-                list.innerHTML = '<div class="empty-state">Error cargando</div>';
-            }
+            } catch (err) { list.innerHTML = '<div class="empty-state">Error cargando</div>'; }
         }
 
         function reAnalyze(topic, category, mode) {
