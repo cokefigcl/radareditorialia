@@ -8,7 +8,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
             background: #f5f5f5;
@@ -233,14 +233,6 @@
         .news-title a { color: white; text-decoration: none; }
         .news-title a:hover { text-decoration: underline; }
         .news-meta { font-size: 12px; opacity: 0.9; }
-        .no-news {
-            background: #fff3cd;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #ffc107;
-            margin: 20px 0;
-        }
-        .no-news p { margin: 0; color: #856404; }
         .footer {
             margin-top: 40px;
             padding: 20px;
@@ -382,6 +374,39 @@
             margin-left: 8px;
             animation: pulse 1.5s infinite;
         }
+        
+        /* Panel de Estado */
+        .status-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .status-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        .status-card h4 {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .status-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        .status-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        .status-ok { color: #28a745; }
+        .status-error { color: #dc3545; }
+        .status-unknown { color: #ffc107; }
     </style>
 </head>
 <body>
@@ -391,10 +416,18 @@
         <div id="categoryFilters"></div>
     </div>
     
+    <!-- PANEL DE ESTADO -->
+    <div class="container">
+        <h3> Estado en Tiempo Real</h3>
+        <div id="statusPanel" class="status-panel">
+            <p>Cargando...</p>
+        </div>
+    </div>
+    
     <!-- SECCIÓN DE PREDICCIONES -->
     <div class="container">
         <div class="predictions-header">
-            <h3>🔮 Predicciones en Tiempo Real</h3>
+            <h3> Predicciones en Tiempo Real</h3>
             <button class="predictions-refresh" onclick="loadPredictions()">🔄 Actualizar</button>
         </div>
         <div id="predictionsList"><p>Cargando predicciones...</p></div>
@@ -450,7 +483,7 @@
     
     <div class="footer">
         <div>Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - <a href="https://ltv.cl" target="_blank">LTV.cl</a></div>
-        <div class="version">Versión 6.2.0 | Última actualización: Septiembre 2026</div>
+        <div class="version">Versión 6.3.0 | Última actualización: Septiembre 2026</div>
     </div>
 
     <script>
@@ -466,6 +499,7 @@
                 renderFilters();
                 loadTrending();
                 loadPredictions();
+                loadStatus();
                 loadHistory();
             } catch (err) {
                 console.error('Error:', err);
@@ -477,12 +511,12 @@
             
             const temas = categories.filter(c => c.type === 'tema');
             const regiones = categories.filter(c => c.type === 'region');
-            const secciones = categories.filter(c => c.type === 'seccion');
+            const otros = categories.filter(c => c.type === 'otros');
             
             let html = '';
             
             html += '<div class="category-group">';
-            html += '<div class="category-group-title">📂 TEMAS</div>';
+            html += '<div class="category-group-title"> TEMAS</div>';
             html += '<button class="filter-btn active" onclick="selectCategory(\'all\')">Todas</button>';
             temas.forEach(function(cat) {
                 html += '<button class="filter-btn" onclick="selectCategory(\'' + cat.name + '\')">' + cat.icon + ' ' + cat.name + '</button>';
@@ -497,8 +531,8 @@
             html += '</div>';
             
             html += '<div class="category-group">';
-            html += '<div class="category-group-title">📰 SECCIONES</div>';
-            secciones.forEach(function(cat) {
+            html += '<div class="category-group-title">📰 OTROS TEMAS</div>';
+            otros.forEach(function(cat) {
                 html += '<button class="filter-btn" onclick="selectCategory(\'' + cat.name + '\')">' + cat.icon + ' ' + cat.name + '</button>';
             });
             html += '</div>';
@@ -541,7 +575,7 @@
                 trends.forEach(function(t, i) {
                     html += '<div class="trending-item" onclick="useTrend(\'' + t.topic.replace(/'/g, "\\'").replace(/"/g, '&quot;') + '\')">';
                     html += '<div class="trending-topic">' + (i + 1) + '. ' + t.topic + '</div>';
-                    html += '<div class="trending-source"> ' + (t.source || 'Medio') + ' | ' + (t.region || 'Chile') + '</div>';
+                    html += '<div class="trending-source">📊 ' + (t.source || 'Medio') + ' | ' + (t.region || 'Chile') + '</div>';
                     html += '</div>';
                 });
                 list.innerHTML = html;
@@ -553,7 +587,7 @@
 
         async function loadPredictions() {
             const list = document.getElementById('predictionsList');
-            list.innerHTML = '<p>🔮 Generando predicciones con IA...</p>';
+            list.innerHTML = '<p>🔮 Generando predicciones...</p>';
             
             try {
                 const res = await fetch('/api/predictions');
@@ -584,7 +618,7 @@
                     html += '<div class="prediction-meta">';
                     html += '<span> ' + (p.category || 'General') + '</span>';
                     html += '<span>📰 ' + p.news_count + ' noticias</span>';
-                    html += '<span>📡 ' + (p.source || 'Google News') + '</span>';
+                    html += '<span>📡 ' + (p.source || 'GDELT') + '</span>';
                     html += '</div>';
                     
                     if (p.alert_level) {
@@ -607,6 +641,61 @@
             } catch (err) {
                 console.error('[PREDICT] Error:', err);
                 list.innerHTML = '<p>Error cargando predicciones</p>';
+            }
+        }
+
+        async function loadStatus() {
+            const panel = document.getElementById('statusPanel');
+            panel.innerHTML = '<p>Cargando...</p>';
+            
+            try {
+                const res = await fetch('/api/status');
+                const status = await res.json();
+                
+                let html = '';
+                
+                // Dólar
+                if (status.mindicador && status.mindicador.status === 'ok') {
+                    html += '<div class="status-card">';
+                    html += '<h4>💵 Dólar</h4>';
+                    html += '<div class="status-value">$' + status.mindicador.dolar + '</div>';
+                    html += '<div class="status-label">CLP</div>';
+                    html += '</div>';
+                }
+                
+                // UF
+                if (status.mindicador && status.mindicador.status === 'ok') {
+                    html += '<div class="status-card">';
+                    html += '<h4> UF</h4>';
+                    html += '<div class="status-value">$' + Math.round(status.mindicador.uf).toLocaleString() + '</div>';
+                    html += '<div class="status-label">CLP</div>';
+                    html += '</div>';
+                }
+                
+                // Clima
+                if (status.weather && status.weather.status === 'ok') {
+                    html += '<div class="status-card">';
+                    html += '<h4>🌡️ Clima Santiago</h4>';
+                    html += '<div class="status-value">' + status.weather.temperature + '°C</div>';
+                    html += '<div class="status-label">Viento: ' + status.weather.windspeed + ' km/h</div>';
+                    html += '</div>';
+                }
+                
+                // Estado APIs
+                html += '<div class="status-card">';
+                html += '<h4>🔌 GDELT</h4>';
+                html += '<div class="status-value status-' + status.apis.gdelt + '">' + (status.apis.gdelt === 'ok' ? '✅ Activo' : '❌ Error') + '</div>';
+                html += '</div>';
+                
+                html += '<div class="status-card">';
+                html += '<h4>🤖 Qwen IA</h4>';
+                html += '<div class="status-value status-' + status.apis.qwen + '">' + (status.apis.qwen === 'ok' ? '✅ Activo' : '❌ Error') + '</div>';
+                html += '</div>';
+                
+                panel.innerHTML = html;
+            } catch (err) {
+                console.error('[STATUS] Error:', err);
+                panel.innerHTML = '<p>Error cargando estado</p>';
             }
         }
 
@@ -700,7 +789,7 @@
         function getScoreLabel(score) {
             if (score >= 9) return '🔴 CRÍTICA';
             if (score >= 7) return '✅ ALTA';
-            if (score >= 4) return '️ MEDIA';
+            if (score >= 4) return '⚠️ MEDIA';
             return '🔵 BAJA';
         }
 
@@ -826,8 +915,8 @@
                 }
                 
                 if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) {
-                    html += '<h4> Fuentes sugeridas</h4><ul>';
-                    a.fuentes_sugeridas.forEach(function(f) { html += '<li>🔗 ' + f + '</li>'; });
+                    html += '<h4>📚 Fuentes sugeridas</h4><ul>';
+                    a.fuentes_sugeridas.forEach(function(f) { html += '<li> ' + f + '</li>'; });
                     html += '</ul>';
                 }
             }
@@ -874,7 +963,7 @@
                     const category = item.category || 'General';
                     const mode = item.mode || 'standard';
                     const date = item.created_at ? new Date(item.created_at).toLocaleString('es-CL') : '';
-                    const modeLabels = {'standard': '📊', 'briefing': '', 'devil': '😈', 'compare': '⚖️'};
+                    const modeLabels = {'standard': '📊', 'briefing': '⚡', 'devil': '😈', 'compare': '⚖️'};
                     
                     html += '<div class="history-item">';
                     html += '<div class="history-header">';
@@ -885,7 +974,7 @@
                     }
                     html += '</div>';
                     html += '<div class="history-actions">';
-                    html += '<button class="btn-small btn-analyze" onclick="reAnalyze(\'' + item.topic.replace(/'/g, "\\'") + '\', \'' + (item.category || '') + '\', \'' + mode + '\')"> Re-analizar</button>';
+                    html += '<button class="btn-small btn-analyze" onclick="reAnalyze(\'' + item.topic.replace(/'/g, "\\'") + '\', \'' + (item.category || '') + '\', \'' + mode + '\')">🔄 Re-analizar</button>';
                     html += '<button class="btn-small btn-delete" onclick="deleteAnalysis(' + item.id + ')">🗑️ Eliminar</button>';
                     html += '</div></div>';
                 });
