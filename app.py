@@ -45,20 +45,20 @@ def init_db():
 
 init_db()
 
-# ==================== CATEGORÍAS EXPANDIDAS ====================
+# ==================== CATEGORÍAS ====================
 CATEGORIES = [
     {'name': 'Eléctrico', 'icon': '⚡', 'type': 'tema'},
-    {'name': 'Automotriz', 'icon': '🚗', 'type': 'tema'},
-    {'name': 'Belleza', 'icon': '💄', 'type': 'tema'},
-    {'name': 'Minería', 'icon': '⛏️', 'type': 'tema'},
-    {'name': 'IA', 'icon': '🤖', 'type': 'tema'},
+    {'name': 'Automotriz', 'icon': '', 'type': 'tema'},
+    {'name': 'Belleza', 'icon': '', 'type': 'tema'},
+    {'name': 'Minería', 'icon': '️', 'type': 'tema'},
+    {'name': 'IA', 'icon': '', 'type': 'tema'},
     {'name': 'Tendencias', 'icon': '', 'type': 'tema'},
-    {'name': 'Tecnología', 'icon': '', 'type': 'tema'},
-    {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    {'name': 'Nacional', 'icon': '🇨🇱', 'type': 'region'},
-    {'name': 'Internacional', 'icon': '', 'type': 'region'},
-    {'name': 'Valparaíso', 'icon': '️', 'type': 'region'},
-    {'name': 'Metropolitana', 'icon': '️', 'type': 'region'},
+    {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
+    {'name': 'Economía', 'icon': '', 'type': 'tema'},
+    {'name': 'Nacional', 'icon': '🇱', 'type': 'region'},
+    {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
+    {'name': 'Valparaíso', 'icon': '🏖️', 'type': 'region'},
+    {'name': 'Metropolitana', 'icon': '🏙️', 'type': 'region'},
     {'name': 'Biobío', 'icon': '🌲', 'type': 'region'},
     {'name': 'Araucanía', 'icon': '🌳', 'type': 'region'},
     {'name': 'Los Ríos', 'icon': '🌊', 'type': 'region'},
@@ -100,95 +100,74 @@ SEARCH_KEYWORDS = {
     'TV y Espectáculos': 'televisión OR espectáculos OR farándula'
 }
 
-# ==================== GOOGLE NEWS RSS (OFICIAL) ====================
+# ==================== GOOGLE NEWS RSS (CORREGIDO) ====================
 
-def get_google_news_daily():
-    """Obtiene tendencias desde RSS oficial de Google News Chile (últimas 24h)"""
+def parse_google_news_rss(url, time_filter):
+    """Parsea RSS de Google News manejando namespaces correctamente"""
     try:
-        url = 'https://news.google.com/rss/search?q=when:1d&hl=es-CL&gl=CL&ceid=CL:es-419'
-        print(f"[TRENDS] Consultando Google News RSS Chile (24h)...")
+        print(f"[TRENDS] Consultando Google News RSS ({time_filter})...")
         
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/rss+xml, application/xml, text/xml'
         }
         
         response = requests.get(url, timeout=15, headers=headers)
         
         if response.status_code != 200:
-            print(f"[TRENDS] Google News RSS falló: {response.status_code}")
+            print(f"[TRENDS] RSS falló: {response.status_code}")
             return []
         
+        # Parsear XML
         root = ET.fromstring(response.content)
+        
         topics = []
         seen = set()
         
-        for item in root.findall('.//item'):
+        # Buscar items en el RSS (con o sin namespace)
+        for item in root.iter('item'):
             title_elem = item.find('title')
+            if title_elem is None:
+                # Intentar con namespace
+                title_elem = item.find('{http://purl.org/rss/1.0/modules/content/}encoded')
+            
             if title_elem is not None and title_elem.text:
                 title = title_elem.text.strip()
-                # Google News pone " - NombreMedio" al final, lo quitamos
+                
+                # Limpiar " - NombreMedio"
                 if ' - ' in title:
                     title = title.split(' - ')[0].strip()
-                # Evitar duplicados
+                
+                # Filtrar: mínimo 10 caracteres, no duplicado
                 if title and len(title) > 10 and title.lower() not in seen:
                     seen.add(title.lower())
                     topics.append({
                         'topic': title,
-                        'source': 'Google News (24h)',
-                        'is_realtime': False
+                        'source': f'Google News ({time_filter})',
+                        'is_realtime': time_filter == '1h'
                     })
+                
                 if len(topics) >= 15:
                     break
         
-        print(f"[TRENDS] ✅ Google News 24h: {len(topics)} temas")
+        print(f"[TRENDS] ✅ Google News {time_filter}: {len(topics)} temas")
         return topics
         
     except Exception as e:
-        print(f"[TRENDS] ⚠️ Error Google News 24h: {str(e)}")
+        print(f"[TRENDS] ⚠️ Error Google News {time_filter}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return []
 
+def get_google_news_daily():
+    """Obtiene tendencias desde Google News Chile (últimas 24h)"""
+    url = 'https://news.google.com/rss/search?q=when:1d&hl=es-CL&gl=CL&ceid=CL:es-419'
+    return parse_google_news_rss(url, '24h')
+
 def get_google_news_hourly():
-    """Obtiene tendencias en tiempo real desde Google News Chile (última hora)"""
-    try:
-        url = 'https://news.google.com/rss/search?q=when:1h&hl=es-CL&gl=CL&ceid=CL:es-419'
-        print(f"[TRENDS] Consultando Google News RSS Chile (1h)...")
-        
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-        
-        response = requests.get(url, timeout=15, headers=headers)
-        
-        if response.status_code != 200:
-            print(f"[TRENDS] Google News RSS 1h falló: {response.status_code}")
-            return []
-        
-        root = ET.fromstring(response.content)
-        topics = []
-        seen = set()
-        
-        for item in root.findall('.//item'):
-            title_elem = item.find('title')
-            if title_elem is not None and title_elem.text:
-                title = title_elem.text.strip()
-                if ' - ' in title:
-                    title = title.split(' - ')[0].strip()
-                if title and len(title) > 10 and title.lower() not in seen:
-                    seen.add(title.lower())
-                    topics.append({
-                        'topic': title,
-                        'source': 'Google News (última hora)',
-                        'is_realtime': True
-                    })
-                if len(topics) >= 10:
-                    break
-        
-        print(f"[TRENDS] ✅ Google News 1h: {len(topics)} temas en tiempo real")
-        return topics
-        
-    except Exception as e:
-        print(f"[TRENDS] ⚠️ Error Google News 1h: {str(e)}")
-        return []
+    """Obtiene tendencias en tiempo real (última hora)"""
+    url = 'https://news.google.com/rss/search?q=when:1h&hl=es-CL&gl=CL&ceid=CL:es-419'
+    return parse_google_news_rss(url, '1h')
 
 def get_google_trends_data():
     """Combina Google News diario + por hora"""
@@ -211,44 +190,45 @@ def get_google_trends_data():
     return unique_topics[:20]
 
 def get_trending_topics_from_news():
-    """Fallback: obtiene temas trending desde NewsAPI analizando volumen"""
-    print("[TRENDS] Usando fallback: análisis de volumen de noticias")
+    """Fallback: obtiene temas trending desde NewsAPI"""
+    print("[TRENDS] Usando fallback: NewsAPI")
     
     newsapi_key = os.getenv('NEWSAPI_KEY')
-    topic_counts = {}
+    if not newsapi_key:
+        return []
     
+    topic_counts = {}
     categories_to_check = ['Chile', 'economía', 'política', 'deportes', 'tecnología', 'salud']
     
     for category in categories_to_check:
         try:
-            if newsapi_key:
-                url = 'https://newsapi.org/v2/everything'
-                params = {
-                    'q': category,
-                    'from': (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'),
-                    'to': datetime.now().strftime('%Y-%m-%d'),
-                    'sortBy': 'publishedAt',
-                    'language': 'es',
-                    'pageSize': 20,
-                    'apiKey': newsapi_key
-                }
-                response = requests.get(url, params=params, timeout=10)
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    for article in data.get('articles', []):
-                        title = article.get('title', '').strip()
-                        if title and len(title) > 20:
-                            words = title.split()[:5]
-                            topic_key = ' '.join(words)
-                            if topic_key not in topic_counts:
-                                topic_counts[topic_key] = {
-                                    'count': 0,
-                                    'full_title': title,
-                                    'source': article.get('source', {}).get('name', ''),
-                                    'url': article.get('url', '')
-                                }
-                            topic_counts[topic_key]['count'] += 1
+            url = 'https://newsapi.org/v2/everything'
+            params = {
+                'q': category,
+                'from': (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'),
+                'to': datetime.now().strftime('%Y-%m-%d'),
+                'sortBy': 'publishedAt',
+                'language': 'es',
+                'pageSize': 20,
+                'apiKey': newsapi_key
+            }
+            response = requests.get(url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                for article in data.get('articles', []):
+                    title = article.get('title', '').strip()
+                    if title and len(title) > 20:
+                        words = title.split()[:5]
+                        topic_key = ' '.join(words)
+                        if topic_key not in topic_counts:
+                            topic_counts[topic_key] = {
+                                'count': 0,
+                                'full_title': title,
+                                'source': article.get('source', {}).get('name', ''),
+                                'url': article.get('url', '')
+                            }
+                        topic_counts[topic_key]['count'] += 1
         except Exception as e:
             print(f"[TRENDS] Error en categoría {category}: {str(e)}")
     
@@ -322,8 +302,8 @@ def get_predictions():
         # Calcular score
         score = calculate_prediction_score(topic, news_count, is_realtime)
         
-        # Incluir si tiene score > 25
-        if score >= 25:
+        # Incluir si tiene score > 20 (más tolerante)
+        if score >= 20:
             category = guess_category(topic)
             
             alert_level = None
@@ -351,8 +331,22 @@ def get_predictions():
     
     return predictions[:10]
 
+def is_spanish_title(title):
+    """Verifica si un título parece estar en español"""
+    # Palabras comunes en español
+    spanish_words = ['el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'al', 'y', 'o', 'que', 'por', 'para', 'con', 'sin', 'sobre', 'entre', 'hacia', 'hasta', 'desde', 'chile', 'santiago', 'gobierno', 'presidente', 'ministro', 'ley', 'nuevo', 'nueva', 'primer', 'segundo', 'más', 'menos', 'muy', 'tan', 'como', 'pero', 'aunque', 'porque', 'cuando', 'donde', 'quien', 'cual', 'este', 'esta', 'estos', 'estas', 'ese', 'esa', 'esos', 'esas', 'aquel', 'aquella', 'aquellos', 'aquellas', 'mi', 'tu', 'su', 'nuestro', 'vuestro', 'sus', 'mis', 'tus']
+    
+    title_lower = title.lower()
+    words = title_lower.split()
+    
+    # Contar palabras en español
+    spanish_count = sum(1 for word in words if word in spanish_words)
+    
+    # Si al menos 2 palabras son españolas, probablemente está en español
+    return spanish_count >= 2
+
 def get_trends_for_category(category):
-    """Obtiene tendencias REALES desde NewsAPI o GDELT"""
+    """Obtiene tendencias REALES desde NewsAPI o GDELT (solo español)"""
     if not category or category == 'all':
         category = 'Chile'
     
@@ -361,6 +355,7 @@ def get_trends_for_category(category):
     
     print(f"[TRENDS] Buscando tendencias para: {category}")
     
+    # 1. Intentar NewsAPI (filtra por idioma español automáticamente)
     if newsapi_key and len(newsapi_key) > 10:
         try:
             url = 'https://newsapi.org/v2/everything'
@@ -369,8 +364,8 @@ def get_trends_for_category(category):
                 'from': (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d'),
                 'to': datetime.now().strftime('%Y-%m-%d'),
                 'sortBy': 'publishedAt',
-                'language': 'es',
-                'pageSize': 10,
+                'language': 'es',  # Filtra por español
+                'pageSize': 15,
                 'apiKey': newsapi_key
             }
             response = requests.get(url, params=params, timeout=10)
@@ -383,7 +378,8 @@ def get_trends_for_category(category):
                 seen = set()
                 for article in articles:
                     title = article.get('title', '').strip()
-                    if title and title not in seen and len(title) > 15:
+                    # Verificar que esté en español
+                    if title and title not in seen and len(title) > 15 and is_spanish_title(title):
                         seen.add(title)
                         trends.append({
                             'topic': title,
@@ -394,11 +390,12 @@ def get_trends_for_category(category):
                         break
                 
                 if trends:
+                    print(f"[TRENDS] ✅ NewsAPI: {len(trends)} tendencias en español")
                     return trends
         except Exception as e:
             print(f"[TRENDS] NewsAPI error: {str(e)}")
     
-    # Fallback GDELT
+    # 2. Fallback a GDELT (con filtro de español)
     try:
         url = 'https://api.gdeltproject.org/api/v2/doc/doc'
         params = {
@@ -407,7 +404,7 @@ def get_trends_for_category(category):
             'format': 'json',
             'startdatetime': (datetime.now() - timedelta(days=7)).strftime('%Y%m%d%H%M%S'),
             'enddatetime': datetime.now().strftime('%Y%m%d%H%M%S'),
-            'maxrecords': 20,
+            'maxrecords': 30,  # Pedir más para filtrar
             'sourcelang': 'spa',
             'sort': 'DateDesc'
         }
@@ -421,7 +418,8 @@ def get_trends_for_category(category):
             seen = set()
             for article in articles:
                 title = article.get('title', '').strip()
-                if title and title not in seen and len(title) > 15:
+                # Filtrar: solo español, mínimo 15 caracteres
+                if title and title not in seen and len(title) > 15 and is_spanish_title(title):
                     seen.add(title)
                     trends.append({
                         'topic': title,
@@ -431,7 +429,9 @@ def get_trends_for_category(category):
                 if len(trends) >= 5:
                     break
             
-            return trends
+            if trends:
+                print(f"[TRENDS] ✅ GDELT: {len(trends)} tendencias en español")
+                return trends
     except Exception as e:
         print(f"[TRENDS] GDELT error: {str(e)}")
     
