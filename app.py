@@ -39,66 +39,65 @@ def init_db():
 
 init_db()
 
+# ==================== CATEGORÍAS REORGANIZADAS ====================
 CATEGORIES = [
-    {'name': 'Eléctrico', 'icon': '⚡', 'type': 'tema'},
-    {'name': 'Automotriz', 'icon': '🚗', 'type': 'tema'},
+    # Temas
+    {'name': 'Eléctrico', 'icon': '', 'type': 'tema'},
+    {'name': 'Automotriz', 'icon': '', 'type': 'tema'},
     {'name': 'Belleza', 'icon': '💄', 'type': 'tema'},
-    {'name': 'Minería', 'icon': '⛏️', 'type': 'tema'},
-    {'name': 'IA', 'icon': '🤖', 'type': 'tema'},
+    {'name': 'Minería', 'icon': '️', 'type': 'tema'},
+    {'name': 'IA', 'icon': '', 'type': 'tema'},
     {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    {'name': 'Nacional', 'icon': '🇨🇱', 'type': 'region'},
+    
+    # Regiones (solo 3)
+    {'name': 'Chile', 'icon': '🇱', 'type': 'region'},
+    {'name': 'Regiones', 'icon': '🗺️', 'type': 'region'},
     {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
-    {'name': 'Valparaíso', 'icon': '🏖️', 'type': 'region'},
-    {'name': 'Metropolitana', 'icon': '🏙️', 'type': 'region'},
-    {'name': 'Biobío', 'icon': '🌲', 'type': 'region'},
-    {'name': 'Araucanía', 'icon': '🌳', 'type': 'region'},
-    {'name': 'Los Ríos', 'icon': '🌊', 'type': 'region'},
-    {'name': 'Los Lagos', 'icon': '🏔️', 'type': 'region'},
-    {'name': 'Deportes', 'icon': '⚽', 'type': 'seccion'},
-    {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'seccion'},
-    {'name': 'Cultura', 'icon': '🎭', 'type': 'seccion'},
-    {'name': 'Dopamina', 'icon': '🧠', 'type': 'seccion'},
-    {'name': 'Salud', 'icon': '🏥', 'type': 'seccion'},
-    {'name': 'Sociedad', 'icon': '👥', 'type': 'seccion'},
-    {'name': 'TV y Espectáculos', 'icon': '📺', 'type': 'seccion'}
+    
+    # Otros temas (antes "Secciones")
+    {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
+    {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
+    {'name': 'Cultura', 'icon': '🎭', 'type': 'otros'},
+    {'name': 'Ocio', 'icon': '', 'type': 'otros'},
+    {'name': 'Salud', 'icon': '', 'type': 'otros'},
+    {'name': 'Sociedad', 'icon': '', 'type': 'otros'},
+    {'name': 'TV y Espectáculos', 'icon': '📺', 'type': 'otros'}
 ]
 
+REGIONS = ['Chile']
+
+# Palabras clave actualizadas
 SEARCH_KEYWORDS = {
-    'Eléctrico': 'electromovilidad OR energía solar',
-    'Automotriz': 'autos OR vehículos',
-    'Belleza': 'belleza OR cosmética',
+    'Eléctrico': 'empresas eléctricas OR transmisión eléctrica OR distribución eléctrica OR Enel OR Colbún OR CGE OR AES Andes',
+    'Automotriz': 'autos OR vehículos OR electromovilidad OR autos eléctricos OR patentes',
+    'Belleza': 'belleza OR cosmética OR skincare',
     'Minería': 'minería OR cobre OR litio',
     'IA': 'inteligencia artificial OR IA',
     'Tendencias': 'tendencias Chile',
-    'Tecnología': 'tecnología OR 5G',
+    'Tecnología': 'tecnología OR 5G OR startups',
     'Economía': 'economía OR dólar OR inflación',
-    'Nacional': 'Chile',
+    'Chile': 'Chile',
+    'Regiones': 'regiones Chile',
     'Internacional': 'internacional',
-    'Valparaíso': 'Valparaíso',
-    'Metropolitana': 'Santiago',
-    'Biobío': 'Biobío OR Concepción',
-    'Araucanía': 'Araucanía OR Temuco',
-    'Los Ríos': 'Valdivia',
-    'Los Lagos': 'Puerto Montt',
     'Deportes': 'deportes OR fútbol',
     'Ciencia y Tecnología': 'ciencia OR tecnología',
     'Cultura': 'cultura OR arte',
-    'Dopamina': 'redes sociales OR viral',
+    'Ocio': 'ocio OR entretenimiento OR gaming',
     'Salud': 'salud OR medicina',
     'Sociedad': 'sociedad',
-    'TV y Espectáculos': 'televisión OR espectáculos'
+    'TV y Espectáculos': 'televisión OR espectáculos OR farándula'
 }
 
-# ==================== DATOS DE RESPALDO (SIEMPRE FUNCIONAN) ====================
+# ==================== DATOS DE RESPALDO ====================
 FALLBACK_PREDICTIONS = [
-    {'topic': 'Reforma de pensiones en Chile: nuevo debate en el Congreso', 'score': 85, 'category': 'Nacional', 'news_count': 12, 'news': [{'titulo': 'Congreso discute nueva reforma de pensiones', 'fuente': 'La Tercera', 'url': '', 'fecha': '2026-09-25'}], 'alert_level': 'high', 'source': 'Datos de respaldo', 'is_realtime': False, 'timestamp': datetime.now().isoformat()},
+    {'topic': 'Reforma de pensiones en Chile: nuevo debate en el Congreso', 'score': 85, 'category': 'Chile', 'news_count': 12, 'news': [{'titulo': 'Congreso discute nueva reforma de pensiones', 'fuente': 'La Tercera', 'url': '', 'fecha': '2026-09-25'}], 'alert_level': 'high', 'source': 'Datos de respaldo', 'is_realtime': False, 'timestamp': datetime.now().isoformat()},
     {'topic': 'Crisis de seguridad en Santiago: nuevas medidas gubernamentales', 'score': 80, 'category': 'Sociedad', 'news_count': 10, 'news': [{'titulo': 'Gobierno anuncia plan de seguridad para Santiago', 'fuente': 'BioBio Chile', 'url': '', 'fecha': '2026-09-25'}], 'alert_level': 'high', 'source': 'Datos de respaldo', 'is_realtime': False, 'timestamp': datetime.now().isoformat()},
     {'topic': 'Precio del dólar alcanza nuevo máximo histórico', 'score': 75, 'category': 'Economía', 'news_count': 8, 'news': [{'titulo': 'Dólar supera los $950 pesos chilenos', 'fuente': 'DF', 'url': '', 'fecha': '2026-09-25'}], 'alert_level': None, 'source': 'Datos de respaldo', 'is_realtime': False, 'timestamp': datetime.now().isoformat()},
     {'topic': 'Selección chilena de fútbol: preparativos para eliminatorias', 'score': 70, 'category': 'Deportes', 'news_count': 7, 'news': [{'titulo': 'La Roja se prepara para próximo partido eliminatorio', 'fuente': 'AS Chile', 'url': '', 'fecha': '2026-09-25'}], 'alert_level': None, 'source': 'Datos de respaldo', 'is_realtime': False, 'timestamp': datetime.now().isoformat()},
     {'topic': 'Avance de inteligencia artificial en empresas chilenas', 'score': 65, 'category': 'Tecnología', 'news_count': 6, 'news': [{'titulo': 'Startups chilenas lideran adopción de IA', 'fuente': 'Pulso', 'url': '', 'fecha': '2026-09-25'}], 'alert_level': None, 'source': 'Datos de respaldo', 'is_realtime': False, 'timestamp': datetime.now().isoformat()},
-    {'topic': 'Crisis habitacional: nuevos proyectos de vivienda social', 'score': 60, 'category': 'Sociedad', 'news_count': 5, 'news': [{'titulo': 'MINVU anuncia construcción de 10.000 nuevas viviendas', 'fuente': 'La Tercera', 'url': '', 'fecha': '2026-09-25'}], 'alert_level': None, 'source': 'Datos de respaldo', 'is_realtime': False, 'timestamp': datetime.now().isoformat()},
+    {'topic': 'Empresas eléctricas anuncian inversión en transmisión', 'score': 60, 'category': 'Eléctrico', 'news_count': 5, 'news': [{'titulo': 'Enel y Colbún planean nuevas líneas de transmisión', 'fuente': 'El Mercurio', 'url': '', 'fecha': '2026-09-25'}], 'alert_level': None, 'source': 'Datos de respaldo', 'is_realtime': False, 'timestamp': datetime.now().isoformat()},
     {'topic': 'Precio del cobre: impacto en economía chilena', 'score': 55, 'category': 'Economía', 'news_count': 4, 'news': [{'titulo': 'Cobre alcanza máximos de 6 meses', 'fuente': 'DF', 'url': '', 'fecha': '2026-09-25'}], 'alert_level': None, 'source': 'Datos de respaldo', 'is_realtime': False, 'timestamp': datetime.now().isoformat()},
     {'topic': 'Listas de espera en salud pública: nuevas soluciones', 'score': 50, 'category': 'Salud', 'news_count': 3, 'news': [{'titulo': 'MINSAL implementa sistema digital para reducir listas', 'fuente': '24 Horas', 'url': '', 'fecha': '2026-09-25'}], 'alert_level': None, 'source': 'Datos de respaldo', 'is_realtime': False, 'timestamp': datetime.now().isoformat()}
 ]
@@ -111,7 +110,88 @@ FALLBACK_TRENDS = [
     {'topic': 'Inteligencia artificial transforma empresas chilenas', 'source': 'Pulso', 'region': 'Chile'}
 ]
 
-# ==================== GDELT (GRATIS, SIN LÍMITES) ====================
+# ==================== PANEL DE ESTADO (DÓLAR, CLIMA, APIs) ====================
+
+def get_mindicador_data():
+    """Obtiene datos de mindicador.cl (dólar, UF, UTM)"""
+    try:
+        print("[STATUS] Consultando mindicador.cl...")
+        response = requests.get('https://mindicador.cl/api', timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                'dolar': data.get('dolar', {}).get('valor', 0),
+                'uf': data.get('uf', {}).get('valor', 0),
+                'utm': data.get('utm', {}).get('valor', 0),
+                'status': 'ok'
+            }
+        return {'status': 'error'}
+    except Exception as e:
+        print(f"[STATUS] Error mindicador: {str(e)}")
+        return {'status': 'error'}
+
+def get_weather_santiago():
+    """Obtiene clima de Santiago desde Open-Meteo"""
+    try:
+        print("[STATUS] Consultando Open-Meteo...")
+        url = 'https://api.open-meteo.com/v1/forecast'
+        params = {
+            'latitude': -33.4489,
+            'longitude': -70.6693,
+            'current_weather': True,
+            'timezone': 'America/Santiago'
+        }
+        response = requests.get(url, params=params, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            weather = data.get('current_weather', {})
+            return {
+                'temperature': weather.get('temperature', 0),
+                'windspeed': weather.get('windspeed', 0),
+                'weathercode': weather.get('weathercode', 0),
+                'status': 'ok'
+            }
+        return {'status': 'error'}
+    except Exception as e:
+        print(f"[STATUS] Error clima: {str(e)}")
+        return {'status': 'error'}
+
+def check_api_status():
+    """Verifica estado de las APIs"""
+    status = {
+        'gdelt': 'unknown',
+        'qwen': 'unknown'
+    }
+    
+    # Verificar GDELT
+    try:
+        response = requests.get('https://api.gdeltproject.org/api/v2/doc/doc?query=Chile&mode=artlist&format=json&maxrecords=1', timeout=5)
+        status['gdelt'] = 'ok' if response.status_code == 200 else 'error'
+    except:
+        status['gdelt'] = 'error'
+    
+    # Verificar Qwen
+    api_key = os.getenv('QWEN_API_KEY')
+    status['qwen'] = 'ok' if api_key and len(api_key) > 10 else 'error'
+    
+    return status
+
+def get_status_panel():
+    """Obtiene todos los datos del panel de estado"""
+    print("[STATUS] Generando panel de estado...")
+    
+    mindicador = get_mindicador_data()
+    weather = get_weather_santiago()
+    apis = check_api_status()
+    
+    return {
+        'mindicador': mindicador,
+        'weather': weather,
+        'apis': apis,
+        'timestamp': datetime.now().isoformat()
+    }
+
+# ==================== PREDICCIONES (GDELT + RESPALDO) ====================
 
 def get_gdelt_predictions():
     try:
@@ -190,12 +270,13 @@ def guess_category(topic):
     keywords = {
         'Deportes': ['fútbol', 'deporte', 'selección', 'campeonato'],
         'Economía': ['dólar', 'inflación', 'economía', 'peso', 'cobre'],
-        'Nacional': ['gobierno', 'presidente', 'congreso', 'ley', 'chile'],
+        'Chile': ['gobierno', 'presidente', 'congreso', 'ley', 'chile'],
         'Internacional': ['eeuu', 'europa', 'guerra', 'mundial'],
         'Tecnología': ['tecnología', 'app', 'digital', 'ia', 'inteligencia'],
         'Salud': ['salud', 'hospital', 'médico', 'vacuna'],
         'Sociedad': ['sociedad', 'educación', 'migración', 'vivienda'],
         'TV y Espectáculos': ['actor', 'actriz', 'tv', 'famoso', 'farándula'],
+        'Eléctrico': ['eléctric', 'transmisión', 'distribución', 'enel', 'colbún'],
     }
     for category, words in keywords.items():
         if any(word in topic_lower for word in words):
@@ -337,6 +418,9 @@ def get_trending():
 
 @app.route('/api/predictions', methods=['GET'])
 def get_predictions_route(): return jsonify(get_predictions())
+
+@app.route('/api/status', methods=['GET'])
+def get_status(): return jsonify(get_status_panel())
 
 @app.route('/api/debug', methods=['GET'])
 def debug():
