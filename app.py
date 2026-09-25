@@ -48,17 +48,17 @@ init_db()
 # ==================== CATEGORÍAS EXPANDIDAS ====================
 CATEGORIES = [
     {'name': 'Eléctrico', 'icon': '⚡', 'type': 'tema'},
-    {'name': 'Automotriz', 'icon': '', 'type': 'tema'},
-    {'name': 'Belleza', 'icon': '', 'type': 'tema'},
-    {'name': 'Minería', 'icon': '️', 'type': 'tema'},
-    {'name': 'IA', 'icon': '', 'type': 'tema'},
-    {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
-    {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
+    {'name': 'Automotriz', 'icon': '🚗', 'type': 'tema'},
+    {'name': 'Belleza', 'icon': '💄', 'type': 'tema'},
+    {'name': 'Minería', 'icon': '⛏️', 'type': 'tema'},
+    {'name': 'IA', 'icon': '🤖', 'type': 'tema'},
+    {'name': 'Tendencias', 'icon': '', 'type': 'tema'},
+    {'name': 'Tecnología', 'icon': '', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    {'name': 'Nacional', 'icon': '🇱', 'type': 'region'},
-    {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
-    {'name': 'Valparaíso', 'icon': '🏖️', 'type': 'region'},
-    {'name': 'Metropolitana', 'icon': '🏙️', 'type': 'region'},
+    {'name': 'Nacional', 'icon': '🇨🇱', 'type': 'region'},
+    {'name': 'Internacional', 'icon': '', 'type': 'region'},
+    {'name': 'Valparaíso', 'icon': '️', 'type': 'region'},
+    {'name': 'Metropolitana', 'icon': '️', 'type': 'region'},
     {'name': 'Biobío', 'icon': '🌲', 'type': 'region'},
     {'name': 'Araucanía', 'icon': '🌳', 'type': 'region'},
     {'name': 'Los Ríos', 'icon': '🌊', 'type': 'region'},
@@ -100,87 +100,100 @@ SEARCH_KEYWORDS = {
     'TV y Espectáculos': 'televisión OR espectáculos OR farándula'
 }
 
-# ==================== GOOGLE TRENDS (RSS OFICIAL) ====================
+# ==================== GOOGLE NEWS RSS (OFICIAL) ====================
 
-def get_google_trends_daily():
-    """Obtiene tendencias diarias desde RSS oficial de Google Trends Chile"""
+def get_google_news_daily():
+    """Obtiene tendencias desde RSS oficial de Google News Chile (últimas 24h)"""
     try:
-        url = 'https://trends.google.com/trends/trendingsearches/daily/rss?geo=CL'
-        print(f"[TRENDS] Consultando RSS diario de Google Trends Chile...")
+        url = 'https://news.google.com/rss/search?q=when:1d&hl=es-CL&gl=CL&ceid=CL:es-419'
+        print(f"[TRENDS] Consultando Google News RSS Chile (24h)...")
         
-        response = requests.get(url, timeout=15, headers={
-            'User-Agent': 'Mozilla/5.0 (compatible; RadarEditorial/1.0)'
-        })
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        
+        response = requests.get(url, timeout=15, headers=headers)
         
         if response.status_code != 200:
-            print(f"[TRENDS] RSS diario falló: {response.status_code}")
+            print(f"[TRENDS] Google News RSS falló: {response.status_code}")
             return []
         
         root = ET.fromstring(response.content)
         topics = []
+        seen = set()
         
         for item in root.findall('.//item'):
             title_elem = item.find('title')
             if title_elem is not None and title_elem.text:
                 title = title_elem.text.strip()
-                # Limpiar " - X búsquedas"
+                # Google News pone " - NombreMedio" al final, lo quitamos
                 if ' - ' in title:
                     title = title.split(' - ')[0].strip()
-                if title and len(title) > 2:
+                # Evitar duplicados
+                if title and len(title) > 10 and title.lower() not in seen:
+                    seen.add(title.lower())
                     topics.append({
                         'topic': title,
-                        'source': 'Google Trends (diario)',
+                        'source': 'Google News (24h)',
                         'is_realtime': False
                     })
+                if len(topics) >= 15:
+                    break
         
-        print(f"[TRENDS] ✅ RSS diario: {len(topics)} temas")
+        print(f"[TRENDS] ✅ Google News 24h: {len(topics)} temas")
         return topics
         
     except Exception as e:
-        print(f"[TRENDS] ⚠️ Error RSS diario: {str(e)}")
+        print(f"[TRENDS] ⚠️ Error Google News 24h: {str(e)}")
         return []
 
-def get_google_trends_hourly():
-    """Obtiene tendencias por hora desde RSS oficial de Google Trends Chile"""
+def get_google_news_hourly():
+    """Obtiene tendencias en tiempo real desde Google News Chile (última hora)"""
     try:
-        # 161 es el código de Chile en Google Trends
-        url = 'https://trends.google.com/trends/trendingnow/now/161?output=rss'
-        print(f"[TRENDS] Consultando RSS horario de Google Trends Chile...")
+        url = 'https://news.google.com/rss/search?q=when:1h&hl=es-CL&gl=CL&ceid=CL:es-419'
+        print(f"[TRENDS] Consultando Google News RSS Chile (1h)...")
         
-        response = requests.get(url, timeout=15, headers={
-            'User-Agent': 'Mozilla/5.0 (compatible; RadarEditorial/1.0)'
-        })
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        
+        response = requests.get(url, timeout=15, headers=headers)
         
         if response.status_code != 200:
-            print(f"[TRENDS] RSS horario falló: {response.status_code}")
+            print(f"[TRENDS] Google News RSS 1h falló: {response.status_code}")
             return []
         
         root = ET.fromstring(response.content)
         topics = []
+        seen = set()
         
-        # El feed horario tiene estructura diferente
         for item in root.findall('.//item'):
             title_elem = item.find('title')
             if title_elem is not None and title_elem.text:
                 title = title_elem.text.strip()
-                if title and len(title) > 2:
+                if ' - ' in title:
+                    title = title.split(' - ')[0].strip()
+                if title and len(title) > 10 and title.lower() not in seen:
+                    seen.add(title.lower())
                     topics.append({
                         'topic': title,
-                        'source': 'Google Trends (última hora)',
+                        'source': 'Google News (última hora)',
                         'is_realtime': True
                     })
+                if len(topics) >= 10:
+                    break
         
-        print(f"[TRENDS] ✅ RSS horario: {len(topics)} temas en tiempo real")
+        print(f"[TRENDS] ✅ Google News 1h: {len(topics)} temas en tiempo real")
         return topics
         
     except Exception as e:
-        print(f"[TRENDS] ⚠️ Error RSS horario: {str(e)}")
+        print(f"[TRENDS] ⚠️ Error Google News 1h: {str(e)}")
         return []
 
 def get_google_trends_data():
-    """Combina tendencias diarias + por hora de Google Trends"""
-    daily = get_google_trends_daily()
-    hourly = get_google_trends_hourly()
+    """Combina Google News diario + por hora"""
+    daily = get_google_news_daily()
+    hourly = get_google_news_hourly()
     
     # Combinar, priorizando los de última hora
     all_topics = hourly + daily
@@ -194,8 +207,8 @@ def get_google_trends_data():
             seen.add(topic_lower)
             unique_topics.append(t)
     
-    print(f"[TRENDS] ✅ Total Google Trends combinado: {len(unique_topics)} temas únicos")
-    return unique_topics[:20]  # Top 20
+    print(f"[TRENDS] ✅ Total Google News combinado: {len(unique_topics)} temas únicos")
+    return unique_topics[:20]
 
 def get_trending_topics_from_news():
     """Fallback: obtiene temas trending desde NewsAPI analizando volumen"""
@@ -277,15 +290,15 @@ def guess_category(topic):
     return 'Tendencias'
 
 def get_predictions():
-    """Genera predicciones cruzando Google Trends (RSS) + NewsAPI"""
+    """Genera predicciones cruzando Google News RSS + NewsAPI"""
     print("[PREDICT] Generando predicciones...")
     
-    # 1. Intentar Google Trends (RSS oficial)
+    # 1. Intentar Google News RSS
     gt_topics = get_google_trends_data()
     
     # 2. Si falla, usar fallback
     if not gt_topics:
-        print("[PREDICT] Google Trends no disponible, usando fallback")
+        print("[PREDICT] Google News no disponible, usando fallback")
         gt_topics = get_trending_topics_from_news()
     
     if not gt_topics:
@@ -298,7 +311,7 @@ def get_predictions():
     for i, topic_data in enumerate(gt_topics[:15]):
         topic = topic_data['topic']
         is_realtime = topic_data.get('is_realtime', False)
-        source = topic_data.get('source', 'Google Trends')
+        source = topic_data.get('source', 'Google News')
         
         print(f"[PREDICT] Analizando ({i+1}/15): {topic[:50]}...")
         
