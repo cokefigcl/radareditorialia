@@ -12,7 +12,6 @@
             color: #333;
         }
         
-        /* BARRA SUPERIOR COMPACTA */
         .topbar {
             background: white;
             padding: 12px 20px;
@@ -33,7 +32,6 @@
         }
         .topbar-title span { color: #007bff; }
         
-        /* STATUS BAR */
         .status-bar {
             display: flex;
             gap: 12px;
@@ -54,7 +52,6 @@
         .status-ok { color: #28a745; }
         .status-error { color: #dc3545; }
         
-        /* MENÚ DE CATEGORÍAS COMPACTO */
         .category-bar {
             background: white;
             padding: 10px 20px;
@@ -94,7 +91,6 @@
             margin: 0 5px;
         }
         
-        /* GRID PRINCIPAL DE 3 MÓDULOS */
         .main-grid {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
@@ -110,7 +106,6 @@
             .main-grid { grid-template-columns: 1fr; }
         }
         
-        /* MÓDULOS */
         .module {
             background: white;
             border-radius: 10px;
@@ -150,12 +145,10 @@
             flex: 1;
         }
         
-        /* MÓDULO ANÁLISIS */
         .module-analysis .module-header {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         }
         
-        /* ITEMS DE TENDENCIAS */
         .trend-item {
             padding: 10px;
             margin-bottom: 8px;
@@ -181,7 +174,6 @@
             margin-top: 4px;
         }
         
-        /* PREDICCIONES */
         .prediction-item {
             padding: 12px;
             margin-bottom: 10px;
@@ -265,7 +257,6 @@
             50% { opacity: 0.5; }
         }
         
-        /* ANÁLISIS */
         .analysis-form {
             display: flex;
             flex-direction: column;
@@ -309,7 +300,6 @@
             border-color: #28a745;
         }
         
-        /* TOOLTIP EXPLICATIVO */
         .tooltip-container {
             position: relative;
             display: inline-block;
@@ -367,7 +357,6 @@
         .analyze-btn:hover { background: #0056b3; }
         .analyze-btn:disabled { background: #ccc; }
         
-        /* RESULTADO ANÁLISIS */
         .analysis-result {
             margin-top: 15px;
             padding: 15px;
@@ -413,7 +402,6 @@
             font-size: 13px;
         }
         
-        /* FOOTER */
         .footer {
             text-align: center;
             padding: 15px;
@@ -424,19 +412,17 @@
     </style>
 </head>
 <body>
-    <!-- BARRA SUPERIOR -->
     <div class="topbar">
         <div class="topbar-title">📰 Radar <span>Editorial</span> con IA</div>
         <div class="status-bar" id="statusBar">
             <div class="status-item"><span class="label">💵</span><span class="value" id="statusDolar">--</span></div>
             <div class="status-item"><span class="label"></span><span class="value" id="statusUF">--</span></div>
             <div class="status-item"><span class="label">️</span><span class="value" id="statusClima">--</span></div>
-            <div class="status-item"><span class="label">🔌</span><span class="value status-ok" id="statusGdelt">●</span></div>
+            <div class="status-item"><span class="label"></span><span class="value status-ok" id="statusGdelt">●</span></div>
             <div class="status-item"><span class="label">🤖</span><span class="value status-ok" id="statusQwen">●</span></div>
         </div>
     </div>
     
-    <!-- BARRA DE CATEGORÍAS -->
     <div class="category-bar" id="categoryBar">
         <span class="group-label">Temas:</span>
         <div id="temasContainer"></div>
@@ -448,10 +434,8 @@
         <div id="otrosContainer"></div>
     </div>
     
-    <!-- GRID DE 3 MÓDULOS -->
     <div class="main-grid">
         
-        <!-- MÓDULO 1: TENDENCIAS -->
         <div class="module">
             <div class="module-header">
                 <h3>🔥 Tendencias</h3>
@@ -462,18 +446,16 @@
             </div>
         </div>
         
-        <!-- MÓDULO 2: PREDICCIONES -->
         <div class="module">
             <div class="module-header">
-                <h3>🔮 Predicciones</h3>
-                <button onclick="loadPredictions()"></button>
+                <h3> Predicciones</h3>
+                <button onclick="loadPredictions()">🔄</button>
             </div>
             <div class="module-body" id="predictionsList">
                 <div class="loading">Cargando...</div>
             </div>
         </div>
         
-        <!-- MÓDULO 3: ANÁLISIS -->
         <div class="module module-analysis">
             <div class="module-header">
                 <h3>🔍 Análisis</h3>
@@ -496,7 +478,7 @@
                                 <span class="tooltip-text"><strong>Análisis Estándar</strong>Genera una hipótesis editorial, señales clave, ángulos periodísticos, fuentes sugeridas y titulares de ejemplo. Ideal para análisis general de cualquier tema.</span>
                             </div>
                             <div class="tooltip-container">
-                                <button class="mode-btn" onclick="selectMode('briefing')">⚡ Briefing</button>
+                                <button class="mode-btn" onclick="selectMode('briefing')"> Briefing</button>
                                 <span class="tooltip-text"><strong>Briefing Periodístico</strong>Genera un resumen ejecutivo, preguntas exactas para tu fuente, datos duros a verificar y timeline sugerido. Ideal cuando te asignan un tema a última hora.</span>
                             </div>
                             <div class="tooltip-container">
@@ -518,11 +500,11 @@
                                 <span class="tooltip-text"><strong>Sin Lente</strong>Análisis equilibrado sin enfoque específico. La IA evalúa el tema desde todas las perspectivas posibles.</span>
                             </div>
                             <div class="tooltip-container">
-                                <button class="lens-btn" onclick="selectLens('data')"> Datos</button>
+                                <button class="lens-btn" onclick="selectLens('data')">📊 Datos</button>
                                 <span class="tooltip-text"><strong>Lente de Datos</strong>Prioriza estadísticas, cifras, datos duros y fuentes oficiales. Ideal para notas basadas en evidencia numérica.</span>
                             </div>
                             <div class="tooltip-container">
-                                <button class="lens-btn" onclick="selectLens('controversy')">🔥 Polémico</button>
+                                <button class="lens-btn" onclick="selectLens('controversy')"> Polémico</button>
                                 <span class="tooltip-text"><strong>Lente Polémico</strong>Busca conflictos, controversias, debates y posturas enfrentadas. Ideal para notas de opinión o temas divisivos.</span>
                             </div>
                             <div class="tooltip-container">
@@ -544,11 +526,10 @@
         </div>
     </div>
     
-    <!-- HISTORIAL -->
     <div style="max-width: 1600px; margin: 0 auto; padding: 0 20px 20px;">
         <div class="module" style="max-height: none;">
             <div class="module-header" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                <h3> Historial</h3>
+                <h3>📚 Historial</h3>
             </div>
             <div class="module-body" id="historyList" style="max-height: 300px;">
                 <div class="loading">Cargando...</div>
@@ -698,7 +679,7 @@
                         </div>
                         <div class="prediction-meta">
                             <span>📂 ${p.category || 'General'}</span>
-                            <span> ${p.news_count} noticias</span>
+                            <span>📰 ${p.news_count} noticias</span>
                             <span>📡 ${p.source || 'GDELT'}</span>
                         </div>`;
                     
@@ -728,17 +709,14 @@
             document.getElementById('topicInput').value = topic;
         }
 
-        // TOOLTIPS: mostrar/ocultar al hacer clic
         document.addEventListener('click', function(e) {
             const tooltipContainer = e.target.closest('.tooltip-container');
             if (tooltipContainer) {
-                // Cerrar todos los demás
                 document.querySelectorAll('.tooltip-container').forEach(tc => {
                     if (tc !== tooltipContainer) tc.classList.remove('show-tooltip');
                 });
                 tooltipContainer.classList.toggle('show-tooltip');
             } else {
-                // Cerrar todos si se hace clic fuera
                 document.querySelectorAll('.tooltip-container').forEach(tc => {
                     tc.classList.remove('show-tooltip');
                 });
@@ -823,16 +801,16 @@
             }
             
             if (a.resumen_ejecutivo) {
-                html += `<h4>📝 Resumen</h4><p>${a.resumen_ejecutivo}</p>`;
+                html += `<h4> Resumen</h4><p>${a.resumen_ejecutivo}</p>`;
             }
             if (a.hipotesis) {
-                html += `<h4> Hipótesis</h4><p>${a.hipotesis}</p>`;
+                html += `<h4>🎯 Hipótesis</h4><p>${a.hipotesis}</p>`;
             }
             if (a.cobertura_mainstream) {
-                html += `<h4> Cobertura actual</h4><p>${a.cobertura_mainstream}</p>`;
+                html += `<h4>📰 Cobertura actual</h4><p>${a.cobertura_mainstream}</p>`;
             }
             if (a.angulo_ciego) {
-                html += `<h4> Ángulo ciego</h4><p style="color: #28a745; font-weight: 600;">${a.angulo_ciego}</p>`;
+                html += `<h4>💡 Ángulo ciego</h4><p style="color: #28a745; font-weight: 600;">${a.angulo_ciego}</p>`;
             }
             if (a.pregunta_incomoda) {
                 html += `<h4>🔥 Pregunta incómoda</h4><p style="color: #dc3545; font-weight: 600;">${a.pregunta_incomoda}</p>`;
@@ -849,7 +827,7 @@
                 html += '</ul>';
             }
             if (a.senales_clave && a.senales_clave.length) {
-                html += '<h4> Señales clave</h4><div>';
+                html += '<h4>🔍 Señales clave</h4><div>';
                 a.senales_clave.forEach(s => { html += `<span class="tag">${s}</span>`; });
                 html += '</div>';
             }
@@ -869,7 +847,7 @@
                 html += '</ul>';
             }
             if (a.datos_duros && a.datos_duros.length) {
-                html += '<h4> Datos a verificar</h4><div>';
+                html += '<h4>📊 Datos a verificar</h4><div>';
                 a.datos_duros.forEach(d => { html += `<span class="tag">${d}</span>`; });
                 html += '</div>';
             }
@@ -880,12 +858,12 @@
                 html += `<h4>💡 Ángulo conector</h4><p>${a.angulo_conector}</p>`;
             }
             if (a.fuentes_comunes && a.fuentes_comunes.length) {
-                html += '<h4> Fuentes comunes</h4><div>';
+                html += '<h4>🔗 Fuentes comunes</h4><div>';
                 a.fuentes_comunes.forEach(f => { html += `<span class="tag">${f}</span>`; });
                 html += '</div>';
             }
             if (a.riesgos_sesgos && a.riesgos_sesgos.length) {
-                html += '<h4>️ Riesgos</h4><div>';
+                html += '<h4>⚠️ Riesgos</h4><div>';
                 a.riesgos_sesgos.forEach(r => { html += `<span class="tag">${r}</span>`; });
                 html += '</div>';
             }
@@ -919,12 +897,12 @@
                 history.forEach(item => {
                     const score = item.score || 0;
                     const date = item.created_at ? new Date(item.created_at).toLocaleString('es-CL') : '';
-                    const modeLabels = {'standard': '', 'briefing': '⚡', 'devil': '😈', 'compare': '️'};
+                    const modeLabels = {'standard': '📊', 'briefing': '⚡', 'devil': '😈', 'compare': '⚖️'};
                     html += `<div class="trend-item" style="border-left-color: #4facfe;">
                         <div class="topic">${modeLabels[item.mode] || ''} ${item.topic}${item.topic2 ? ' vs ' + item.topic2 : ''}</div>
                         <div class="meta">📂 ${item.category || 'General'} | 📅 ${date} ${score > 0 ? '| Score: ' + score + '/10' : ''}</div>
                         <div style="margin-top: 6px;">
-                            <button class="cat-btn" style="font-size: 10px; padding: 3px 8px;" onclick="reAnalyze('${item.topic.replace(/'/g, "\\'")}', '${item.category || ''}', '${item.mode}')"> Re-analizar</button>
+                            <button class="cat-btn" style="font-size: 10px; padding: 3px 8px;" onclick="reAnalyze('${item.topic.replace(/'/g, "\\'")}', '${item.category || ''}', '${item.mode}')">🔄 Re-analizar</button>
                             <button class="cat-btn" style="font-size: 10px; padding: 3px 8px; background: #dc3545; color: white; border-color: #dc3545;" onclick="deleteAnalysis(${item.id})">🗑️</button>
                         </div>
                     </div>`;
