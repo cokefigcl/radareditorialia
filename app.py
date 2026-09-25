@@ -5,7 +5,7 @@ import json
 import sqlite3
 import requests
 import re
-import feedparser
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from collections import Counter
 
@@ -82,7 +82,7 @@ SEARCH_KEYWORDS = {
     'TV y Espectáculos': 'televisión OR espectáculos OR farándula'
 }
 
-# ==================== MOTOR RSS DE MEDIOS CHILENOS ====================
+# ==================== MOTOR RSS DE MEDIOS CHILENOS (NATIVO) ====================
 
 RSS_FEEDS = [
     'https://www.biobiochile.cl/rss',
@@ -92,23 +92,52 @@ RSS_FEEDS = [
 ]
 
 def fetch_rss_articles():
-    """Obtiene los últimos titulares de los principales medios chilenos"""
+    """Obtiene los últimos titulares de los principales medios chilenos usando librerías nativas"""
     all_articles = []
     for url in RSS_FEEDS:
         try:
-            feed = feedparser.parse(url)
-            source_name = feed.feed.get('title', 'Medio Chileno')
-            for entry in feed.entries[:15]: # Últimos 15 de cada medio
-                all_articles.append({
-                    'title': entry.get('title', '').strip(),
-                    'source': source_name,
-                    'link': entry.get('link', ''),
-                    'published': entry.get('published', '')
-                })
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                # Eliminar namespaces XML para facilitar el parsing
+                content = re.sub(r'\sxmlns="[^"]+"', '', response.text, count=1)
+                root = ET.fromstring(content.encode('utf-8'))
+                
+                source_name = "Medio Chileno"
+                channel = root.find('channel')
+                if channel is not None:
+                    title_elem = channel.find('title')
+                    if title_elem is not None and title_elem.text:
+                        source_name = title_elem.text.strip()
+                
+                # Intentar formato RSS, si no, formato Atom
+                items = root.findall('.//item')
+                if not items:
+                    items = root.findall('.//entry')
+                
+                for item in items[:15]:
+                    title_elem = item.find('title')
+                    link_elem = item.find('link')
+                    pub_elem = item.find('pubDate') or item.find('updated') or item.find('published')
+                    
+                    title = title_elem.text.strip() if title_elem is not None and title_elem.text else ''
+                    
+                    link = ''
+                    if link_elem is not None:
+                        link = link_elem.text.strip() if link_elem.text else link_elem.get('href', '')
+                        
+                    published = pub_elem.text.strip() if pub_elem is not None and pub_elem.text else ''
+                    
+                    if title:
+                        all_articles.append({
+                            'title': title,
+                            'source': source_name,
+                            'link': link,
+                            'published': published
+                        })
         except Exception as e:
             print(f"[RSS] Error leyendo {url}: {str(e)}")
     
-    # Ordenar por relevancia (simulada por orden de llegada, los primeros son los más recientes)
     return all_articles
 
 def get_trends_for_category(category):
@@ -126,7 +155,6 @@ def get_trends_for_category(category):
         title = article['title']
         title_lower = title.lower()
         
-        # Si es 'all' o coincide con alguna palabra clave de la categoría
         if category == 'all' or any(kw in title_lower for kw in keywords):
             if title not in seen:
                 seen.add(title)
@@ -149,7 +177,6 @@ def get_predictions():
     if not articles:
         return FALLBACK_PREDICTIONS
     
-    # Palabras a ignorar para el análisis de frecuencia
     stop_words = {'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'al', 'y', 'o', 'que', 'por', 'para', 'con', 'en', 'a', 'se', 'su', 'chile', 'santiago', 'hoy', 'más', 'como', 'este', 'esta'}
     
     word_counts = Counter()
@@ -158,7 +185,6 @@ def get_predictions():
     
     for article in articles:
         title = article['title'].lower()
-        # Extraer palabras significativas (longitud > 4)
         words = [w for w in re.findall(r'\b\w{4,}\b', title) if w not in stop_words]
         
         for word in words:
@@ -178,13 +204,11 @@ def get_predictions():
                 
     predictions = []
     
-    # Generar predicciones basadas en palabras que aparecen en al menos 2 medios distintos
     for word, count in word_counts.most_common(15):
         sources = topic_sources[word]
         num_sources = len(sources)
         
-        if num_sources >= 2: # Si al menos 2 medios hablan de esto
-            # Score: base 50 + 20 por cada medio adicional (máx 95)
+        if num_sources >= 2:
             score = min(50 + (num_sources * 20), 95)
             alert_level = 'critical' if score >= 85 else ('high' if score >= 70 else None)
             
@@ -202,7 +226,6 @@ def get_predictions():
                 'timestamp': datetime.now().isoformat()
             })
             
-    # Ordenar por score descendente
     predictions.sort(key=lambda x: x['score'], reverse=True)
     print(f"[PREDICT] ✅ Generadas {len(predictions[:8])} predicciones reales")
     
@@ -226,12 +249,10 @@ def guess_category(topic):
             return category
     return 'Tendencias'
 
-# ==================== DATOS DE RESPALDO ====================
 FALLBACK_PREDICTIONS = [
     {'topic': 'Reforma de pensiones en Chile: nuevo debate en el Congreso', 'score': 85, 'category': 'Chile', 'news_count': 3, 'news': [{'titulo': 'Congreso discute nueva reforma de pensiones', 'fuente': 'La Tercera', 'url': '', 'fecha': '2026-09-25'}], 'alert_level': 'high', 'source': 'Datos de respaldo', 'is_realtime': False, 'timestamp': datetime.now().isoformat()}
 ]
 
-# ==================== PANEL DE ESTADO ====================
 def get_mindicador_data():
     try:
         response = requests.get('https://mindicador.cl/api', timeout=10)
@@ -259,18 +280,16 @@ def get_status_panel():
     return {
         'mindicador': get_mindicador_data(),
         'weather': get_weather_santiago(),
-        'apis': {'gdelt': 'ok', 'qwen': 'ok' if os.getenv('QWEN_API_KEY') else 'error'},
+        'apis': {'rss': 'ok', 'qwen': 'ok' if os.getenv('QWEN_API_KEY') else 'error'},
         'timestamp': datetime.now().isoformat()
     }
 
-# ==================== BÚSQUEDA DE NOTICIAS (Para Análisis) ====================
 def search_news(topic, max_results=5):
-    # Para el análisis profundo, usamos una búsqueda directa en los mismos RSS
     articles = fetch_rss_articles()
     news_items = []
     seen = set()
-    
     topic_lower = topic.lower()
+    
     for article in articles:
         if topic_lower in article['title'].lower() or topic_lower in article['source'].lower():
             if article['title'] not in seen:
@@ -283,11 +302,8 @@ def search_news(topic, max_results=5):
                 })
             if len(news_items) >= max_results:
                 break
-                
-    # Si no encuentra en RSS, fallback vacío (la IA igual generará el análisis)
     return news_items
 
-# ==================== ANÁLISIS CON IA ====================
 def analyze_with_qwen(prompt, mode='standard'):
     api_key = os.getenv('QWEN_API_KEY')
     if not api_key:
@@ -338,7 +354,6 @@ Responde SOLO JSON: {{"puntaje_relevancia": 7, "justificacion_puntaje": "Explica
 def generate_fallback(topic, topic2, category, region, mode, news):
     return {'puntaje_relevancia': 5, 'justificacion_puntaje': 'Análisis automático', 'hipotesis': f'Tendencia "{topic}" muestra relevancia.', 'senales_clave': ['Aumento menciones', 'Nuevas regulaciones'], 'angulos_periodisticos': ['Impacto económico', 'Perspectivas expertos'], 'fuentes_sugeridas': ['Organismos', 'Expertos'], 'titulares_ejemplo': [f"Análisis: {topic}"], 'noticias_reales': news if news else []}
 
-# ==================== RUTAS ====================
 @app.route('/')
 def index(): return render_template('index.html')
 
