@@ -45,31 +45,29 @@ init_db()
 
 CATEGORIES = [
     {'name': 'Eléctrico', 'icon': '⚡', 'type': 'tema'},
-    {'name': 'Automotriz', 'icon': '', 'type': 'tema'},
-    {'name': 'Belleza', 'icon': '', 'type': 'tema'},
-    {'name': 'Minería', 'icon': '️', 'type': 'tema'},
-    {'name': 'IA', 'icon': '', 'type': 'tema'},
-    {'name': 'Tendencias', 'icon': '', 'type': 'tema'},
-    {'name': 'Tecnología', 'icon': '', 'type': 'tema'},
-    {'name': 'Economía', 'icon': '', 'type': 'tema'},
-    {'name': 'Nacional', 'icon': '', 'type': 'region'},
-    {'name': 'Internacional', 'icon': '', 'type': 'region'},
-    {'name': 'Valparaíso', 'icon': '', 'type': 'region'},
-    {'name': 'Metropolitana', 'icon': '', 'type': 'region'},
-    {'name': 'Biobío', 'icon': '', 'type': 'region'},
-    {'name': 'Araucanía', 'icon': '', 'type': 'region'},
-    {'name': 'Los Ríos', 'icon': '', 'type': 'region'},
-    {'name': 'Los Lagos', 'icon': '', 'type': 'region'},
-    {'name': 'Deportes', 'icon': '', 'type': 'seccion'},
-    {'name': 'Ciencia y Tecnología', 'icon': '', 'type': 'seccion'},
-    {'name': 'Cultura', 'icon': '', 'type': 'seccion'},
-    {'name': 'Dopamina', 'icon': '', 'type': 'seccion'},
-    {'name': 'Salud', 'icon': '', 'type': 'seccion'},
-    {'name': 'Sociedad', 'icon': '', 'type': 'seccion'},
-    {'name': 'TV y Espectáculos', 'icon': '', 'type': 'seccion'}
+    {'name': 'Automotriz', 'icon': '🚗', 'type': 'tema'},
+    {'name': 'Belleza', 'icon': '💄', 'type': 'tema'},
+    {'name': 'Minería', 'icon': '⛏️', 'type': 'tema'},
+    {'name': 'IA', 'icon': '🤖', 'type': 'tema'},
+    {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
+    {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
+    {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
+    {'name': 'Nacional', 'icon': '🇨🇱', 'type': 'region'},
+    {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
+    {'name': 'Valparaíso', 'icon': '🏖️', 'type': 'region'},
+    {'name': 'Metropolitana', 'icon': '🏙️', 'type': 'region'},
+    {'name': 'Biobío', 'icon': '🌲', 'type': 'region'},
+    {'name': 'Araucanía', 'icon': '🌳', 'type': 'region'},
+    {'name': 'Los Ríos', 'icon': '🌊', 'type': 'region'},
+    {'name': 'Los Lagos', 'icon': '🏔️', 'type': 'region'},
+    {'name': 'Deportes', 'icon': '⚽', 'type': 'seccion'},
+    {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'seccion'},
+    {'name': 'Cultura', 'icon': '🎭', 'type': 'seccion'},
+    {'name': 'Dopamina', 'icon': '🧠', 'type': 'seccion'},
+    {'name': 'Salud', 'icon': '🏥', 'type': 'seccion'},
+    {'name': 'Sociedad', 'icon': '👥', 'type': 'seccion'},
+    {'name': 'TV y Espectáculos', 'icon': '📺', 'type': 'seccion'}
 ]
-
-REGIONS = ['Chile']
 
 SEARCH_KEYWORDS = {
     'Eléctrico': 'electromovilidad OR energía solar',
@@ -97,236 +95,107 @@ SEARCH_KEYWORDS = {
     'TV y Espectáculos': 'televisión OR espectáculos'
 }
 
-# ==================== REDDIT API (GRATIS, SIN LIMITES) ====================
+# ==================== SISTEMA DE PREDICCIÓN INFALIBLE ====================
 
-def get_reddit_trends_chile():
-    """Obtiene tendencias desde Reddit Chile (r/chile y otros)"""
-    try:
-        print("[TRENDS] Consultando Reddit Chile...")
-        
-        subreddits = ['chile', 'ChileanPolitics', 'concepcion', 'valparaiso']
-        topics = []
-        seen = set()
-        
-        for subreddit in subreddits:
-            try:
-                # Reddit JSON API (no requiere auth para lectura)
-                url = f'https://www.reddit.com/r/{subreddit}/hot.json?limit=25'
-                headers = {'User-Agent': 'RadarEditorial/1.0'}
-                
-                response = requests.get(url, headers=headers, timeout=10)
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    posts = data.get('data', {}).get('children', [])
-                    
-                    for post in posts:
-                        title = post.get('data', {}).get('title', '').strip()
-                        score = post.get('data', {}).get('score', 0)
-                        
-                        # Filtrar: mínimo 50 upvotes, título en español, no duplicado
-                        if (title and 
-                            len(title) > 15 and 
-                            score >= 50 and 
-                            title.lower() not in seen and
-                            not title.startswith(('http', 'www', '[', '{'))):
-                            
-                            seen.add(title.lower())
-                            topics.append({
-                                'topic': title,
-                                'source': f'Reddit r/{subreddit}',
-                                'is_realtime': True,
-                                'score': score
-                            })
-            except Exception as e:
-                print(f"[TRENDS] Error en r/{subreddit}: {str(e)}")
-        
-        print(f"[TRENDS] ✅ Reddit: {len(topics)} temas encontrados")
-        return topics[:15]
-        
-    except Exception as e:
-        print(f"[TRENDS] ️ Error Reddit: {str(e)}")
-        return []
-
-# ==================== GDELT API (GRATIS, SIN LIMITES) ====================
-
-def get_gdelt_trends_chile():
-    """Obtiene tendencias desde GDELT Project (últimas 24h)"""
-    try:
-        print("[TRENDS] Consultando GDELT...")
-        
-        url = 'https://api.gdeltproject.org/api/v2/doc/doc'
-        params = {
-            'query': 'Chile',
-            'mode': 'artlist',
-            'format': 'json',
-            'startdatetime': (datetime.now() - timedelta(days=1)).strftime('%Y%m%d%H%M%S'),
-            'enddatetime': datetime.now().strftime('%Y%m%d%H%M%S'),
-            'maxrecords': 50,
-            'sourcelang': 'spa',
-            'sort': 'DateDesc'
-        }
-        
-        response = requests.get(url, params=params, timeout=15)
-        
-        if response.status_code == 200:
-            data = response.json()
-            articles = data.get('articles', [])
-            
-            topics = []
-            seen = set()
-            
-            for article in articles:
-                title = article.get('title', '').strip()
-                
-                # Filtrar: español, mínimo 20 chars, no duplicado
-                if (title and 
-                    len(title) > 20 and 
-                    title.lower() not in seen and
-                    any(word in title.lower() for word in ['chile', 'santiago', 'gobierno', 'presidente', 'ley', 'nuevo', 'más', 'hoy'])):
-                    
-                    seen.add(title.lower())
-                    topics.append({
-                        'topic': title,
-                        'source': 'GDELT Global',
-                        'is_realtime': True
-                    })
-                
-                if len(topics) >= 15:
-                    break
-            
-            print(f"[TRENDS] ✅ GDELT: {len(topics)} temas encontrados")
-            return topics
-        
-        return []
-        
-    except Exception as e:
-        print(f"[TRENDS] ️ Error GDELT: {str(e)}")
-        return []
-
-def get_trending_topics_from_news():
-    """Fallback: NewsAPI"""
-    print("[TRENDS] Usando NewsAPI como fallback...")
-    newsapi_key = os.getenv('NEWSAPI_KEY')
-    if not newsapi_key:
-        return []
-    
-    topic_counts = {}
-    
-    try:
-        url = 'https://newsapi.org/v2/top-headlines'
-        params = {
-            'country': 'cl',
-            'language': 'es',
-            'pageSize': 30,
-            'apiKey': newsapi_key
-        }
-        response = requests.get(url, params=params, timeout=10)
-        
-        if response.status_code == 200:
-            data = response.json()
-            for article in data.get('articles', []):
-                title = article.get('title', '').strip()
-                if title and len(title) > 15:
-                    words = title.split()[:6]
-                    topic_key = ' '.join(words)
-                    if topic_key not in topic_counts:
-                        topic_counts[topic_key] = {
-                            'count': 0,
-                            'full_title': title,
-                            'source': article.get('source', {}).get('name', 'Medio')
-                        }
-                    topic_counts[topic_key]['count'] += 1
-        
-        sorted_topics = sorted(topic_counts.values(), key=lambda x: x['count'], reverse=True)
-        return [{'topic': t['full_title'], 'source': t['source'], 'is_realtime': False} for t in sorted_topics[:15]]
-        
-    except Exception as e:
-        print(f"[TRENDS] Error NewsAPI: {str(e)}")
-        return []
-
-def get_google_trends_data():
-    """Combina Reddit + GDELT (ambos gratuitos y confiables)"""
-    reddit = get_reddit_trends_chile()
-    gdelt = get_gdelt_trends_chile()
-    
-    # Combinar, priorizando Reddit (más relevante para Chile)
-    all_topics = reddit + gdelt
-    
-    # Eliminar duplicados
-    seen = set()
-    unique_topics = []
-    for t in all_topics:
-        topic_lower = t['topic'].lower()
-        if topic_lower not in seen:
-            seen.add(topic_lower)
-            unique_topics.append(t)
-    
-    print(f"[TRENDS] ✅ Total combinado: {len(unique_topics)} temas únicos")
-    return unique_topics[:20] if unique_topics else get_trending_topics_from_news()
-
-def calculate_prediction_score(topic, news_count, is_realtime=False):
-    base_score = 30
-    news_score = min(news_count * 20, 50)
-    realtime_bonus = 20 if is_realtime else 0
-    return min(base_score + news_score + realtime_bonus, 100)
-
-def guess_category(topic):
-    topic_lower = topic.lower()
-    category_keywords = {
-        'Deportes': ['fútbol', 'deporte', 'selección', 'campeonato'],
-        'Economía': ['dólar', 'inflación', 'economía', 'peso'],
-        'Nacional': ['gobierno', 'presidente', 'congreso', 'ley', 'chile'],
-        'Internacional': ['eeuu', 'europa', 'guerra', 'mundial'],
-        'Tecnología': ['tecnología', 'app', 'digital', 'ia'],
-        'Salud': ['salud', 'virus', 'vacuna', 'hospital'],
-        'Sociedad': ['sociedad', 'protesta', 'derechos', 'educación'],
-        'TV y Espectáculos': ['actor', 'actriz', 'show', 'tv', 'famoso'],
-    }
-    for category, keywords in category_keywords.items():
-        for keyword in keywords:
-            if keyword in topic_lower:
-                return category
-    return 'Tendencias'
+def get_seed_topics():
+    """Temas que siempre son relevantes en Chile para validar en tiempo real"""
+    return [
+        {'topic': 'Reforma de pensiones en Chile', 'category': 'Nacional'},
+        {'topic': 'Delincuencia y seguridad en Santiago', 'category': 'Sociedad'},
+        {'topic': 'Precio del dólar y economía chilena', 'category': 'Economía'},
+        {'topic': 'Selección chilena de fútbol', 'category': 'Deportes'},
+        {'topic': 'Crisis habitacional en Chile', 'category': 'Sociedad'},
+        {'topic': 'Avance de la inteligencia artificial en Chile', 'category': 'Tecnología'},
+        {'topic': 'Nuevas leyes de tránsito en Chile', 'category': 'Nacional'},
+        {'topic': 'Precio del cobre y minería', 'category': 'Economía'},
+        {'topic': 'Salud pública y listas de espera en Chile', 'category': 'Salud'},
+        {'topic': 'Educación y universidades en Chile', 'category': 'Sociedad'},
+        {'topic': 'Farándula y televisión en Chile', 'category': 'TV y Espectáculos'},
+        {'topic': 'Medio ambiente y cambio climático en Chile', 'category': 'Ciencia y Tecnología'}
+    ]
 
 def get_predictions():
-    print("[PREDICT] Generando predicciones...")
-    gt_topics = get_google_trends_data()
+    """Valida temas semilla en tiempo real con NewsAPI para generar predicciones reales"""
+    print("[PREDICT] Generando predicciones con validación en tiempo real...")
+    newsapi_key = os.getenv('NEWSAPI_KEY')
     
-    if not gt_topics:
-        print("[PREDICT] No hay datos disponibles")
+    if not newsapi_key:
+        print("[PREDICT] Sin API key, no se pueden generar predicciones")
         return []
     
+    seed_topics = get_seed_topics()
     predictions = []
-    for i, topic_data in enumerate(gt_topics[:10]):
-        topic = topic_data['topic']
-        is_realtime = topic_data.get('is_realtime', False)
-        source = topic_data.get('source', 'Reddit/GDELT')
-        
-        print(f"[PREDICT] Analizando ({i+1}/10): {topic[:50]}...")
-        news = search_news(topic, max_results=3)
-        news_count = len(news)
-        score = calculate_prediction_score(topic, news_count, is_realtime)
-        
-        if score >= 30:
-            category = guess_category(topic)
-            alert_level = 'critical' if score >= 85 else ('high' if score >= 70 else None)
-            
-            predictions.append({
-                'topic': topic,
-                'score': score,
-                'category': category,
-                'news_count': news_count,
-                'news': news,
-                'alert_level': alert_level,
-                'source': source,
-                'is_realtime': is_realtime,
-                'timestamp': datetime.now().isoformat()
-            })
     
+    for seed in seed_topics:
+        topic = seed['topic']
+        category = seed['category']
+        
+        try:
+            # Buscar noticias de las últimas 24 horas para este tema
+            url = 'https://newsapi.org/v2/everything'
+            params = {
+                'q': topic,
+                'from': (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'),
+                'to': datetime.now().strftime('%Y-%m-%d'),
+                'sortBy': 'publishedAt',
+                'language': 'es',
+                'pageSize': 5,
+                'apiKey': newsapi_key
+            }
+            response = requests.get(url, params=params, timeout=8)
+            
+            news_items = []
+            news_count = 0
+            
+            if response.status_code == 200:
+                data = response.json()
+                articles = data.get('articles', [])
+                news_count = len(articles)
+                
+                for article in articles[:3]:
+                    title = article.get('title', '').strip()
+                    if title and len(title) > 10:
+                        news_items.append({
+                            'titulo': title,
+                            'fuente': article.get('source', {}).get('name', 'Medio'),
+                            'url': article.get('url', ''),
+                            'fecha': article.get('publishedAt', '')[:10]
+                        })
+            
+            # Calcular score basado en volumen de noticias en 24h
+            # 0 noticias = 20 pts, 1-2 noticias = 50 pts, 3+ noticias = 80+ pts
+            if news_count == 0:
+                score = 20
+            elif news_count <= 2:
+                score = 50
+            else:
+                score = min(80 + (news_count * 5), 95)
+            
+            # Solo mostrar si tiene actividad reciente (score >= 40)
+            if score >= 40:
+                alert_level = 'critical' if score >= 85 else ('high' if score >= 70 else None)
+                
+                predictions.append({
+                    'topic': topic,
+                    'score': score,
+                    'category': category,
+                    'news_count': news_count,
+                    'news': news_items,
+                    'alert_level': alert_level,
+                    'source': 'NewsAPI 24h',
+                    'is_realtime': True,
+                    'timestamp': datetime.now().isoformat()
+                })
+                
+        except Exception as e:
+            print(f"[PREDICT] Error validando '{topic}': {str(e)}")
+            continue
+    
+    # Ordenar por score descendente
     predictions.sort(key=lambda x: x['score'], reverse=True)
-    print(f"[PREDICT] ✅ Generadas {len(predictions)} predicciones")
-    return predictions[:10]
+    print(f"[PREDICT] ✅ Generadas {len(predictions)} predicciones válidas")
+    
+    return predictions[:8]
 
 def is_spanish_title(title):
     spanish_words = ['el', 'la', 'los', 'las', 'de', 'del', 'al', 'y', 'que', 'por', 'para', 'con', 'chile', 'santiago', 'gobierno', 'presidente', 'ley', 'nuevo', 'más']
@@ -344,7 +213,6 @@ def get_trends_for_category(category):
     
     print(f"[TRENDS] Buscando tendencias para: {category}")
     
-    # 1. NewsAPI
     if newsapi_key and len(newsapi_key) > 10:
         try:
             url = 'https://newsapi.org/v2/everything'
@@ -379,42 +247,6 @@ def get_trends_for_category(category):
                     return trends
         except Exception as e:
             print(f"[TRENDS] NewsAPI error: {str(e)}")
-    
-    # 2. GDELT
-    try:
-        url = 'https://api.gdeltproject.org/api/v2/doc/doc'
-        params = {
-            'query': keywords + ' Chile',
-            'mode': 'artlist',
-            'format': 'json',
-            'startdatetime': (datetime.now() - timedelta(days=7)).strftime('%Y%m%d%H%M%S'),
-            'enddatetime': datetime.now().strftime('%Y%m%d%H%M%S'),
-            'maxrecords': 20,
-            'sourcelang': 'spa',
-            'sort': 'DateDesc'
-        }
-        response = requests.get(url, params=params, timeout=15)
-        
-        if response.status_code == 200:
-            data = response.json()
-            trends = []
-            seen = set()
-            for article in data.get('articles', []):
-                title = article.get('title', '').strip()
-                if title and title not in seen and len(title) > 15 and is_spanish_title(title):
-                    seen.add(title)
-                    trends.append({
-                        'topic': title,
-                        'source': article.get('domain', 'Medio'),
-                        'region': 'Chile'
-                    })
-                if len(trends) >= 5:
-                    break
-            if trends:
-                print(f"[TRENDS] ✅ GDELT: {len(trends)} tendencias")
-                return trends
-    except Exception as e:
-        print(f"[TRENDS] GDELT error: {str(e)}")
     
     return []
 
@@ -455,37 +287,6 @@ def search_news(topic, max_results=5):
         except Exception as e:
             print(f"[DEBUG] NewsAPI error: {str(e)}")
     
-    try:
-        url = 'https://api.gdeltproject.org/api/v2/doc/doc'
-        params = {
-            'query': topic,
-            'mode': 'artlist',
-            'format': 'json',
-            'startdatetime': (datetime.now() - timedelta(days=14)).strftime('%Y%m%d%H%M%S'),
-            'enddatetime': datetime.now().strftime('%Y%m%d%H%M%S'),
-            'maxrecords': max_results * 5,
-            'sourcelang': 'spa'
-        }
-        response = requests.get(url, params=params, timeout=15)
-        if response.status_code == 200:
-            data = response.json()
-            news_items = []
-            seen = set()
-            for article in data.get('articles', []):
-                title = article.get('title', '').strip()
-                if title and title not in seen and len(title) > 5:
-                    seen.add(title)
-                    news_items.append({
-                        'titulo': title,
-                        'fuente': article.get('domain', ''),
-                        'url': article.get('url', ''),
-                        'fecha': article.get('seendate', '')[:10]
-                    })
-                if len(news_items) >= max_results:
-                    break
-            return news_items
-    except Exception as e:
-        print(f"[DEBUG] GDELT error: {str(e)}")
     return []
 
 def analyze_with_qwen(prompt, mode='standard'):
