@@ -81,13 +81,29 @@ SEARCH_KEYWORDS = {
     'TV y Espectáculos': 'televisión OR espectáculos'
 }
 
-# URLs de RSS actualizadas y más estables
+# LISTA DEFINITIVA DE RSS (Chile + Internacional + Tech/Econ)
 RSS_FEEDS = [
-    'https://www.biobiochile.cl/rss',
+    # Chile
+    'https://www.biobiochile.cl/feed/',
+    'https://www.elmostrador.cl/feed/',
+    'https://www.cooperativa.cl/noticias/site/tax/port/all/rss____1.xml',
     'https://www.latercera.com/arc/outboundfeeds/rss/',
-    'https://www.cooperativa.cl/rss',
-    'https://www.emol.com/rss/',
-    'https://www.24horas.cl/rss'
+    'https://www.df.cl/noticias/site/tax/port/all/rss____1.xml',
+    'https://www.ciperchile.cl/feed/',
+    'https://www.theclinic.cl/feed/',
+    'https://www.lanacion.cl/feed/',
+    # Internacional (Español)
+    'https://feeds.bbci.co.uk/mundo/rss.xml',
+    'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/america/portada',
+    'https://rss.dw.com/rdf/rss-sp-top',
+    'https://cnnespanol.cnn.com/feed/',
+    'https://e00-elmundo.uecdn.es/rss/portada.xml',
+    # Internacional (Inglés - Tech/Econ)
+    'https://rss.nytimes.com/services/xml/rss/nyt/World.xml',
+    'https://www.theguardian.com/world/rss',
+    'https://www.ft.com/world?format=rss', # URL más estable para FT
+    'https://techcrunch.com/feed/',
+    'https://www.wired.com/feed/rss'
 ]
 
 def get_cached_news(max_age_minutes=120):
@@ -116,15 +132,14 @@ def fetch_raw_articles():
     all_articles = []
     api_key = os.getenv('NEWSAPI_KEY')
     
-    print(f"[FETCH] NewsAPI Key configurada: {'Sí' if api_key else 'NO (Revisar Variables en Railway)'}")
+    print(f"[FETCH] NewsAPI Key configurada: {'Sí' if api_key else 'NO'}")
     
-    # 1. Intentar NewsAPI (la fuente más confiable)
+    # 1. Intentar NewsAPI primero
     if api_key:
         try:
             url = 'https://newsapi.org/v2/top-headlines'
             params = {'country': 'cl', 'language': 'es', 'pageSize': 30, 'apiKey': api_key}
             response = requests.get(url, params=params, timeout=10)
-            print(f"[FETCH] NewsAPI Status: {response.status_code}")
             if response.status_code == 200:
                 data = response.json()
                 for item in data.get('articles', []):
@@ -136,30 +151,24 @@ def fetch_raw_articles():
                             'published': item.get('publishedAt', '')
                         })
                 print(f"[FETCH] ✅ NewsAPI: {len(all_articles)} artículos")
-            else:
-                print(f"[FETCH] ❌ NewsAPI Error: {response.text[:100]}")
         except Exception as e:
             print(f"[FETCH] ❌ NewsAPI Excepción: {str(e)}")
 
-    # 2. Si no hay suficientes, complementar con RSS
-    if len(all_articles) < 15:
-        print(f"[FETCH] Intentando RSS feeds...")
+    # 2. Complementar con la lista completa de RSS
+    if len(all_articles) < 40: # Apuntamos a tener un buen volumen para la IA
+        print(f"[FETCH] Intentando {len(RSS_FEEDS)} feeds RSS...")
         session = requests.Session()
-        # Headers más completos para evitar bloqueos 403/404
         session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'application/rss+xml, application/xml, text/html, */*',
-            'Accept-Language': 'es-CL,es;q=0.9'
+            'Accept-Language': 'es-CL,es;q=0.9,en;q=0.8'
         })
         
         for url in RSS_FEEDS:
             try:
-                print(f"[FETCH] Consultando: {url}")
-                response = session.get(url, timeout=10, allow_redirects=True)
-                print(f"[FETCH] RSS Status: {response.status_code}")
-                
+                response = session.get(url, timeout=8, allow_redirects=True)
                 if response.status_code == 200:
-                    # Limpiar namespaces XML
+                    # Limpiar namespaces XML para evitar errores de parsing
                     content = re.sub(r'\sxmlns="[^"]+"', '', response.text, count=1)
                     root = ET.fromstring(content.encode('utf-8'))
                     
@@ -168,7 +177,7 @@ def fetch_raw_articles():
                     
                     items = root.findall('.//item') or root.findall('.//entry')
                     count = 0
-                    for item in items[:15]:
+                    for item in items[:10]: # Tomamos 10 de cada medio para no saturar
                         title_elem = item.find('title')
                         title = title_elem.text.strip() if title_elem is not None and title_elem.text else ''
                         if title and len(title) > 10:
@@ -180,9 +189,10 @@ def fetch_raw_articles():
                                     'published': ''
                                 })
                                 count += 1
-                    print(f"[FETCH] ✅ {source_text}: {count} artículos")
-            except Exception as e:
-                print(f"[FETCH] ❌ RSS {url} Excepción: {str(e)}")
+                    if count > 0:
+                        print(f"[FETCH] ✅ {source_text}: {count} artículos")
+            except Exception:
+                pass # Falla silenciosa, pasamos al siguiente feed
                 
     print(f"[FETCH] Total artículos recolectados: {len(all_articles)}")
     return all_articles
@@ -192,10 +202,21 @@ def analyze_with_ai_editor(articles):
     if not api_key or len(articles) < 5:
         return None
     
-    headlines = [f"- [{a['source']}] {a['title']}" for a in articles[:30]]
-    prompt = f"""Eres un Editor Jefe. Agrupa estos titulares de Chile en 6 temas principales.
-Devuelve SOLO un array JSON con: topic (título resumen), score (0-100), sources (lista de medios), summary (10 palabras).
-Titulares:
+    headlines = [f"- [{a['source']}] {a['title']}" for a in articles[:50]] # Damos hasta 50 titulares a la IA
+    prompt = f"""Eres un Editor Jefe de un medio digital. Analiza estos titulares (mezcla de Chile e internacionales).
+Tu tarea:
+1. Agrupar titulares que se refieran al mismo evento o tendencia global/local.
+2. Crear un 'topic' (título resumen claro, periodístico y SIEMPRE en español, traduce si es necesario).
+3. Asignar un 'score' de 0 a 100 basado en relevancia, urgencia e impacto real.
+4. Listar las 'sources' (medios) que lo cubren.
+5. Devolver SOLO un array JSON válido con los 8 temas más importantes, ordenados por score descendente.
+
+Formato JSON exacto:
+[
+  {{"topic": "Título resumen del tema en español", "score": 85, "sources": ["BioBio", "NYT"], "summary": "Breve descripción de 10 palabras"}}
+]
+
+Titulares a analizar:
 {chr(10).join(headlines)}
 """
     
@@ -203,7 +224,7 @@ Titulares:
     payload = {'model': 'qwen-plus', 'input': {'messages': [{'role': 'user', 'content': prompt}]}, 'parameters': {'temperature': 0.1, 'max_tokens': 1500}}
     
     try:
-        response = requests.post('https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation', headers=headers, json=payload, timeout=30)
+        response = requests.post('https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation', headers=headers, json=payload, timeout=45)
         if response.status_code == 200:
             text = response.json()['output']['choices'][0]['message']['content']
             match = re.search(r'\[.*\]', text, re.DOTALL)
@@ -231,12 +252,11 @@ def get_predictions():
     if raw:
         return get_algorithmic_fallback(raw)
     
-    # Si no hay datos, devolvemos array vacío (el frontend mostrará mensaje honesto)
     return []
 
 def format_ai_predictions(ai_data):
     predictions = []
-    for item in ai_data[:6]:
+    for item in ai_data[:8]:
         predictions.append({
             'topic': item.get('topic', 'Tema'),
             'score': min(int(item.get('score', 50)), 100),
@@ -252,7 +272,7 @@ def format_ai_predictions(ai_data):
 
 def get_algorithmic_fallback(articles):
     from collections import Counter
-    stop_words = {'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'al', 'y', 'o', 'que', 'por', 'para', 'con', 'en', 'a', 'se', 'su', 'chile', 'santiago', 'hoy', 'más'}
+    stop_words = {'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'al', 'y', 'o', 'que', 'por', 'para', 'con', 'en', 'a', 'se', 'su', 'chile', 'santiago', 'hoy', 'más', 'the', 'and', 'for', 'that', 'this'}
     word_counts = Counter()
     topic_sources = {}
     topic_examples = {}
@@ -289,10 +309,10 @@ def guess_category(topic):
     topic_lower = topic.lower()
     keywords = {
         'Deportes': ['fútbol', 'deporte', 'selección'],
-        'Economía': ['dólar', 'inflación', 'economía', 'peso', 'cobre'],
+        'Economía': ['dólar', 'inflación', 'economía', 'peso', 'cobre', 'financial', 'market'],
         'Chile': ['gobierno', 'presidente', 'congreso', 'ley', 'chile'],
-        'Internacional': ['eeuu', 'europa', 'guerra', 'mundial'],
-        'Tecnología': ['tecnología', 'app', 'digital', 'ia'],
+        'Internacional': ['eeuu', 'europa', 'guerra', 'mundial', 'world', 'global'],
+        'Tecnología': ['tecnología', 'app', 'digital', 'ia', 'inteligencia', 'tech', 'startup'],
         'Salud': ['salud', 'hospital', 'médico'],
         'Sociedad': ['sociedad', 'educación', 'migración'],
         'TV y Espectáculos': ['actor', 'actriz', 'tv', 'famoso'],
