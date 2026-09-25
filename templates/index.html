@@ -36,7 +36,7 @@
         /* STATUS BAR */
         .status-bar {
             display: flex;
-            gap: 15px;
+            gap: 12px;
             align-items: center;
             flex-wrap: wrap;
             font-size: 12px;
@@ -150,7 +150,7 @@
             flex: 1;
         }
         
-        /* MÓDULO ANÁLISIS - fondo diferente */
+        /* MÓDULO ANÁLISIS */
         .module-analysis .module-header {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         }
@@ -296,6 +296,7 @@
             font-size: 11px;
             color: #333;
             white-space: nowrap;
+            position: relative;
         }
         .mode-btn.active {
             background: #007bff;
@@ -307,6 +308,52 @@
             color: white;
             border-color: #28a745;
         }
+        
+        /* TOOLTIP EXPLICATIVO */
+        .tooltip-container {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip-text {
+            visibility: hidden;
+            width: 220px;
+            background: #333;
+            color: white;
+            text-align: left;
+            border-radius: 8px;
+            padding: 10px 12px;
+            position: absolute;
+            z-index: 200;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            line-height: 1.4;
+            opacity: 0;
+            transition: opacity 0.2s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            pointer-events: none;
+        }
+        .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -6px;
+            border-width: 6px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+        .tooltip-container.show-tooltip .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        .tooltip-text strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 12px;
+        }
+        
         .analyze-btn {
             background: #007bff;
             color: white;
@@ -377,7 +424,7 @@
     </style>
 </head>
 <body>
-    <!-- BARRA SUPERIOR: Título + Status -->
+    <!-- BARRA SUPERIOR -->
     <div class="topbar">
         <div class="topbar-title">📰 Radar <span>Editorial</span> con IA</div>
         <div class="status-bar" id="statusBar">
@@ -408,7 +455,7 @@
         <div class="module">
             <div class="module-header">
                 <h3>🔥 Tendencias</h3>
-                <button onclick="loadTrending()"></button>
+                <button onclick="loadTrending()">🔄</button>
             </div>
             <div class="module-body" id="trendingList">
                 <div class="loading">Cargando...</div>
@@ -419,7 +466,7 @@
         <div class="module">
             <div class="module-header">
                 <h3>🔮 Predicciones</h3>
-                <button onclick="loadPredictions()">🔄</button>
+                <button onclick="loadPredictions()"></button>
             </div>
             <div class="module-body" id="predictionsList">
                 <div class="loading">Cargando...</div>
@@ -444,21 +491,48 @@
                     <div>
                         <div style="font-size: 11px; color: #666; margin-bottom: 5px;">Modo:</div>
                         <div class="mode-btns">
-                            <button class="mode-btn active" onclick="selectMode('standard')">📊 Estándar</button>
-                            <button class="mode-btn" onclick="selectMode('briefing')">⚡ Briefing</button>
-                            <button class="mode-btn" onclick="selectMode('devil')">😈 Diablo</button>
-                            <button class="mode-btn" onclick="selectMode('compare')">⚖️ Comparar</button>
+                            <div class="tooltip-container">
+                                <button class="mode-btn active" onclick="selectMode('standard')">📊 Estándar</button>
+                                <span class="tooltip-text"><strong>Análisis Estándar</strong>Genera una hipótesis editorial, señales clave, ángulos periodísticos, fuentes sugeridas y titulares de ejemplo. Ideal para análisis general de cualquier tema.</span>
+                            </div>
+                            <div class="tooltip-container">
+                                <button class="mode-btn" onclick="selectMode('briefing')">⚡ Briefing</button>
+                                <span class="tooltip-text"><strong>Briefing Periodístico</strong>Genera un resumen ejecutivo, preguntas exactas para tu fuente, datos duros a verificar y timeline sugerido. Ideal cuando te asignan un tema a última hora.</span>
+                            </div>
+                            <div class="tooltip-container">
+                                <button class="mode-btn" onclick="selectMode('devil')">😈 Abogado del Diablo</button>
+                                <span class="tooltip-text"><strong>Abogado del Diablo</strong>Identifica lo que todos los medios ya están diciendo, revela el ángulo ciego que nadie está preguntando, señala riesgos/sesgos y plantea la pregunta incómoda. Ideal para encontrar ángulos únicos.</span>
+                            </div>
+                            <div class="tooltip-container">
+                                <button class="mode-btn" onclick="selectMode('compare')">⚖️ Comparar</button>
+                                <span class="tooltip-text"><strong>Comparador de Temas</strong>Compara dos temas periodísticos: cuál tiene más recorrido, fuentes comunes, ángulo conector y recomendación de cuál cubrir primero. Ideal cuando el editor tiene dos ideas.</span>
+                            </div>
                         </div>
                     </div>
                     
                     <div id="lensSelector">
                         <div style="font-size: 11px; color: #666; margin-bottom: 5px;">Lente:</div>
                         <div class="lens-btns">
-                            <button class="lens-btn active" onclick="selectLens('')">🎯 Normal</button>
-                            <button class="lens-btn" onclick="selectLens('data')">📊 Datos</button>
-                            <button class="lens-btn" onclick="selectLens('controversy')">🔥 Polémico</button>
-                            <button class="lens-btn" onclick="selectLens('human')">👥 Humano</button>
-                            <button class="lens-btn" onclick="selectLens('economic')">💰 Económico</button>
+                            <div class="tooltip-container">
+                                <button class="lens-btn active" onclick="selectLens('')">🎯 Normal</button>
+                                <span class="tooltip-text"><strong>Sin Lente</strong>Análisis equilibrado sin enfoque específico. La IA evalúa el tema desde todas las perspectivas posibles.</span>
+                            </div>
+                            <div class="tooltip-container">
+                                <button class="lens-btn" onclick="selectLens('data')"> Datos</button>
+                                <span class="tooltip-text"><strong>Lente de Datos</strong>Prioriza estadísticas, cifras, datos duros y fuentes oficiales. Ideal para notas basadas en evidencia numérica.</span>
+                            </div>
+                            <div class="tooltip-container">
+                                <button class="lens-btn" onclick="selectLens('controversy')">🔥 Polémico</button>
+                                <span class="tooltip-text"><strong>Lente Polémico</strong>Busca conflictos, controversias, debates y posturas enfrentadas. Ideal para notas de opinión o temas divisivos.</span>
+                            </div>
+                            <div class="tooltip-container">
+                                <button class="lens-btn" onclick="selectLens('human')">👥 Humano</button>
+                                <span class="tooltip-text"><strong>Lente Humano</strong>Enfócate en cómo afecta a las personas, historias de vida e impacto humano. Ideal para crónicas y reportajes sociales.</span>
+                            </div>
+                            <div class="tooltip-container">
+                                <button class="lens-btn" onclick="selectLens('economic')">💰 Económico</button>
+                                <span class="tooltip-text"><strong>Lente Económico</strong>Analiza impacto financiero, costos, oportunidades de negocio y mercado. Ideal para notas de negocios y economía.</span>
+                            </div>
                         </div>
                     </div>
                     
@@ -470,7 +544,7 @@
         </div>
     </div>
     
-    <!-- HISTORIAL (opcional, abajo) -->
+    <!-- HISTORIAL -->
     <div style="max-width: 1600px; margin: 0 auto; padding: 0 20px 20px;">
         <div class="module" style="max-height: none;">
             <div class="module-header" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
@@ -483,7 +557,7 @@
     </div>
     
     <div class="footer">
-        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | v6.4.0
+        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | v6.5.0
     </div>
 
     <script>
@@ -654,6 +728,23 @@
             document.getElementById('topicInput').value = topic;
         }
 
+        // TOOLTIPS: mostrar/ocultar al hacer clic
+        document.addEventListener('click', function(e) {
+            const tooltipContainer = e.target.closest('.tooltip-container');
+            if (tooltipContainer) {
+                // Cerrar todos los demás
+                document.querySelectorAll('.tooltip-container').forEach(tc => {
+                    if (tc !== tooltipContainer) tc.classList.remove('show-tooltip');
+                });
+                tooltipContainer.classList.toggle('show-tooltip');
+            } else {
+                // Cerrar todos si se hace clic fuera
+                document.querySelectorAll('.tooltip-container').forEach(tc => {
+                    tc.classList.remove('show-tooltip');
+                });
+            }
+        });
+
         function selectMode(mode) {
             currentMode = mode;
             document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
@@ -738,10 +829,10 @@
                 html += `<h4> Hipótesis</h4><p>${a.hipotesis}</p>`;
             }
             if (a.cobertura_mainstream) {
-                html += `<h4>📰 Cobertura actual</h4><p>${a.cobertura_mainstream}</p>`;
+                html += `<h4> Cobertura actual</h4><p>${a.cobertura_mainstream}</p>`;
             }
             if (a.angulo_ciego) {
-                html += `<h4>💡 Ángulo ciego</h4><p style="color: #28a745; font-weight: 600;">${a.angulo_ciego}</p>`;
+                html += `<h4> Ángulo ciego</h4><p style="color: #28a745; font-weight: 600;">${a.angulo_ciego}</p>`;
             }
             if (a.pregunta_incomoda) {
                 html += `<h4>🔥 Pregunta incómoda</h4><p style="color: #dc3545; font-weight: 600;">${a.pregunta_incomoda}</p>`;
@@ -753,7 +844,7 @@
                 html += `<h4>✅ Recomendación</h4><p style="font-weight: 600;">${a.recomendacion}</p>`;
             }
             if (a.preguntas_fuente && a.preguntas_fuente.length) {
-                html += '<h4>❓ Preguntas para fuente</h4><ul>';
+                html += '<h4> Preguntas para fuente</h4><ul>';
                 a.preguntas_fuente.forEach(q => { html += `<li>${q}</li>`; });
                 html += '</ul>';
             }
@@ -763,22 +854,22 @@
                 html += '</div>';
             }
             if (a.angulos_periodisticos && a.angulos_periodisticos.length) {
-                html += '<h4>📝 Ángulos</h4><ul>';
+                html += '<h4> Ángulos</h4><ul>';
                 a.angulos_periodisticos.forEach(ang => { html += `<li>${ang}</li>`; });
                 html += '</ul>';
             }
             if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) {
-                html += '<h4>📚 Fuentes</h4><ul>';
+                html += '<h4> Fuentes</h4><ul>';
                 a.fuentes_sugeridas.forEach(f => { html += `<li>${f}</li>`; });
                 html += '</ul>';
             }
             if (a.titulares_ejemplo && a.titulares_ejemplo.length) {
                 html += '<h4>📝 Titulares sugeridos</h4><ul>';
-                a.titulares_ejemplo.forEach(t => { html += `<li>📌 ${t}</li>`; });
+                a.titulares_ejemplo.forEach(t => { html += `<li> ${t}</li>`; });
                 html += '</ul>';
             }
             if (a.datos_duros && a.datos_duros.length) {
-                html += '<h4>📊 Datos a verificar</h4><div>';
+                html += '<h4> Datos a verificar</h4><div>';
                 a.datos_duros.forEach(d => { html += `<span class="tag">${d}</span>`; });
                 html += '</div>';
             }
@@ -794,7 +885,7 @@
                 html += '</div>';
             }
             if (a.riesgos_sesgos && a.riesgos_sesgos.length) {
-                html += '<h4>⚠️ Riesgos</h4><div>';
+                html += '<h4>️ Riesgos</h4><div>';
                 a.riesgos_sesgos.forEach(r => { html += `<span class="tag">${r}</span>`; });
                 html += '</div>';
             }
