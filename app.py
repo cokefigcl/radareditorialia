@@ -12,6 +12,7 @@ load_dotenv()
 app = Flask(__name__)
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'trends.db')
+CACHE_FILE = os.path.join(os.path.dirname(__file__), 'api_cache.json')
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -39,6 +40,45 @@ def init_db():
 
 init_db()
 
+# ==================== SISTEMA DE CACHÉ ====================
+
+def get_cached_data(key, max_age_hours=2):
+    """Obtiene datos del caché si no han expirado"""
+    if os.path.exists(CACHE_FILE):
+        try:
+            with open(CACHE_FILE, 'r', encoding='utf-8') as f:
+                cache = json.load(f)
+                if key in cache:
+                    cached_time = datetime.fromisoformat(cache[key]['timestamp'])
+                    if datetime.now() - cached_time < timedelta(hours=max_age_hours):
+                        print(f"[CACHE] ✅ Usando caché para: {key}")
+                        return cache[key]['data']
+        except Exception as e:
+            print(f"[CACHE] Error leyendo caché: {str(e)}")
+    return None
+
+def set_cached_data(key, data):
+    """Guarda datos en el caché"""
+    cache = {}
+    if os.path.exists(CACHE_FILE):
+        try:
+            with open(CACHE_FILE, 'r', encoding='utf-8') as f:
+                cache = json.load(f)
+        except:
+            pass
+    
+    cache[key] = {
+        'data': data,
+        'timestamp': datetime.now().isoformat()
+    }
+    
+    try:
+        with open(CACHE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(cache, f, ensure_ascii=False, indent=2)
+        print(f"[CACHE] 💾 Guardado en caché: {key}")
+    except Exception as e:
+        print(f"[CACHE] Error guardando caché: {str(e)}")
+
 # ==================== CATEGORÍAS ====================
 CATEGORIES = [
     {'name': 'Eléctrico', 'icon': '', 'type': 'tema'},
@@ -49,7 +89,7 @@ CATEGORIES = [
     {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    {'name': 'Chile', 'icon': '🇨', 'type': 'region'},
+    {'name': 'Chile', 'icon': '🇨🇱', 'type': 'region'},
     {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
     {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
     {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
@@ -105,12 +145,9 @@ FALLBACK_TRENDS = [
 # ==================== FILTRO DE ESPAÑOL ====================
 
 def is_spanish_text(text):
-    """Verifica si un texto está en español"""
     if not text:
         return False
-    
     text_lower = text.lower()
-    
     spanish_indicators = [
         'el ', 'la ', 'los ', 'las ', 'un ', 'una ', 'de ', 'del ', 'al ',
         'que ', 'por ', 'para ', 'con ', 'sin ', 'sobre ', 'entre ',
@@ -137,121 +174,68 @@ def is_spanish_text(text):
         'humano', 'social', 'público', 'privado', 'nacional',
         'internacional', 'global', 'local', 'regional', 'municipal'
     ]
-    
     spanish_count = sum(1 for word in spanish_indicators if word in text_lower)
-    
     if spanish_count >= 2:
         return True
-    
     english_common = ['the ', 'and ', 'for ', 'that ', 'this ', 'with ', 'from ', 'are ', 'has ', 'was ', 'were ', 'been ', 'have ', 'will ', 'would ', 'could ', 'should ', 'about ', 'after ', 'before ', 'between ', 'through ', 'during ', 'without ', 'against ', 'within ', 'toward ', 'among ', 'along ', 'across ', 'behind ', 'beyond ', 'beside ', 'beneath ', 'below ', 'above ', 'over ', 'under ', 'upon ', 'into ', 'onto ', 'unto ']
     english_count = sum(1 for word in english_common if word in text_lower)
-    
     if english_count > spanish_count:
         return False
-    
     if len(text) < 15:
         return False
-    
     return spanish_count >= 1
 
 # ==================== PANEL DE ESTADO ====================
 
 def get_mindicador_data():
     try:
-        print("[STATUS] Consultando mindicador.cl...")
         response = requests.get('https://mindicador.cl/api', timeout=10)
         if response.status_code == 200:
             data = response.json()
-            return {
-                'dolar': data.get('dolar', {}).get('valor', 0),
-                'uf': data.get('uf', {}).get('valor', 0),
-                'utm': data.get('utm', {}).get('valor', 0),
-                'status': 'ok'
-            }
+            return {'dolar': data.get('dolar', {}).get('valor', 0), 'uf': data.get('uf', {}).get('valor', 0), 'utm': data.get('utm', {}).get('valor', 0), 'status': 'ok'}
         return {'status': 'error'}
-    except Exception as e:
-        print(f"[STATUS] Error mindicador: {str(e)}")
+    except:
         return {'status': 'error'}
 
 def get_weather_santiago():
     try:
-        print("[STATUS] Consultando Open-Meteo...")
         url = 'https://api.open-meteo.com/v1/forecast'
-        params = {
-            'latitude': -33.4489,
-            'longitude': -70.6693,
-            'current_weather': True,
-            'timezone': 'America/Santiago'
-        }
+        params = {'latitude': -33.4489, 'longitude': -70.6693, 'current_weather': True, 'timezone': 'America/Santiago'}
         response = requests.get(url, params=params, timeout=10)
         if response.status_code == 200:
             data = response.json()
             weather = data.get('current_weather', {})
-            return {
-                'temperature': weather.get('temperature', 0),
-                'windspeed': weather.get('windspeed', 0),
-                'weathercode': weather.get('weathercode', 0),
-                'status': 'ok'
-            }
+            return {'temperature': weather.get('temperature', 0), 'windspeed': weather.get('windspeed', 0), 'weathercode': weather.get('weathercode', 0), 'status': 'ok'}
         return {'status': 'error'}
-    except Exception as e:
-        print(f"[STATUS] Error clima: {str(e)}")
+    except:
         return {'status': 'error'}
 
 def check_api_status():
     status = {'gdelt': 'unknown', 'qwen': 'unknown'}
-    
     try:
         url = 'https://api.gdeltproject.org/api/v2/doc/doc'
-        params = {
-            'query': 'Chile',
-            'mode': 'artlist',
-            'format': 'json',
-            'startdatetime': (datetime.now() - timedelta(days=1)).strftime('%Y%m%d%H%M%S'),
-            'enddatetime': datetime.now().strftime('%Y%m%d%H%M%S'),
-            'maxrecords': 1,
-            'sourcelang': 'spa'
-        }
+        params = {'query': 'Chile', 'mode': 'artlist', 'format': 'json', 'startdatetime': (datetime.now() - timedelta(days=1)).strftime('%Y%m%d%H%M%S'), 'enddatetime': datetime.now().strftime('%Y%m%d%H%M%S'), 'maxrecords': 1, 'sourcelang': 'spa'}
         response = requests.get(url, params=params, timeout=15)
         status['gdelt'] = 'ok' if response.status_code == 200 else 'error'
-        print(f"[STATUS] GDELT status: {response.status_code}")
-    except Exception as e:
-        print(f"[STATUS] GDELT error: {str(e)}")
+    except:
         status['gdelt'] = 'error'
     
     api_key = os.getenv('QWEN_API_KEY')
     status['qwen'] = 'ok' if api_key and len(api_key) > 10 else 'error'
-    
     return status
 
 def get_status_panel():
-    print("[STATUS] Generando panel de estado...")
     mindicador = get_mindicador_data()
     weather = get_weather_santiago()
     apis = check_api_status()
-    
-    return {
-        'mindicador': mindicador,
-        'weather': weather,
-        'apis': apis,
-        'timestamp': datetime.now().isoformat()
-    }
+    return {'mindicador': mindicador, 'weather': weather, 'apis': apis, 'timestamp': datetime.now().isoformat()}
 
 # ==================== PREDICCIONES ====================
 
 def get_gdelt_predictions():
     try:
-        print("[PREDICT] Consultando GDELT...")
         url = 'https://api.gdeltproject.org/api/v2/doc/doc'
-        params = {
-            'query': 'Chile',
-            'mode': 'artlist',
-            'format': 'json',
-            'startdatetime': (datetime.now() - timedelta(days=1)).strftime('%Y%m%d%H%M%S'),
-            'enddatetime': datetime.now().strftime('%Y%m%d%H%M%S'),
-            'maxrecords': 80,
-            'sort': 'DateDesc'
-        }
+        params = {'query': 'Chile', 'mode': 'artlist', 'format': 'json', 'startdatetime': (datetime.now() - timedelta(days=1)).strftime('%Y%m%d%H%M%S'), 'enddatetime': datetime.now().strftime('%Y%m%d%H%M%S'), 'maxrecords': 80, 'sort': 'DateDesc'}
         response = requests.get(url, params=params, timeout=15)
         if response.status_code == 200:
             data = response.json()
@@ -262,10 +246,7 @@ def get_gdelt_predictions():
             topic_groups = {}
             for article in articles:
                 title = article.get('title', '').strip()
-                
-                if not title or len(title) < 20:
-                    continue
-                if not is_spanish_text(title):
+                if not title or len(title) < 20 or not is_spanish_text(title):
                     continue
                 
                 words = title.split()[:6]
@@ -286,7 +267,6 @@ def get_gdelt_predictions():
                 count = group['count']
                 score = 90 if count >= 5 else (75 if count >= 3 else (60 if count >= 2 else 40))
                 alert_level = 'critical' if count >= 5 else ('high' if count >= 3 else None)
-                
                 predictions.append({
                     'topic': group['topic'], 'score': score, 'category': group['category'],
                     'news_count': count, 'news': group['news'], 'alert_level': alert_level,
@@ -294,7 +274,6 @@ def get_gdelt_predictions():
                 })
             
             predictions.sort(key=lambda x: x['score'], reverse=True)
-            print(f"[PREDICT] ✅ GDELT: {len(predictions[:8])} predicciones en español")
             return predictions[:8] if predictions else None
         return None
     except Exception as e:
@@ -302,11 +281,17 @@ def get_gdelt_predictions():
         return None
 
 def get_predictions():
-    print("[PREDICT] Generando predicciones...")
+    cache_key = "predictions_main"
+    cached = get_cached_data(cache_key, max_age_hours=2)
+    if cached:
+        return cached
+    
     predictions = get_gdelt_predictions()
     if predictions:
+        set_cached_data(cache_key, predictions)
         return predictions
-    print("[PREDICT] Usando datos de respaldo")
+    
+    set_cached_data(cache_key, FALLBACK_PREDICTIONS)
     return FALLBACK_PREDICTIONS
 
 def guess_category(topic):
@@ -327,15 +312,19 @@ def guess_category(topic):
             return category
     return 'Tendencias'
 
-# ==================== TENDENCIAS (CORREGIDO) ====================
+# ==================== TENDENCIAS ====================
 
 def get_trends_for_category(category):
-    """Obtiene tendencias reales desde GDELT con filtros relajados"""
+    cache_key = f"trends_{category}"
+    cached = get_cached_data(cache_key, max_age_hours=2)
+    if cached:
+        return cached
+    
     if not category or category == 'all':
         category = 'Chile'
     
     keywords = SEARCH_KEYWORDS.get(category, category)
-    print(f"[TRENDS] Buscando tendencias para: {category} (keywords: {keywords})")
+    print(f"[TRENDS] Buscando tendencias para: {category}")
     
     try:
         url = 'https://api.gdeltproject.org/api/v2/doc/doc'
@@ -349,61 +338,50 @@ def get_trends_for_category(category):
             'sort': 'DateDesc'
         }
         
-        print(f"[TRENDS] Consultando GDELT con: {params}")
         response = requests.get(url, params=params, timeout=15)
-        
-        print(f"[TRENDS] GDELT status: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
             articles = data.get('articles', [])
-            print(f"[TRENDS] GDELT devolvió {len(articles)} artículos")
             
             trends = []
             seen = set()
             
             for article in articles:
                 title = article.get('title', '').strip()
-                
-                if not title or len(title) < 15:
+                if not title or len(title) < 15 or title in seen:
                     continue
                 
-                if title in seen:
-                    continue
-                
-                # Filtro de español más permisivo
                 title_lower = title.lower()
                 spanish_indicators = ['el ', 'la ', 'los ', 'las ', 'de ', 'del ', 'al ', 'que ', 'por ', 'para ', 'con ', 'chile', 'santiago', 'gobierno', 'presidente', 'ley', 'nuevo', 'más', 'hoy', 'ayer']
                 
-                is_spanish = any(word in title_lower for word in spanish_indicators)
-                
-                if is_spanish:
+                if any(word in title_lower for word in spanish_indicators):
                     seen.add(title)
                     trends.append({
                         'topic': title,
                         'source': article.get('domain', 'Medio'),
                         'region': 'Chile'
                     })
-                    print(f"[TRENDS] ✅ Agregado: {title[:50]}...")
                 
                 if len(trends) >= 5:
                     break
             
             if trends:
                 print(f"[TRENDS] ✅ GDELT: {len(trends)} tendencias en español")
+                set_cached_data(cache_key, trends)
                 return trends
             else:
-                print(f"[TRENDS] ️ GDELT no devolvió tendencias en español")
+                print(f"[TRENDS] ⚠️ GDELT no devolvió tendencias en español")
         else:
             print(f"[TRENDS] ❌ GDELT error HTTP: {response.status_code}")
             
     except Exception as e:
         print(f"[TRENDS] ❌ GDELT error: {str(e)}")
-        import traceback
-        traceback.print_exc()
     
     print(f"[TRENDS] Usando datos de respaldo para {category}")
-    return FALLBACK_TRENDS[:5]
+    fallback_data = FALLBACK_TRENDS[:5]
+    set_cached_data(cache_key, fallback_data)
+    return fallback_data
 
 # ==================== BÚSQUEDA DE NOTICIAS ====================
 
