@@ -81,10 +81,13 @@ SEARCH_KEYWORDS = {
     'TV y Espectáculos': 'televisión OR espectáculos'
 }
 
+# URLs de RSS actualizadas y más estables
 RSS_FEEDS = [
     'https://www.biobiochile.cl/rss',
     'https://www.latercera.com/arc/outboundfeeds/rss/',
-    'https://www.cooperativa.cl/noticias/site/tax/port/all/rss.xml'
+    'https://www.cooperativa.cl/rss',
+    'https://www.emol.com/rss/',
+    'https://www.24horas.cl/rss'
 ]
 
 def get_cached_news(max_age_minutes=120):
@@ -110,12 +113,12 @@ def save_to_cache(articles):
         print(f"[CACHE] Error guardando: {str(e)}")
 
 def fetch_raw_articles():
-    """Recolecta artículos con logs detallados para diagnóstico"""
     all_articles = []
-    
-    # 1. NewsAPI
     api_key = os.getenv('NEWSAPI_KEY')
-    print(f"[FETCH] NewsAPI Key configurada: {'Sí' if api_key else 'No'}")
+    
+    print(f"[FETCH] NewsAPI Key configurada: {'Sí' if api_key else 'NO (Revisar Variables en Railway)'}")
+    
+    # 1. Intentar NewsAPI (la fuente más confiable)
     if api_key:
         try:
             url = 'https://newsapi.org/v2/top-headlines'
@@ -138,20 +141,28 @@ def fetch_raw_articles():
         except Exception as e:
             print(f"[FETCH] ❌ NewsAPI Excepción: {str(e)}")
 
-    # 2. RSS Feeds
+    # 2. Si no hay suficientes, complementar con RSS
     if len(all_articles) < 15:
         print(f"[FETCH] Intentando RSS feeds...")
         session = requests.Session()
-        session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+        # Headers más completos para evitar bloqueos 403/404
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/rss+xml, application/xml, text/html, */*',
+            'Accept-Language': 'es-CL,es;q=0.9'
+        })
         
         for url in RSS_FEEDS:
             try:
                 print(f"[FETCH] Consultando: {url}")
-                response = session.get(url, timeout=10)
+                response = session.get(url, timeout=10, allow_redirects=True)
                 print(f"[FETCH] RSS Status: {response.status_code}")
+                
                 if response.status_code == 200:
+                    # Limpiar namespaces XML
                     content = re.sub(r'\sxmlns="[^"]+"', '', response.text, count=1)
                     root = ET.fromstring(content.encode('utf-8'))
+                    
                     source_name = root.find('.//channel/title')
                     source_text = source_name.text.strip() if source_name is not None and source_name.text else 'Medio'
                     
@@ -217,11 +228,10 @@ def get_predictions():
     if ai_result:
         return format_ai_predictions(ai_result)
     
-    # Fallback algorítmico si la IA falla pero hay datos
     if raw:
         return get_algorithmic_fallback(raw)
     
-    # Si no hay datos en absoluto, devolver array vacío (el frontend mostrará mensaje honesto)
+    # Si no hay datos, devolvemos array vacío (el frontend mostrará mensaje honesto)
     return []
 
 def format_ai_predictions(ai_data):
