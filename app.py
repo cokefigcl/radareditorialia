@@ -55,15 +55,15 @@ CATEGORIES = [
     {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    {'name': 'Chile', 'icon': '🇨🇱', 'type': 'region'},
-    {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
+    {'name': 'Chile', 'icon': '🇨', 'type': 'region'},
+    {'name': 'Internacional', 'icon': '', 'type': 'region'},
     {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
-    {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
+    {'name': 'Ciencia y Tecnología', 'icon': '', 'type': 'otros'},
     {'name': 'Cultura', 'icon': '🎭', 'type': 'otros'},
     {'name': 'Ocio', 'icon': '🎮', 'type': 'otros'},
     {'name': 'Salud', 'icon': '🏥', 'type': 'otros'},
     {'name': 'Sociedad', 'icon': '👥', 'type': 'otros'},
-    {'name': 'TV y Espectáculos', 'icon': '📺', 'type': 'otros'}
+    {'name': 'TV y Espectáculos', 'icon': '', 'type': 'otros'}
 ]
 
 SEARCH_KEYWORDS = {
@@ -223,6 +223,7 @@ def fetch_raw_articles(force_refresh=False):
     return unique_articles, status
 
 def predict_trends(articles, top=8):
+    """Predicción algorítmica con scoring realista (no todo 100%)"""
     if not articles:
         return []
     
@@ -239,25 +240,29 @@ def predict_trends(articles, top=8):
             if isinstance(fs, str):
                 fs = datetime.fromisoformat(fs.replace('Z', '+00:00'))
             age_hours = (now - fs).total_seconds() / 3600
-            recency_score = max(0, 100 - (age_hours * 5))
+            # Recencia: máximo 60 puntos, decae rápido
+            recency_score = max(0, 60 - (age_hours * 10))
         except Exception:
-            recency_score = 50
+            recency_score = 30
         
+        # Bonus por fuente (máximo 20 puntos)
         source_bonus = 0
-        if source == 'biobio': source_bonus = 10
-        elif source == 'latercera': source_bonus = 8
-        elif source == 'cooperativa': source_bonus = 6
-        elif source == 'df': source_bonus = 5
+        if source == 'biobio': source_bonus = 20
+        elif source == 'latercera': source_bonus = 15
+        elif source == 'cooperativa': source_bonus = 10
+        elif source == 'df': source_bonus = 8
         
+        # Longitud (máximo 10 puntos)
         length = len(title)
-        length_score = 10 if 40 <= length <= 100 else 0
+        length_score = 10 if 40 <= length <= 100 else 5
         
+        # Total máximo realista: 60+20+10 = 90
         total_score = recency_score + source_bonus + length_score
         
         scored.append({
             'topic': title,
             'source': source,
-            'score': round(min(100, total_score)),
+            'score': round(min(95, total_score)),
             'first_seen': a.get('first_seen')
         })
     
@@ -276,13 +281,15 @@ def predict_trends(articles, top=8):
         
         if not is_duplicate and len(result) < top:
             seen_topics.add(norm)
+            alert_level = 'critical' if s['score'] >= 85 else ('high' if s['score'] >= 70 else None)
+            
             result.append({
                 'topic': s['topic'],
                 'score': s['score'],
                 'category': guess_category(s['topic']),
                 'news_count': 1,
                 'news': [{'titulo': s['topic'], 'fuente': s['source'], 'url': '', 'fecha': now.strftime('%Y-%m-%d')}],
-                'alert_level': 'critical' if s['score'] >= 90 else ('high' if s['score'] >= 75 else None),
+                'alert_level': alert_level,
                 'source': 'Algoritmo de Tendencias',
                 'is_realtime': True,
                 'timestamp': now.isoformat()
@@ -291,7 +298,9 @@ def predict_trends(articles, top=8):
     return result
 
 def cross_predictions_func(articles, category='all', top=6):
+    """Predicción cruzada con IA - scores realistas"""
     if not articles:
+        print("[CROSS] Sin artículos")
         return []
     
     if category != 'all':
@@ -300,31 +309,23 @@ def cross_predictions_func(articles, category='all', top=6):
         articles = [a for a in articles if any(kw in a['title'].lower() for kw in keywords)]
     
     if len(articles) < 5:
+        print(f"[CROSS] Solo {len(articles)} artículos, insuficientes")
         return []
     
     recent = articles[:20]
     headlines = "\n".join([f"- [{a['source']}] {a['title']}" for a in recent])
     
-    prompt = f"""Eres un analista editorial experto. Analiza estos titulares recientes de medios chilenos y detecta qué temas tienen POTENCIAL de convertirse en tendencia en las próximas 6-24 horas.
+    prompt = f"""Eres un analista editorial experto. Analiza estos titulares recientes y detecta qué temas tienen POTENCIAL de convertirse en tendencia.
 
 TITULARES ACTUALES:
 {headlines}
 
-Responde SOLO con un array JSON de {top} predicciones cruzadas. Para cada una incluye:
-- "topic": el tema/titular predicho (claro y periodístico, en español)
-- "score": probabilidad de volverse tendencia (0-100)
-- "reasoning": por qué crees que se volverá tendencia (1 oración)
-- "signals": 2-3 señales actuales que lo indican
-- "impact": nivel de impacto esperado (bajo, medio, alto, crítico)
-- "timeframe": cuándo podría explotar (próximas horas, mañana, esta semana)
-- "category": categoría del tema
-
-Formato JSON exacto:
+Responde SOLO con un array JSON de {top} predicciones. Formato EXACTO:
 [
   {{
-    "topic": "Tema predicho",
-    "score": 85,
-    "reasoning": "Razón de por qué será tendencia",
+    "topic": "Tema claro en español",
+    "score": 75,
+    "reasoning": "Por qué será tendencia",
     "signals": ["Señal 1", "Señal 2"],
     "impact": "alto",
     "timeframe": "próximas horas",
@@ -332,10 +333,11 @@ Formato JSON exacto:
   }}
 ]
 
-Sé específico, periodístico y basado en los titulares reales."""
+IMPORTANTE: Usa scores REALISTAS entre 60 y 90. NO pongas todo 100. Varía los scores según la relevancia real de cada tema."""
 
     api_key = os.getenv('QWEN_API_KEY')
     if not api_key:
+        print("[CROSS] ❌ Sin API Key")
         return []
     
     headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
@@ -346,7 +348,7 @@ Sé específico, periodístico y basado en los titulares reales."""
     }
     
     try:
-        print("[CROSS] Analizando predicciones cruzadas con IA...")
+        print("[CROSS] Enviando a Qwen...")
         response = cr.post(
             'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
             headers=headers,
@@ -355,26 +357,39 @@ Sé específico, periodístico y basado en los titulares reales."""
             impersonate="chrome"
         )
         
+        print(f"[CROSS] Status: {response.status_code}")
+        
         if response.status_code == 200:
             result = response.json()
+            print(f"[CROSS] Respuesta keys: {result.keys()}")
+            
             try:
                 if 'output' in result and 'choices' in result['output']:
                     text = result['output']['choices'][0]['message']['content']
                 else:
                     text = str(result)
                 
+                print(f"[CROSS] Texto: {text[:300]}...")
+                
                 match = re.search(r'\[.*\]', text, re.DOTALL)
                 json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
                 
                 predictions = json.loads(json_str)
-                print(f"[CROSS] ✅ Generadas {len(predictions)} predicciones cruzadas")
+                print(f"[CROSS] ✅ Parseadas {len(predictions)} predicciones")
                 
                 now = datetime.now(timezone.utc)
                 formatted = []
                 for p in predictions[:top]:
+                    score = p.get('score', 50)
+                    # Asegurar scores realistas
+                    if score > 95:
+                        score = 85 + (score - 95) // 2
+                    if score < 40:
+                        score = 40 + (score % 20)
+                    
                     formatted.append({
                         'topic': p.get('topic', ''),
-                        'score': p.get('score', 50),
+                        'score': score,
                         'reasoning': p.get('reasoning', ''),
                         'signals': p.get('signals', []),
                         'impact': p.get('impact', 'medio'),
@@ -382,18 +397,22 @@ Sé específico, periodístico y basado en los titulares reales."""
                         'category': p.get('category', guess_category(p.get('topic', ''))),
                         'news_count': len(p.get('signals', [])),
                         'news': [{'titulo': p.get('reasoning', ''), 'fuente': 'Análisis IA', 'url': '', 'fecha': now.strftime('%Y-%m-%d')}],
-                        'alert_level': 'critical' if p.get('score', 0) >= 85 else ('high' if p.get('score', 0) >= 70 else None),
+                        'alert_level': 'critical' if score >= 85 else ('high' if score >= 70 else None),
                         'source': 'Predicción Cruzada IA',
                         'is_realtime': True,
                         'timestamp': now.isoformat()
                     })
                 return formatted
             except Exception as e:
-                print(f"[CROSS] Error parseando IA: {str(e)}")
+                print(f"[CROSS] Error parseando: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 return []
-        return []
+        else:
+            print(f"[CROSS] Error HTTP: {response.text[:200]}")
+            return []
     except Exception as e:
-        print(f"[CROSS] Excepción IA: {str(e)}")
+        print(f"[CROSS] Excepción: {str(e)}")
         return []
 
 def guess_category(topic):
@@ -408,7 +427,7 @@ def guess_category(topic):
         'Sociedad': ['sociedad', 'educación', 'migración'],
         'TV y Espectáculos': ['actor', 'actriz', 'tv', 'famoso', 'farándula'],
         'Eléctrico': ['eléctric', 'transmisión', 'distribución'],
-        'Automotriz': ['auto', 'vehículo', 'volvo', 'automotriz'],
+        'Automotriz': ['auto', 'vehículo', 'volvo', 'automotriz', 'byd'],
         'Minería': ['minería', 'cobre', 'litio', 'mina'],
     }
     for category, words in keywords.items():
@@ -419,6 +438,7 @@ def guess_category(topic):
 def analyze_with_qwen(prompt, mode='standard'):
     api_key = os.getenv('QWEN_API_KEY')
     if not api_key:
+        print("[QWEN] ❌ API Key no configurada")
         return None, "QWEN_API_KEY no configurada"
     
     headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
@@ -429,6 +449,7 @@ def analyze_with_qwen(prompt, mode='standard'):
     }
     
     try:
+        print("[QWEN] Enviando solicitud...")
         response = cr.post(
             'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
             headers=headers,
@@ -436,24 +457,43 @@ def analyze_with_qwen(prompt, mode='standard'):
             timeout=60,
             impersonate="chrome"
         )
+        
+        print(f"[QWEN] Status: {response.status_code}")
+        
         if response.status_code == 200:
             result = response.json()
-            if 'output' in result and 'choices' in result['output']:
-                text = result['output']['choices'][0]['message']['content']
-            elif 'choices' in result:
-                text = result['choices'][0]['message']['content']
-            else:
-                text = str(result)
+            print(f"[QWEN] Respuesta keys: {result.keys()}")
             
-            match = re.search(r'\{.*\}', text, re.DOTALL)
-            json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
-            return json.loads(json_str), None
-        return None, f"Error HTTP {response.status_code}"
+            try:
+                if 'output' in result and 'choices' in result['output']:
+                    text = result['output']['choices'][0]['message']['content']
+                elif 'choices' in result:
+                    text = result['choices'][0]['message']['content']
+                elif 'output' in result and 'text' in result['output']:
+                    text = result['output']['text']
+                else:
+                    text = str(result)
+                
+                match = re.search(r'\{.*\}', text, re.DOTALL)
+                json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
+                
+                parsed = json.loads(json_str)
+                print("[QWEN] ✅ Análisis exitoso")
+                return parsed, None
+            except Exception as e:
+                print(f"[QWEN] Error parseando: {str(e)}")
+                return None, f"Error parseando: {str(e)}"
+        else:
+            print(f"[QWEN] Error HTTP {response.status_code}: {response.text[:200]}")
+            return None, f"Error HTTP {response.status_code}"
+            
     except Exception as e:
+        print(f"[QWEN] Excepción: {str(e)}")
         return None, f"Error: {str(e)}"
 
 def generate_analysis(topic, topic2, category, region, mode, lens, news):
     news_text = "\n\nNoticias:\n" + "\n".join([f"- {n['titulo']}" for n in news[:5]]) if news else ""
+    
     if mode == 'briefing':
         return f"""Eres editor experto. BRIEFING sobre: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}
 Responde SOLO JSON: {{"resumen_ejecutivo": "Párrafo claro", "preguntas_fuente": ["¿Qué pasó?", "¿Quiénes afectan?", "¿Qué sigue?"], "datos_duros": ["Dato 1", "Dato 2"], "timeline_sugerido": "Esta semana", "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
@@ -563,6 +603,8 @@ def analyze():
         if not topic:
             return jsonify({'error': 'Falta el tema'}), 400
         
+        print(f"\n{'='*60}\n[ANALYZE] Topic: {topic}, Mode: {mode}")
+        
         articles, _ = fetch_raw_articles(force_refresh=False)
         news = []
         topic_lower = topic.lower()
@@ -577,20 +619,26 @@ def analyze():
                 if len(news) >= 5:
                     break
         
+        print(f"[ANALYZE] Noticias encontradas: {len(news)}")
+        
         prompt = generate_analysis(topic, topic2, category, region, mode, lens, news)
         analysis, error = analyze_with_qwen(prompt, mode)
         
         if error or not analysis:
+            print(f"[ANALYZE] ️ Qwen falló: {error}. Usando fallback MEJORADO.")
+            # Fallback MEJORADO - específico para el tema
             analysis = {
                 'puntaje_relevancia': 6,
-                'justificacion_puntaje': f'El tema "{topic}" requiere seguimiento editorial.',
-                'hipotesis': f'{topic} es un tema de interés actual.',
-                'senales_clave': ['Aumento en menciones', 'Diversidad de fuentes'],
-                'angulos_periodisticos': ['Impacto en la sociedad', 'Perspectivas de expertos'],
-                'fuentes_sugeridas': ['Expertos', 'Organismos oficiales'],
-                'titulares_ejemplo': [f'Análisis: {topic}'],
+                'justificacion_puntaje': f'Según {len(news)} noticias recientes sobre "{topic}".',
+                'hipotesis': f'El tema "{topic}" muestra actividad mediática {"alta" if len(news) >= 3 else "moderada"} en las últimas horas.',
+                'senales_clave': [f'{len(news)} menciones en medios', f'Fuentes: {", ".join(set(n["fuente"] for n in news[:3]))}'] if news else ['Tema emergente'],
+                'angulos_periodisticos': [f'Impacto de {topic} en la sociedad', f'Perspectivas sobre {topic}', f'Antecedentes del caso'],
+                'fuentes_sugeridas': ['Expertos en la materia', 'Organismos oficiales relacionados', 'Actores directamente involucrados'],
+                'titulares_ejemplo': [f'Análisis: {topic}', f'Las claves de {topic}', f'{topic}: Lo que debes saber'],
                 'noticias_reales': news
             }
+        else:
+            print("[ANALYZE] ✅ Qwen respondió correctamente")
         
         if 'noticias_reales' not in analysis:
             analysis['noticias_reales'] = news
@@ -605,6 +653,7 @@ def analyze():
             )
             conn.commit()
             conn.close()
+            print("[DB] ✅ Guardado en historial")
         except Exception as e:
             print(f"[DB] Error: {str(e)}")
         
@@ -614,6 +663,9 @@ def analyze():
             'timestamp': datetime.now(timezone.utc).isoformat()
         })
     except Exception as e:
+        print(f"[ERROR] {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/history', methods=['GET'])
