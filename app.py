@@ -56,9 +56,9 @@ CATEGORIES = [
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
     {'name': 'Chile', 'icon': '🇨', 'type': 'region'},
-    {'name': 'Internacional', 'icon': '', 'type': 'region'},
+    {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
     {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
-    {'name': 'Ciencia y Tecnología', 'icon': '', 'type': 'otros'},
+    {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
     {'name': 'Cultura', 'icon': '🎭', 'type': 'otros'},
     {'name': 'Ocio', 'icon': '🎮', 'type': 'otros'},
     {'name': 'Salud', 'icon': '🏥', 'type': 'otros'},
@@ -223,8 +223,9 @@ def fetch_raw_articles(force_refresh=False):
     return unique_articles, status
 
 def predict_trends(articles, top=8):
+    """Predicción: mostrar titulares más relevantes y recientes"""
     if not articles:
-        print("[PREDICT]  Sin artículos")
+        print("[PREDICT] ❌ Sin artículos")
         return []
     
     print(f"[PREDICT] Procesando {len(articles)} artículos...")
@@ -297,11 +298,12 @@ def predict_trends(articles, top=8):
     print(f"[PREDICT] ✅ Generadas {len(result)} predicciones")
     return result
 
-def project_trends(articles, category='all', top=5):
-    """Usa IA para proyectar qué podría pasar basado en tendencias actuales"""
+def cross_predictions(articles, category='all', top=6):
+    """Cruza datos actuales con proyección IA para predecir tendencias futuras"""
     if not articles:
         return []
     
+    # Filtrar por categoría si es necesario
     if category != 'all':
         keywords_raw = SEARCH_KEYWORDS.get(category, 'chile')
         keywords = [kw.strip().lower() for kw in keywords_raw.split(' OR ')]
@@ -310,35 +312,38 @@ def project_trends(articles, category='all', top=5):
     if len(articles) < 5:
         return []
     
-    recent = articles[:15]
+    # Tomar los 20 titulares más recientes y relevantes
+    recent = articles[:20]
     headlines = "\n".join([f"- [{a['source']}] {a['title']}" for a in recent])
     
-    prompt = f"""Eres un analista prospectivo experto en medios y tendencias.
-
-Basándote en estos titulares recientes de Chile, proyecta qué podría pasar en las próximas 6-24 horas.
+    prompt = f"""Eres un analista editorial experto. Analiza estos titulares recientes de medios chilenos y detecta qué temas tienen POTENCIAL de convertirse en tendencia en las próximas 6-24 horas.
 
 TITULARES ACTUALES:
 {headlines}
 
-Responde SOLO con un array JSON de {top} proyecciones, cada una con:
-- "scenario": descripción del escenario probable (1-2 oraciones)
-- "probability": probabilidad estimada (0-100)
-- "signals": 2-3 señales actuales que apuntan a esto
-- "impact": nivel de impacto (bajo, medio, alto, crítico)
-- "timeframe": cuándo podría materializarse (ej: "próximas horas", "mañana", "esta semana")
+Responde SOLO con un array JSON de {top} predicciones cruzadas. Para cada una incluye:
+- "topic": el tema/titular predicho (claro y periodístico, en español)
+- "score": probabilidad de volverse tendencia (0-100)
+- "reasoning": por qué crees que se volverá tendencia (1 oración)
+- "signals": 2-3 señales actuales que lo indican
+- "impact": nivel de impacto esperado (bajo, medio, alto, crítico)
+- "timeframe": cuándo podría explotar (próximas horas, mañana, esta semana)
+- "category": categoría del tema
 
 Formato JSON exacto:
 [
   {{
-    "scenario": "Descripción del escenario",
-    "probability": 75,
+    "topic": "Tema predicho",
+    "score": 85,
+    "reasoning": "Razón de por qué será tendencia",
     "signals": ["Señal 1", "Señal 2"],
     "impact": "alto",
-    "timeframe": "próximas horas"
+    "timeframe": "próximas horas",
+    "category": "Política"
   }}
 ]
 
-Sé específico, periodístico y basado en los titulares reales. No inventes datos."""
+Sé específico, periodístico y basado en los titulares reales. Prioriza temas con múltiples señales convergentes."""
 
     api_key = os.getenv('QWEN_API_KEY')
     if not api_key:
@@ -356,7 +361,7 @@ Sé específico, periodístico y basado en los titulares reales. No inventes dat
     }
     
     try:
-        print(f"[PROJECT] Analizando proyecciones para categoría: {category}")
+        print(f"[CROSS] Analizando predicciones cruzadas para categoría: {category}")
         response = cr.post(
             'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
             headers=headers,
@@ -380,32 +385,38 @@ Sé específico, periodístico y basado en los titulares reales. No inventes dat
                 else:
                     json_str = text.replace('```json', '').replace('```', '').strip()
                 
-                projections = json.loads(json_str)
-                print(f"[PROJECT] ✅ Generadas {len(projections)} proyecciones")
+                predictions = json.loads(json_str)
+                print(f"[CROSS] ✅ Generadas {len(predictions)} predicciones cruzadas")
                 
                 now = datetime.now(timezone.utc)
                 formatted = []
-                for p in projections[:top]:
+                for p in predictions[:top]:
                     formatted.append({
-                        'scenario': p.get('scenario', ''),
-                        'probability': p.get('probability', 50),
+                        'topic': p.get('topic', ''),
+                        'score': p.get('score', 50),
+                        'reasoning': p.get('reasoning', ''),
                         'signals': p.get('signals', []),
                         'impact': p.get('impact', 'medio'),
                         'timeframe': p.get('timeframe', 'próximas horas'),
-                        'category': category,
+                        'category': p.get('category', guess_category(p.get('topic', ''))),
+                        'news_count': len(p.get('signals', [])),
+                        'news': [{'titulo': p.get('reasoning', ''), 'fuente': 'Análisis IA', 'url': '', 'fecha': now.strftime('%Y-%m-%d')}],
+                        'alert_level': 'critical' if p.get('score', 0) >= 85 else ('high' if p.get('score', 0) >= 70 else None),
+                        'source': 'Predicción Cruzada IA',
+                        'is_realtime': True,
                         'timestamp': now.isoformat()
                     })
                 
                 return formatted
             except Exception as e:
-                print(f"[PROJECT] Error parseando: {str(e)}")
+                print(f"[CROSS] Error parseando: {str(e)}")
                 return []
         else:
-            print(f"[PROJECT] Error HTTP: {response.status_code}")
+            print(f"[CROSS] Error HTTP: {response.status_code}")
             return []
             
     except Exception as e:
-        print(f"[PROJECT] Excepción: {str(e)}")
+        print(f"[CROSS] Excepción: {str(e)}")
         return []
 
 def guess_category(topic):
@@ -540,24 +551,42 @@ def get_trending():
     
     return jsonify({'trends': trends, 'source_status': status})
 
-@app.route('/api/projections', methods=['GET'])
-def get_projections():
-    category = request.args.get('category', 'all')
-    force_refresh = request.args.get('refresh') == 'true'
-    articles, status = fetch_raw_articles(force_refresh=force_refresh)
-    projections = project_trends(articles, category=category, top=5)
-    return jsonify({
-        'projections': projections,
-        'category': category,
-        'source_status': status
-    })
-
 @app.route('/api/predictions', methods=['GET'])
 def get_predictions_route():
+    """Endpoint unificado: cruza datos actuales + proyección IA"""
+    category = request.args.get('category', 'all')
     force_refresh = request.args.get('refresh') == 'true'
+    
     articles, status = fetch_raw_articles(force_refresh=force_refresh)
-    predictions = predict_trends(articles)
-    return jsonify({'predictions': predictions, 'source_status': status})
+    
+    # 1. Predicciones algorítmicas (lo que está pasando ahora con fuerza)
+    algo_predictions = predict_trends(articles, top=4)
+    
+    # 2. Predicciones cruzadas con IA (lo que podría volverse tendencia)
+    cross_predictions = cross_predictions(articles, category=category, top=6)
+    
+    # 3. Combinar ambos, priorizando los cruzados (más inteligentes)
+    all_predictions = cross_predictions + algo_predictions
+    
+    # Eliminar duplicados por topic
+    seen = set()
+    unique_predictions = []
+    for p in all_predictions:
+        norm = _norm(p['topic'])
+        if norm not in seen:
+            seen.add(norm)
+            unique_predictions.append(p)
+    
+    # Ordenar por score
+    unique_predictions.sort(key=lambda x: x['score'], reverse=True)
+    
+    print(f"[PREDICT] Total predicciones unificadas: {len(unique_predictions)}")
+    
+    return jsonify({
+        'predictions': unique_predictions[:8],
+        'source_status': status,
+        'category': category
+    })
 
 @app.route('/api/status', methods=['GET'])
 def get_status():
