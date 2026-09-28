@@ -55,7 +55,7 @@ CATEGORIES = [
     {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    {'name': 'Chile', 'icon': '🇨', 'type': 'region'},
+    {'name': 'Chile', 'icon': '🇨🇱', 'type': 'region'},
     {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
     {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
     {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
@@ -223,12 +223,10 @@ def fetch_raw_articles(force_refresh=False):
     return unique_articles, status
 
 def predict_trends(articles, top=8):
-    """Predicción: mostrar titulares más relevantes y recientes"""
     if not articles:
-        print("[PREDICT] ❌ Sin artículos")
         return []
     
-    print(f"[PREDICT] Procesando {len(articles)} artículos...")
+    print(f"[PREDICT] Procesando {len(articles)} artículos (algorítmico)...")
     now = datetime.now(timezone.utc)
     
     scored = []
@@ -246,14 +244,10 @@ def predict_trends(articles, top=8):
             recency_score = 50
         
         source_bonus = 0
-        if source == 'biobio':
-            source_bonus = 10
-        elif source == 'latercera':
-            source_bonus = 8
-        elif source == 'cooperativa':
-            source_bonus = 6
-        elif source == 'df':
-            source_bonus = 5
+        if source == 'biobio': source_bonus = 10
+        elif source == 'latercera': source_bonus = 8
+        elif source == 'cooperativa': source_bonus = 6
+        elif source == 'df': source_bonus = 5
         
         length = len(title)
         length_score = 10 if 40 <= length <= 100 else 0
@@ -275,7 +269,6 @@ def predict_trends(articles, top=8):
     for s in scored:
         norm = _norm(s['topic'])
         is_duplicate = False
-        
         for seen in seen_topics:
             if norm in seen or seen in norm:
                 is_duplicate = True
@@ -295,15 +288,12 @@ def predict_trends(articles, top=8):
                 'timestamp': now.isoformat()
             })
     
-    print(f"[PREDICT] ✅ Generadas {len(result)} predicciones")
     return result
 
-def cross_predictions(articles, category='all', top=6):
-    """Cruza datos actuales con proyección IA para predecir tendencias futuras"""
+def cross_predictions_func(articles, category='all', top=6):
     if not articles:
         return []
     
-    # Filtrar por categoría si es necesario
     if category != 'all':
         keywords_raw = SEARCH_KEYWORDS.get(category, 'chile')
         keywords = [kw.strip().lower() for kw in keywords_raw.split(' OR ')]
@@ -312,7 +302,6 @@ def cross_predictions(articles, category='all', top=6):
     if len(articles) < 5:
         return []
     
-    # Tomar los 20 titulares más recientes y relevantes
     recent = articles[:20]
     headlines = "\n".join([f"- [{a['source']}] {a['title']}" for a in recent])
     
@@ -343,17 +332,13 @@ Formato JSON exacto:
   }}
 ]
 
-Sé específico, periodístico y basado en los titulares reales. Prioriza temas con múltiples señales convergentes."""
+Sé específico, periodístico y basado en los titulares reales."""
 
     api_key = os.getenv('QWEN_API_KEY')
     if not api_key:
         return []
     
-    headers = {
-        'Authorization': f'Bearer {api_key}',
-        'Content-Type': 'application/json'
-    }
-    
+    headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
     payload = {
         'model': 'qwen-plus',
         'input': {'messages': [{'role': 'user', 'content': prompt}]},
@@ -361,7 +346,7 @@ Sé específico, periodístico y basado en los titulares reales. Prioriza temas 
     }
     
     try:
-        print(f"[CROSS] Analizando predicciones cruzadas para categoría: {category}")
+        print("[CROSS] Analizando predicciones cruzadas con IA...")
         response = cr.post(
             'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
             headers=headers,
@@ -372,7 +357,6 @@ Sé específico, periodístico y basado en los titulares reales. Prioriza temas 
         
         if response.status_code == 200:
             result = response.json()
-            
             try:
                 if 'output' in result and 'choices' in result['output']:
                     text = result['output']['choices'][0]['message']['content']
@@ -380,10 +364,7 @@ Sé específico, periodístico y basado en los titulares reales. Prioriza temas 
                     text = str(result)
                 
                 match = re.search(r'\[.*\]', text, re.DOTALL)
-                if match:
-                    json_str = match.group(0)
-                else:
-                    json_str = text.replace('```json', '').replace('```', '').strip()
+                json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
                 
                 predictions = json.loads(json_str)
                 print(f"[CROSS] ✅ Generadas {len(predictions)} predicciones cruzadas")
@@ -406,17 +387,13 @@ Sé específico, periodístico y basado en los titulares reales. Prioriza temas 
                         'is_realtime': True,
                         'timestamp': now.isoformat()
                     })
-                
                 return formatted
             except Exception as e:
-                print(f"[CROSS] Error parseando: {str(e)}")
+                print(f"[CROSS] Error parseando IA: {str(e)}")
                 return []
-        else:
-            print(f"[CROSS] Error HTTP: {response.status_code}")
-            return []
-            
+        return []
     except Exception as e:
-        print(f"[CROSS] Excepción: {str(e)}")
+        print(f"[CROSS] Excepción IA: {str(e)}")
         return []
 
 def guess_category(topic):
@@ -442,27 +419,16 @@ def guess_category(topic):
 def analyze_with_qwen(prompt, mode='standard'):
     api_key = os.getenv('QWEN_API_KEY')
     if not api_key:
-        print("[QWEN] ❌ API Key no configurada")
         return None, "QWEN_API_KEY no configurada"
     
-    headers = {
-        'Authorization': f'Bearer {api_key}',
-        'Content-Type': 'application/json'
-    }
-    
+    headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
     payload = {
         'model': 'qwen-plus',
-        'input': {
-            'messages': [{'role': 'user', 'content': prompt}]
-        },
-        'parameters': {
-            'temperature': 0.1 if mode == 'briefing' else 0.7,
-            'max_tokens': 2000
-        }
+        'input': {'messages': [{'role': 'user', 'content': prompt}]},
+        'parameters': {'temperature': 0.1 if mode == 'briefing' else 0.7, 'max_tokens': 2000}
     }
     
     try:
-        print("[QWEN] Enviando solicitud...")
         response = cr.post(
             'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
             headers=headers,
@@ -470,43 +436,24 @@ def analyze_with_qwen(prompt, mode='standard'):
             timeout=60,
             impersonate="chrome"
         )
-        
-        print(f"[QWEN] Status: {response.status_code}")
-        
         if response.status_code == 200:
             result = response.json()
-            print(f"[QWEN] Respuesta keys: {result.keys()}")
+            if 'output' in result and 'choices' in result['output']:
+                text = result['output']['choices'][0]['message']['content']
+            elif 'choices' in result:
+                text = result['choices'][0]['message']['content']
+            else:
+                text = str(result)
             
-            try:
-                if 'output' in result and 'choices' in result['output']:
-                    text = result['output']['choices'][0]['message']['content']
-                elif 'choices' in result:
-                    text = result['choices'][0]['message']['content']
-                elif 'output' in result and 'text' in result['output']:
-                    text = result['output']['text']
-                else:
-                    text = str(result)
-                
-                match = re.search(r'\{.*\}', text, re.DOTALL)
-                json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
-                
-                parsed = json.loads(json_str)
-                print("[QWEN] ✅ Análisis exitoso")
-                return parsed, None
-            except Exception as e:
-                print(f"[QWEN] Error parseando: {str(e)}")
-                return None, f"Error parseando: {str(e)}"
-        else:
-            print(f"[QWEN] Error HTTP {response.status_code}: {response.text[:200]}")
-            return None, f"Error HTTP {response.status_code}"
-            
+            match = re.search(r'\{.*\}', text, re.DOTALL)
+            json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
+            return json.loads(json_str), None
+        return None, f"Error HTTP {response.status_code}"
     except Exception as e:
-        print(f"[QWEN] Excepción: {str(e)}")
         return None, f"Error: {str(e)}"
 
 def generate_analysis(topic, topic2, category, region, mode, lens, news):
     news_text = "\n\nNoticias:\n" + "\n".join([f"- {n['titulo']}" for n in news[:5]]) if news else ""
-    
     if mode == 'briefing':
         return f"""Eres editor experto. BRIEFING sobre: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}
 Responde SOLO JSON: {{"resumen_ejecutivo": "Párrafo claro", "preguntas_fuente": ["¿Qué pasó?", "¿Quiénes afectan?", "¿Qué sigue?"], "datos_duros": ["Dato 1", "Dato 2"], "timeline_sugerido": "Esta semana", "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
@@ -553,40 +500,44 @@ def get_trending():
 
 @app.route('/api/predictions', methods=['GET'])
 def get_predictions_route():
-    """Endpoint unificado: cruza datos actuales + proyección IA"""
-    category = request.args.get('category', 'all')
-    force_refresh = request.args.get('refresh') == 'true'
-    
-    articles, status = fetch_raw_articles(force_refresh=force_refresh)
-    
-    # 1. Predicciones algorítmicas (lo que está pasando ahora con fuerza)
-    algo_predictions = predict_trends(articles, top=4)
-    
-    # 2. Predicciones cruzadas con IA (lo que podría volverse tendencia)
-    cross_predictions = cross_predictions(articles, category=category, top=6)
-    
-    # 3. Combinar ambos, priorizando los cruzados (más inteligentes)
-    all_predictions = cross_predictions + algo_predictions
-    
-    # Eliminar duplicados por topic
-    seen = set()
-    unique_predictions = []
-    for p in all_predictions:
-        norm = _norm(p['topic'])
-        if norm not in seen:
-            seen.add(norm)
-            unique_predictions.append(p)
-    
-    # Ordenar por score
-    unique_predictions.sort(key=lambda x: x['score'], reverse=True)
-    
-    print(f"[PREDICT] Total predicciones unificadas: {len(unique_predictions)}")
-    
-    return jsonify({
-        'predictions': unique_predictions[:8],
-        'source_status': status,
-        'category': category
-    })
+    try:
+        category = request.args.get('category', 'all')
+        force_refresh = request.args.get('refresh') == 'true'
+        
+        print(f"[PREDICT] Iniciando para categoría: {category}")
+        articles, status = fetch_raw_articles(force_refresh=force_refresh)
+        
+        if not articles:
+            return jsonify({'predictions': [], 'source_status': status, 'category': category})
+        
+        algo_predictions = predict_trends(articles, top=4)
+        
+        cross_predictions = []
+        try:
+            cross_predictions = cross_predictions_func(articles, category=category, top=6)
+        except Exception as e:
+            print(f"[PREDICT] IA falló: {str(e)}. Usando solo algorítmicas.")
+        
+        all_predictions = cross_predictions + algo_predictions
+        
+        seen = set()
+        unique_predictions = []
+        for p in all_predictions:
+            norm = _norm(p['topic'])
+            if norm not in seen:
+                seen.add(norm)
+                unique_predictions.append(p)
+        
+        unique_predictions.sort(key=lambda x: x['score'], reverse=True)
+        
+        return jsonify({
+            'predictions': unique_predictions[:8],
+            'source_status': status,
+            'category': category
+        })
+    except Exception as e:
+        print(f"[PREDICT] ERROR CRÍTICO: {str(e)}")
+        return jsonify({'predictions': [], 'error': str(e)}), 500
 
 @app.route('/api/status', methods=['GET'])
 def get_status():
@@ -612,8 +563,6 @@ def analyze():
         if not topic:
             return jsonify({'error': 'Falta el tema'}), 400
         
-        print(f"\n{'='*60}\n[ANALYZE] Topic: {topic}, Mode: {mode}, Lens: {lens}")
-        
         articles, _ = fetch_raw_articles(force_refresh=False)
         news = []
         topic_lower = topic.lower()
@@ -628,25 +577,20 @@ def analyze():
                 if len(news) >= 5:
                     break
         
-        print(f"[ANALYZE] Noticias encontradas: {len(news)}")
-        
         prompt = generate_analysis(topic, topic2, category, region, mode, lens, news)
         analysis, error = analyze_with_qwen(prompt, mode)
         
         if error or not analysis:
-            print(f"[ANALYZE] ️ Qwen falló: {error}. Usando fallback.")
             analysis = {
                 'puntaje_relevancia': 6,
-                'justificacion_puntaje': f'El tema "{topic}" aparece en {len(news)} noticias recientes.',
-                'hipotesis': f'{topic} es un tema de interés actual que requiere seguimiento editorial.',
-                'senales_clave': ['Aumento en menciones mediáticas', 'Diversidad de fuentes'],
-                'angulos_periodisticos': ['Impacto en la sociedad', 'Perspectivas de expertos', 'Antecedentes históricos'],
-                'fuentes_sugeridas': ['Expertos en la materia', 'Organismos oficiales', 'Actores involucrados'],
-                'titulares_ejemplo': [f'Análisis: {topic}', f'Las claves de {topic}', f'{topic}: Lo que debes saber'],
+                'justificacion_puntaje': f'El tema "{topic}" requiere seguimiento editorial.',
+                'hipotesis': f'{topic} es un tema de interés actual.',
+                'senales_clave': ['Aumento en menciones', 'Diversidad de fuentes'],
+                'angulos_periodisticos': ['Impacto en la sociedad', 'Perspectivas de expertos'],
+                'fuentes_sugeridas': ['Expertos', 'Organismos oficiales'],
+                'titulares_ejemplo': [f'Análisis: {topic}'],
                 'noticias_reales': news
             }
-        else:
-            print("[ANALYZE] ✅ Qwen respondió correctamente")
         
         if 'noticias_reales' not in analysis:
             analysis['noticias_reales'] = news
@@ -661,26 +605,15 @@ def analyze():
             )
             conn.commit()
             conn.close()
-            print("[DB] ✅ Guardado en historial")
         except Exception as e:
-            print(f"[DB] ❌ Error: {str(e)}")
+            print(f"[DB] Error: {str(e)}")
         
         return jsonify({
-            'topic': topic,
-            'topic2': topic2,
-            'category': category,
-            'region': region,
-            'mode': mode,
-            'lens': lens,
-            'analysis': analysis,
-            'score': score,
+            'topic': topic, 'topic2': topic2, 'category': category, 'region': region,
+            'mode': mode, 'lens': lens, 'analysis': analysis, 'score': score,
             'timestamp': datetime.now(timezone.utc).isoformat()
         })
-        
     except Exception as e:
-        print(f"[ERROR] {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/history', methods=['GET'])
@@ -701,19 +634,12 @@ def get_history():
             except Exception:
                 analysis = {}
             history.append({
-                'id': row[0],
-                'topic': row[1],
-                'topic2': row[2],
-                'category': row[3],
-                'region': row[4],
-                'mode': row[5],
-                'analysis': analysis,
-                'score': row[7] or 0,
-                'created_at': row[8]
+                'id': row[0], 'topic': row[1], 'topic2': row[2], 'category': row[3],
+                'region': row[4], 'mode': row[5], 'analysis': analysis,
+                'score': row[7] or 0, 'created_at': row[8]
             })
         return jsonify(history)
-    except Exception as e:
-        print(f"[HISTORY] Error: {str(e)}")
+    except Exception:
         return jsonify([])
 
 @app.route('/api/history/<int:analysis_id>', methods=['DELETE'])
