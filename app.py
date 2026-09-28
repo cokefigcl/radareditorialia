@@ -55,10 +55,10 @@ CATEGORIES = [
     {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    {'name': 'Chile', 'icon': '🇨🇱', 'type': 'region'},
-    {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
+    {'name': 'Chile', 'icon': '🇨', 'type': 'region'},
+    {'name': 'Internacional', 'icon': '', 'type': 'region'},
     {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
-    {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
+    {'name': 'Ciencia y Tecnología', 'icon': '', 'type': 'otros'},
     {'name': 'Cultura', 'icon': '🎭', 'type': 'otros'},
     {'name': 'Ocio', 'icon': '🎮', 'type': 'otros'},
     {'name': 'Salud', 'icon': '🏥', 'type': 'otros'},
@@ -223,9 +223,8 @@ def fetch_raw_articles(force_refresh=False):
     return unique_articles, status
 
 def predict_trends(articles, top=8):
-    """Predicción: mostrar titulares más relevantes y recientes"""
     if not articles:
-        print("[PREDICT] ❌ Sin artículos")
+        print("[PREDICT]  Sin artículos")
         return []
     
     print(f"[PREDICT] Procesando {len(articles)} artículos...")
@@ -297,6 +296,117 @@ def predict_trends(articles, top=8):
     
     print(f"[PREDICT] ✅ Generadas {len(result)} predicciones")
     return result
+
+def project_trends(articles, category='all', top=5):
+    """Usa IA para proyectar qué podría pasar basado en tendencias actuales"""
+    if not articles:
+        return []
+    
+    if category != 'all':
+        keywords_raw = SEARCH_KEYWORDS.get(category, 'chile')
+        keywords = [kw.strip().lower() for kw in keywords_raw.split(' OR ')]
+        articles = [a for a in articles if any(kw in a['title'].lower() for kw in keywords)]
+    
+    if len(articles) < 5:
+        return []
+    
+    recent = articles[:15]
+    headlines = "\n".join([f"- [{a['source']}] {a['title']}" for a in recent])
+    
+    prompt = f"""Eres un analista prospectivo experto en medios y tendencias.
+
+Basándote en estos titulares recientes de Chile, proyecta qué podría pasar en las próximas 6-24 horas.
+
+TITULARES ACTUALES:
+{headlines}
+
+Responde SOLO con un array JSON de {top} proyecciones, cada una con:
+- "scenario": descripción del escenario probable (1-2 oraciones)
+- "probability": probabilidad estimada (0-100)
+- "signals": 2-3 señales actuales que apuntan a esto
+- "impact": nivel de impacto (bajo, medio, alto, crítico)
+- "timeframe": cuándo podría materializarse (ej: "próximas horas", "mañana", "esta semana")
+
+Formato JSON exacto:
+[
+  {{
+    "scenario": "Descripción del escenario",
+    "probability": 75,
+    "signals": ["Señal 1", "Señal 2"],
+    "impact": "alto",
+    "timeframe": "próximas horas"
+  }}
+]
+
+Sé específico, periodístico y basado en los titulares reales. No inventes datos."""
+
+    api_key = os.getenv('QWEN_API_KEY')
+    if not api_key:
+        return []
+    
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json'
+    }
+    
+    payload = {
+        'model': 'qwen-plus',
+        'input': {'messages': [{'role': 'user', 'content': prompt}]},
+        'parameters': {'temperature': 0.3, 'max_tokens': 1500}
+    }
+    
+    try:
+        print(f"[PROJECT] Analizando proyecciones para categoría: {category}")
+        response = cr.post(
+            'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
+            headers=headers,
+            json=payload,
+            timeout=45,
+            impersonate="chrome"
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            
+            try:
+                if 'output' in result and 'choices' in result['output']:
+                    text = result['output']['choices'][0]['message']['content']
+                else:
+                    text = str(result)
+                
+                match = re.search(r'\[.*\]', text, re.DOTALL)
+                if match:
+                    json_str = match.group(0)
+                else:
+                    json_str = text.replace('```json', '').replace('```', '').strip()
+                
+                projections = json.loads(json_str)
+                print(f"[PROJECT] ✅ Generadas {len(projections)} proyecciones")
+                
+                now = datetime.now(timezone.utc)
+                formatted = []
+                for p in projections[:top]:
+                    formatted.append({
+                        'scenario': p.get('scenario', ''),
+                        'probability': p.get('probability', 50),
+                        'signals': p.get('signals', []),
+                        'impact': p.get('impact', 'medio'),
+                        'timeframe': p.get('timeframe', 'próximas horas'),
+                        'category': category,
+                        'timestamp': now.isoformat()
+                    })
+                
+                return formatted
+            except Exception as e:
+                print(f"[PROJECT] Error parseando: {str(e)}")
+                return []
+        else:
+            print(f"[PROJECT] Error HTTP: {response.status_code}")
+            return []
+            
+    except Exception as e:
+        print(f"[PROJECT] Excepción: {str(e)}")
+        return []
 
 def guess_category(topic):
     topic_lower = topic.lower()
@@ -430,6 +540,18 @@ def get_trending():
     
     return jsonify({'trends': trends, 'source_status': status})
 
+@app.route('/api/projections', methods=['GET'])
+def get_projections():
+    category = request.args.get('category', 'all')
+    force_refresh = request.args.get('refresh') == 'true'
+    articles, status = fetch_raw_articles(force_refresh=force_refresh)
+    projections = project_trends(articles, category=category, top=5)
+    return jsonify({
+        'projections': projections,
+        'category': category,
+        'source_status': status
+    })
+
 @app.route('/api/predictions', methods=['GET'])
 def get_predictions_route():
     force_refresh = request.args.get('refresh') == 'true'
@@ -483,7 +605,7 @@ def analyze():
         analysis, error = analyze_with_qwen(prompt, mode)
         
         if error or not analysis:
-            print(f"[ANALYZE] ⚠️ Qwen falló: {error}. Usando fallback.")
+            print(f"[ANALYZE] ️ Qwen falló: {error}. Usando fallback.")
             analysis = {
                 'puntaje_relevancia': 6,
                 'justificacion_puntaje': f'El tema "{topic}" aparece en {len(news)} noticias recientes.',
