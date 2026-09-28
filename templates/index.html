@@ -93,7 +93,7 @@
 </head>
 <body>
     <div class="topbar">
-        <div class="topbar-title"> Radar <span>Editorial</span> con IA</div>
+        <div class="topbar-title">📰 Radar <span>Editorial</span> con IA</div>
         <div class="status-bar" id="statusBar">
             <div class="status-item"><span class="label">💵</span><span class="value" id="statusDolar">--</span></div>
             <div class="status-item"><span class="label">📊</span><span class="value" id="statusUF">--</span></div>
@@ -115,7 +115,7 @@
     </div>
     
     <div class="main-grid">
-        <!-- MÓDULO PREDICCIONES (unificado) -->
+        <!-- MÓDULO PREDICCIONES (Gata Maybis) -->
         <div class="module">
             <div class="module-header">
                 <h3>🔮 Predicciones Cruzadas</h3>
@@ -129,7 +129,7 @@
             </div>
         </div>
         
-        <!-- MÓDULO ANÁLISIS -->
+        <!-- MÓDULO ANÁLISIS (Perro Uri) -->
         <div class="module module-analysis">
             <div class="module-header">
                 <h3>🔍 Análisis</h3>
@@ -180,7 +180,7 @@
     </div>
     
     <div class="footer">
-        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | v7.0.0
+        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | v7.1.0
     </div>
 
     <script>
@@ -189,8 +189,8 @@
         let currentMode = 'standard';
         let currentLens = '';
 
-        const gataPhrases = ["🔮 La gata cruza datos y proyecta...", "✨ Analizando señales convergentes...", "🌙 Proyectando escenarios futuros...", " Detectando temas emergentes...", "⭐ Cruzando fuentes con IA...", " La gata anticipa tendencias...", " Maybis predice el futuro editorial...", "✨ Visionando lo que viene..."];
-        const analysisPhrases = ["🧠 La IA está pensando...", "🤖 Procesando datos...", "💡 Generando insights...", " Analizando patrones...", "🎯 Apuntando al ángulo perfecto...", "✨ Creando magia editorial...", "🔮 La gata analiza el tema...", "⚡ Pensamiento profundo..."];
+        const gataPhrases = ["🔮 La gata cruza datos y proyecta...", "✨ Analizando señales convergentes...", "🌙 Proyectando escenarios futuros...", "🔮 Detectando temas emergentes...", "⭐ Cruzando fuentes con IA...", "🌌 La gata anticipa tendencias...", "🔮 Maybis predice el futuro editorial...", "✨ Visionando lo que viene..."];
+        const analysisPhrases = ["🔍 Uri investiga el tema...", "🐕 Analizando pistas...", "📋 Revisando fuentes...", "🔎 Buscando ángulos...", "📰 Investigando a fondo...", "🐾 Siguiendo el rastro...", "🔍 Uri está en ello...", "📊 Cruzando datos..."];
 
         function getRandomPhrase(phrases) { return phrases[Math.floor(Math.random() * phrases.length)]; }
 
@@ -315,12 +315,7 @@
         }
 
         function getImpactColor(impact) {
-            const colors = {
-                'bajo': '#28a745',
-                'medio': '#ffc107',
-                'alto': '#fd7e14',
-                'crítico': '#dc3545'
-            };
+            const colors = {'bajo': '#28a745', 'medio': '#ffc107', 'alto': '#fd7e14', 'crítico': '#dc3545'};
             return colors[impact?.toLowerCase()] || '#6c757d';
         }
 
@@ -365,7 +360,12 @@
             const btn = document.getElementById('analyzeBtn');
             btn.disabled = true;
             btn.textContent = 'Analizando...';
-            document.getElementById('analysisResult').innerHTML = `<div class="analysis-loader-container"><img src="https://ltv.cl/x/maybisweb.png" alt="Analizando" class="analysis-loader"><div class="analysis-loader-text">${getRandomPhrase(analysisPhrases)}</div></div>`;
+            document.getElementById('analysisResult').innerHTML = `
+                <div class="perro-loader-container">
+                    <img src="https://ltv.cl/x/uriweb.png" alt="Analizando" class="perro-loader">
+                    <div class="perro-loader-text">${getRandomPhrase(analysisPhrases)}</div>
+                </div>
+            `;
 
             try {
                 const res = await fetch('/api/analyze', {
@@ -392,12 +392,12 @@
             
             if (data.mode === 'standard' && score > 0) {
                 const scoreClass = score >= 7 ? 'score-high' : (score >= 4 ? 'score-medium' : 'score-low');
-                const scoreLabel = score >= 9 ? ' CRÍTICA' : (score >= 7 ? '✅ ALTA' : (score >= 4 ? '⚠️ MEDIA' : '🔵 BAJA'));
+                const scoreLabel = score >= 9 ? '🔴 CRÍTICA' : (score >= 7 ? '✅ ALTA' : (score >= 4 ? '⚠️ MEDIA' : '🔵 BAJA'));
                 html += `<div style="margin-bottom: 10px;"><span class="score-badge ${scoreClass}">${score}/10 - ${scoreLabel}</span></div>`;
             }
             if (a.resumen_ejecutivo) html += `<h4>📝 Resumen</h4><p>${a.resumen_ejecutivo}</p>`;
             if (a.hipotesis) html += `<h4>🎯 Hipótesis</h4><p>${a.hipotesis}</p>`;
-            if (a.cobertura_mainstream) html += `<h4> Cobertura actual</h4><p>${a.cobertura_mainstream}</p>`;
+            if (a.cobertura_mainstream) html += `<h4>📰 Cobertura actual</h4><p>${a.cobertura_mainstream}</p>`;
             if (a.angulo_ciego) html += `<h4>💡 Ángulo ciego</h4><p style="color: #28a745; font-weight: 600;">${a.angulo_ciego}</p>`;
             if (a.pregunta_incomoda) html += `<h4>🔥 Pregunta incómoda</h4><p style="color: #dc3545; font-weight: 600;">${a.pregunta_incomoda}</p>`;
             if (a.mas_recorrido) html += `<h4>📊 Más recorrido</h4><p>${a.mas_recorrido}</p>`;
@@ -414,7 +414,7 @@
             if (a.riesgos_sesgos && a.riesgos_sesgos.length) { html += '<h4>⚠️ Riesgos</h4><div>'; a.riesgos_sesgos.forEach(r => { html += `<span class="tag">${r}</span>`; }); html += '</div>'; }
             
             if (a.noticias_reales && a.noticias_reales.length > 0) {
-                html += '<h4> Noticias</h4>';
+                html += '<h4>📰 Noticias</h4>';
                 a.noticias_reales.forEach(n => {
                     if (n.url) html += `<div style="font-size: 12px; margin: 4px 0;"><a href="${n.url}" target="_blank" style="color: #007bff;">📰 ${n.titulo}</a> <span style="color: #666;">- ${n.fuente}</span></div>`;
                     else html += `<div style="font-size: 12px; margin: 4px 0;">📰 ${n.titulo} <span style="color: #666;">- ${n.fuente}</span></div>`;
@@ -438,7 +438,7 @@
                     const modeLabels = {'standard': '📊', 'briefing': '⚡', 'devil': '😈', 'compare': '⚖️'};
                     html += `<div class="trend-item" style="border-left-color: #4facfe;">
                         <div class="topic">${modeLabels[item.mode] || ''} ${item.topic}${item.topic2 ? ' vs ' + item.topic2 : ''}</div>
-                        <div class="meta"> ${item.category || 'General'} | 📅 ${date} ${score > 0 ? '| Score: ' + score + '/10' : ''}</div>
+                        <div class="meta">📂 ${item.category || 'General'} | 📅 ${date} ${score > 0 ? '| Score: ' + score + '/10' : ''}</div>
                         <div style="margin-top: 6px;">
                             <button class="cat-btn" style="font-size: 10px; padding: 3px 8px;" onclick="reAnalyze('${item.topic.replace(/'/g, "\\'")}', '${item.category || ''}', '${item.mode}')">🔄 Re-analizar</button>
                             <button class="cat-btn" style="font-size: 10px; padding: 3px 8px; background: #dc3545; color: white; border-color: #dc3545;" onclick="deleteAnalysis(${item.id})">🗑️</button>
