@@ -55,7 +55,7 @@ CATEGORIES = [
     {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    {'name': 'Chile', 'icon': '🇨', 'type': 'region'},
+    {'name': 'Chile', 'icon': '🇨🇱', 'type': 'region'},
     {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
     {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
     {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
@@ -299,39 +299,45 @@ def cross_predictions_func(articles, category='all', top=6):
         print("[CROSS] Sin artículos")
         return []
     
-    # NO filtrar artículos por categoría aquí, usar todos para mejor análisis
-    # El filtrado se hace después en el resultado
-    
-    if len(articles) < 5:
-        print(f"[CROSS] Solo {len(articles)} artículos, insuficientes")
+    # Filtrar artículos por categoría para darle contexto relevante a la IA
+    if category != 'all':
+        keywords_raw = SEARCH_KEYWORDS.get(category, category.lower())
+        keywords = [kw.strip().lower() for kw in keywords_raw.split(' OR ')]
+        filtered_articles = [a for a in articles if any(kw in a['title'].lower() for kw in keywords)]
+        recent = filtered_articles[:15] if len(filtered_articles) >= 5 else articles[:15]
+    else:
+        recent = articles[:15]
+        
+    if len(recent) < 3:
+        print(f"[CROSS] Solo {len(recent)} artículos relevantes, insuficientes")
         return []
     
-    # Tomar 15 artículos variados
-    recent = articles[:15]
     headlines = "\n".join([f"- [{a['source']}] {a['title']}" for a in recent])
+    category_instruction = f"Enfócate específicamente en tendencias relacionadas con: {category}." if category != 'all' else "Cubre una variedad de categorías (política, economía, sociedad, etc.)."
     
     prompt = f"""Eres un analista editorial experto en tendencias noticiosas.
 
+{category_instruction}
 Analiza estos titulares recientes de medios chilenos y genera predicciones sobre qué temas se volverán tendencia en las próximas 6-24 horas.
 
 TITULARES ACTUALES:
 {headlines}
 
 Para cada predicción, proporciona:
-- "topic": El tema/tendencia predicho (1 oración clara)
-- "score": Probabilidad realista de volverse tendencia (40-85, varía los scores)
-- "reasoning": Por qué crees que se volverá tendencia (2-3 oraciones analíticas)
+- "topic": El tema/tendencia predicho (1 oración clara y atractiva)
+- "score": Probabilidad realista de volverse tendencia (40-85, varía los scores, no pongas todos iguales)
+- "reasoning": Por qué crees que se volverá tendencia (2-3 oraciones analíticas, identifica patrones)
 - "signals": 2-3 señales concretas que observas en los titulares
 - "impact": Nivel de impacto (bajo, medio, alto)
 - "timeframe": Cuándo explotará (próximas horas, mañana, esta semana)
 - "category": Categoría (Política, Economía, Sociedad, Deportes, Tecnología, Internacional, etc.)
 
-Responde SOLO con un array JSON de {top} predicciones. Formato:
+Responde SOLO con un array JSON de {top} predicciones. Formato exacto:
 [
   {{
-    "topic": "Crisis energética se intensifica",
+    "topic": "Crisis energética se intensifica en el norte",
     "score": 72,
-    "reasoning": "Tres medios reportan cortes de luz y el gobierno anuncia medidas urgentes. El patrón sugiere escalada.",
+    "reasoning": "Tres medios reportan cortes de luz y el gobierno anuncia medidas urgentes. El patrón sugiere una escalada inminente.",
     "signals": ["Cortes en 3 regiones", "Declaraciones ministeriales", "Protestas ciudadanas"],
     "impact": "alto",
     "timeframe": "próximas horas",
@@ -340,20 +346,20 @@ Responde SOLO con un array JSON de {top} predicciones. Formato:
 ]
 
 IMPORTANTE: 
-- Varía los scores (no todos iguales)
-- Sé analítico, no solo descriptivo
-- Enfócate en PATRONES y TENDENCIAS, no en noticias aisladas"""
+- Varía los scores (ej: 65, 72, 81)
+- Sé analítico, identifica PATRONES, no solo resumas noticias.
+- Responde SOLO con el array JSON, sin texto adicional."""
 
     api_key = os.getenv('QWEN_API_KEY')
     if not api_key:
-        print("[CROSS]  Sin API Key")
+        print("[CROSS] ❌ Sin API Key")
         return []
     
     headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
     payload = {
         'model': 'qwen-plus',
         'input': {'messages': [{'role': 'user', 'content': prompt}]},
-        'parameters': {'temperature': 0.4, 'max_tokens': 2000}
+        'parameters': {'temperature': 0.3, 'max_tokens': 2000}
     }
     
     try:
@@ -377,8 +383,24 @@ IMPORTANTE:
                 else:
                     text = str(result)
                 
-                match = re.search(r'\[.*\]', text, re.DOTALL)
-                json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
+                print(f"[CROSS] Texto crudo (primeros 150 chars): {text[:150]}")
+                
+                # Extracción de JSON robusta
+                text = text.strip()
+                start_idx = text.find('[')
+                end_idx = text.rfind(']')
+                
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    json_str = text[start_idx:end_idx+1]
+                else:
+                    match = re.search(r'\[.*\]', text, re.DOTALL)
+                    json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
+                
+                json_str = json_str.replace('```json', '').replace('```', '').strip()
+                
+                if not json_str or json_str == '[]':
+                    print("[CROSS] ⚠️ La IA no devolvió un JSON válido o está vacío")
+                    return []
                 
                 predictions = json.loads(json_str)
                 print(f"[CROSS] ✅ Parseadas {len(predictions)} predicciones")
@@ -387,13 +409,7 @@ IMPORTANTE:
                 formatted = []
                 for p in predictions[:top]:
                     score = p.get('score', 50)
-                    # Asegurar scores realistas
-                    score = max(40, min(85, score))
-                    
-                    # Filtrar por categoría si es necesario
-                    pred_category = p.get('category', 'General')
-                    if category != 'all' and category.lower() not in pred_category.lower():
-                        continue
+                    score = max(40, min(85, int(score))) # Asegurar que sea int y esté en rango
                     
                     formatted.append({
                         'topic': p.get('topic', ''),
@@ -402,7 +418,7 @@ IMPORTANTE:
                         'signals': p.get('signals', []),
                         'impact': p.get('impact', 'medio'),
                         'timeframe': p.get('timeframe', 'próximas horas'),
-                        'category': pred_category,
+                        'category': p.get('category', guess_category(p.get('topic', ''))),
                         'news_count': len(p.get('signals', [])),
                         'news': [{'titulo': p.get('reasoning', ''), 'fuente': 'Análisis IA', 'url': '', 'fecha': now.strftime('%Y-%m-%d')}],
                         'alert_level': 'critical' if score >= 80 else ('high' if score >= 65 else None),
@@ -411,14 +427,18 @@ IMPORTANTE:
                         'timestamp': now.isoformat()
                     })
                 return formatted
+            except json.JSONDecodeError as e:
+                print(f"[CROSS] ❌ Error de JSON Decode: {str(e)}")
+                print(f"[CROSS] String que falló: {text[:500]}")
+                return []
             except Exception as e:
-                print(f"[CROSS] Error parseando: {str(e)}")
+                print(f"[CROSS] ❌ Error parseando: {str(e)}")
                 return []
         else:
-            print(f"[CROSS] Error HTTP: {response.text[:200]}")
+            print(f"[CROSS] ❌ Error HTTP: {response.text[:200]}")
             return []
     except Exception as e:
-        print(f"[CROSS] Excepción: {str(e)}")
+        print(f"[CROSS] ❌ Excepción: {str(e)}")
         return []
 
 def guess_category(topic):
@@ -555,10 +575,8 @@ def get_predictions_route():
         if not articles:
             return jsonify({'predictions': [], 'source_status': status, 'category': category})
         
-        # 1. Predicciones algorítmicas (siempre funcionan)
         algo_predictions = predict_trends(articles, top=4)
         
-        # 2. Predicciones cruzadas con IA (pueden fallar)
         cross_predictions = []
         try:
             cross_predictions = cross_predictions_func(articles, category=category, top=6)
@@ -566,14 +584,12 @@ def get_predictions_route():
         except Exception as e:
             print(f"[PREDICT] IA falló: {str(e)}")
         
-        # 3. Si no hay cruzadas, usar solo algorítmicas
         if not cross_predictions:
             print("[PREDICT] Usando solo predicciones algorítmicas")
             all_predictions = algo_predictions
         else:
             all_predictions = cross_predictions + algo_predictions
         
-        # Eliminar duplicados
         seen = set()
         unique_predictions = []
         for p in all_predictions:
