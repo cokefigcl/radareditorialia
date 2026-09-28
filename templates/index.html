@@ -89,6 +89,14 @@
         .empty-state { text-align: center; padding: 30px 20px; color: #999; font-size: 13px; }
         .footer { text-align: center; padding: 15px; color: #666; font-size: 11px; }
         .footer a { color: #007bff; text-decoration: none; }
+        .projection-item { background: white; padding: 10px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid #667eea; }
+        .projection-item.critical { border-left-color: #dc3545; }
+        .projection-item.high { border-left-color: #fd7e14; }
+        .projection-item.medium { border-left-color: #ffc107; }
+        .projection-item.low { border-left-color: #28a745; }
+        .projection-scenario { font-weight: 600; font-size: 13px; margin-bottom: 5px; line-height: 1.3; }
+        .projection-meta { display: flex; gap: 10px; font-size: 11px; color: #666; flex-wrap: wrap; margin-bottom: 5px; }
+        .projection-signals { font-size: 11px; color: #888; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -96,8 +104,8 @@
         <div class="topbar-title">📰 Radar <span>Editorial</span> con IA</div>
         <div class="status-bar" id="statusBar">
             <div class="status-item"><span class="label">💵</span><span class="value" id="statusDolar">--</span></div>
-            <div class="status-item"><span class="label">📊</span><span class="value" id="statusUF">--</span></div>
-            <div class="status-item"><span class="label">🌡️</span><span class="value" id="statusClima">--</span></div>
+            <div class="status-item"><span class="label"></span><span class="value" id="statusUF">--</span></div>
+            <div class="status-item"><span class="label">️</span><span class="value" id="statusClima">--</span></div>
             <div class="status-item"><span class="label">🔌</span><span class="value status-ok" id="statusGdelt">●</span></div>
             <div class="status-item"><span class="label">🤖</span><span class="value status-ok" id="statusQwen">●</span></div>
         </div>
@@ -126,6 +134,15 @@
                     <div class="perro-loader-text">🔍 El perro husmea las noticias...</div>
                 </div>
             </div>
+            
+            <div style="padding: 15px 20px; border-top: 2px solid #e0e0e0; background: #f8f9fa;">
+                <h4 style="font-size: 14px; color: #667eea; margin-bottom: 10px;">
+                     Proyecciones <button onclick="loadProjections()" style="font-size: 10px; padding: 3px 8px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 8px;">Actualizar</button>
+                </h4>
+                <div id="projectionsList" style="font-size: 12px; color: #666;">
+                    <p style="text-align: center; padding: 10px;">Haz clic en "Actualizar" para ver proyecciones</p>
+                </div>
+            </div>
         </div>
         
         <div class="module">
@@ -143,7 +160,7 @@
         
         <div class="module module-analysis">
             <div class="module-header">
-                <h3>🔍 Análisis</h3>
+                <h3> Análisis</h3>
             </div>
             <div class="module-body">
                 <div class="analysis-form">
@@ -157,7 +174,7 @@
                         <div style="font-size: 11px; color: #666; margin-bottom: 5px;">Modo:</div>
                         <div class="mode-btns">
                             <div class="tooltip-container"><button class="mode-btn active" onclick="selectMode('standard')">📊 Estándar</button><span class="tooltip-text"><strong>Análisis Estándar</strong>Genera una hipótesis editorial, señales clave, ángulos periodísticos, fuentes sugeridas y titulares de ejemplo.</span></div>
-                            <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('briefing')">⚡ Briefing</button><span class="tooltip-text"><strong>Briefing Periodístico</strong>Genera un resumen ejecutivo, preguntas exactas para tu fuente, datos duros a verificar y timeline sugerido.</span></div>
+                            <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('briefing')"> Briefing</button><span class="tooltip-text"><strong>Briefing Periodístico</strong>Genera un resumen ejecutivo, preguntas exactas para tu fuente, datos duros a verificar y timeline sugerido.</span></div>
                             <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('devil')">😈 Abogado del Diablo</button><span class="tooltip-text"><strong>Abogado del Diablo</strong>Identifica lo que todos los medios ya están diciendo, revela el ángulo ciego y plantea la pregunta incómoda.</span></div>
                             <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('compare')">⚖️ Comparar</button><span class="tooltip-text"><strong>Comparador de Temas</strong>Compara dos temas: cuál tiene más recorrido, fuentes comunes y recomendación de cuál cubrir primero.</span></div>
                         </div>
@@ -169,7 +186,7 @@
                             <div class="tooltip-container"><button class="lens-btn" onclick="selectLens('data')">📊 Datos</button><span class="tooltip-text"><strong>Lente de Datos</strong>Prioriza estadísticas, cifras y fuentes oficiales.</span></div>
                             <div class="tooltip-container"><button class="lens-btn" onclick="selectLens('controversy')">🔥 Polémico</button><span class="tooltip-text"><strong>Lente Polémico</strong>Busca conflictos, controversias y debates.</span></div>
                             <div class="tooltip-container"><button class="lens-btn" onclick="selectLens('human')">👥 Humano</button><span class="tooltip-text"><strong>Lente Humano</strong>Enfócate en cómo afecta a las personas e impacto humano.</span></div>
-                            <div class="tooltip-container"><button class="lens-btn" onclick="selectLens('economic')"> Económico</button><span class="tooltip-text"><strong>Lente Económico</strong>Analiza impacto financiero, costos y mercado.</span></div>
+                            <div class="tooltip-container"><button class="lens-btn" onclick="selectLens('economic')">💰 Económico</button><span class="tooltip-text"><strong>Lente Económico</strong>Analiza impacto financiero, costos y mercado.</span></div>
                         </div>
                     </div>
                     <button class="analyze-btn" onclick="analyzeTrend()" id="analyzeBtn">Analizar</button>
@@ -182,7 +199,7 @@
     <div style="max-width: 1600px; margin: 0 auto; padding: 0 20px 20px;">
         <div class="module" style="max-height: none;">
             <div class="module-header" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                <h3> Historial</h3>
+                <h3>📚 Historial</h3>
             </div>
             <div class="module-body" id="historyList" style="max-height: 300px;">
                 <div class="empty-state">Cargando...</div>
@@ -191,7 +208,7 @@
     </div>
     
     <div class="footer">
-        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | v6.7.0
+        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | v6.8.0
     </div>
 
     <script>
@@ -200,9 +217,9 @@
         let currentMode = 'standard';
         let currentLens = '';
 
-        const gataPhrases = ["🔮 La gata consulta la bola de cristal...", "✨ Los astros revelan las tendencias...", "🌙 El universo susurra secretos...", "🔮 Prediciendo el futuro editorial...", "⭐ Las estrellas se alinean...", "🌌 La gata ve lo que viene...", "🔮 Maybis está meditando...", "✨ Visionando el mañana..."];
-        const perroPhrases = [" El perro husmea las noticias...", " Rastreando tendencias...", "👃 Olfateando titulares...", "🔎 Investigando el momento...", "📰 El detective busca pistas...", "🐾 Siguiendo el rastro...", " Uri está investigando...", "📋 Revisando cada detalle..."];
-        const analysisPhrases = ["🧠 La IA está pensando...", " Procesando datos...", "💡 Generando insights...", "📊 Analizando patrones...", "🎯 Apuntando al ángulo perfecto...", "✨ Creando magia editorial...", " La gata analiza el tema...", " Pensamiento profundo..."];
+        const gataPhrases = ["🔮 La gata consulta la bola de cristal...", "✨ Los astros revelan las tendencias...", "🌙 El universo susurra secretos...", "🔮 Prediciendo el futuro editorial...", "⭐ Las estrellas se alinean...", " La gata ve lo que viene...", " Maybis está meditando...", "✨ Visionando el mañana..."];
+        const perroPhrases = ["🔍 El perro husmea las noticias...", "🐕 Rastreando tendencias...", "👃 Olfateando titulares...", "🔎 Investigando el momento...", "📰 El detective busca pistas...", "🐾 Siguiendo el rastro...", "🔍 Uri está investigando...", "📋 Revisando cada detalle..."];
+        const analysisPhrases = ["🧠 La IA está pensando...", "🤖 Procesando datos...", "💡 Generando insights...", "📊 Analizando patrones...", "🎯 Apuntando al ángulo perfecto...", "✨ Creando magia editorial...", "🔮 La gata analiza el tema...", "⚡ Pensamiento profundo..."];
 
         function getRandomPhrase(phrases) { return phrases[Math.floor(Math.random() * phrases.length)]; }
 
@@ -283,7 +300,7 @@
                 
                 if (!trends || trends.length === 0) {
                     const blocked = Object.values(status).some(s => s === 'blocked_or_empty');
-                    const msg = blocked ? '⚠️ Algunas fuentes están bloqueadas temporalmente.' : 'Sin tendencias disponibles para esta categoría';
+                    const msg = blocked ? '️ Algunas fuentes están bloqueadas temporalmente.' : 'Sin tendencias disponibles para esta categoría';
                     list.innerHTML = `<div class="empty-state">${msg}</div>`;
                     return;
                 }
@@ -299,6 +316,52 @@
             } catch (err) { 
                 console.error('[TRENDS] Error:', err);
                 list.innerHTML = '<div class="empty-state">Error cargando</div>'; 
+            }
+        }
+
+        async function loadProjections() {
+            const list = document.getElementById('projectionsList');
+            list.innerHTML = '<p style="text-align: center; padding: 10px;">🔮 Analizando tendencias...</p>';
+            
+            try {
+                const url = '/api/projections?category=' + encodeURIComponent(currentCategory);
+                const res = await fetch(url);
+                const data = await res.json();
+                const projections = data.projections || [];
+                
+                if (!projections || projections.length === 0) {
+                    list.innerHTML = '<p style="text-align: center; padding: 10px;">Sin proyecciones disponibles</p>';
+                    return;
+                }
+                
+                let html = '';
+                projections.forEach(p => {
+                    const impactColor = {
+                        'bajo': '#28a745',
+                        'medio': '#ffc107',
+                        'alto': '#fd7e14',
+                        'crítico': '#dc3545'
+                    }[p.impact.toLowerCase()] || '#6c757d';
+                    
+                    const impactClass = p.impact.toLowerCase() === 'crítico' ? 'critical' : 
+                                       p.impact.toLowerCase() === 'alto' ? 'high' : 
+                                       p.impact.toLowerCase() === 'medio' ? 'medium' : 'low';
+                    
+                    html += `<div class="projection-item ${impactClass}">
+                        <div class="projection-scenario">${p.scenario}</div>
+                        <div class="projection-meta">
+                            <span>📊 ${p.probability}% probabilidad</span>
+                            <span> ${p.timeframe}</span>
+                            <span style="color: ${impactColor}; font-weight: 600;">Impacto: ${p.impact}</span>
+                        </div>
+                        ${p.signals && p.signals.length > 0 ? `<div class="projection-signals">📡 Señales: ${p.signals.join(', ')}</div>` : ''}
+                    </div>`;
+                });
+                
+                list.innerHTML = html;
+            } catch (err) {
+                console.error('[PROJECTIONS] Error:', err);
+                list.innerHTML = '<p style="text-align: center; padding: 10px; color: #dc3545;">Error cargando proyecciones</p>';
             }
         }
 
@@ -330,11 +393,11 @@
                         </div>
                         <div class="prediction-meta">
                             <span>📂 ${p.category || 'General'}</span>
-                            <span>📰 ${p.news_count} artículos</span>
+                            <span> ${p.news_count} artículos</span>
                             <span>📡 ${p.sources ? p.sources.join(', ') : p.source}</span>
                         </div>`;
                     if (p.alert_level) {
-                        const alertText = p.alert_level === 'critical' ? '🚨 ALERTA CRÍTICA' : '⚠️ ALERTA: Crecimiento acelerado';
+                        const alertText = p.alert_level === 'critical' ? ' ALERTA CRÍTICA' : '⚠️ ALERTA: Crecimiento acelerado';
                         html += `<div class="prediction-alert">${alertText}</div>`;
                     }
                     html += '</div>';
@@ -414,11 +477,11 @@
             
             if (data.mode === 'standard' && score > 0) {
                 const scoreClass = score >= 7 ? 'score-high' : (score >= 4 ? 'score-medium' : 'score-low');
-                const scoreLabel = score >= 9 ? '🔴 CRÍTICA' : (score >= 7 ? '✅ ALTA' : (score >= 4 ? '⚠️ MEDIA' : ' BAJA'));
+                const scoreLabel = score >= 9 ? '🔴 CRÍTICA' : (score >= 7 ? '✅ ALTA' : (score >= 4 ? '⚠️ MEDIA' : '🔵 BAJA'));
                 html += `<div style="margin-bottom: 10px;"><span class="score-badge ${scoreClass}">${score}/10 - ${scoreLabel}</span></div>`;
             }
-            if (a.resumen_ejecutivo) html += `<h4>📝 Resumen</h4><p>${a.resumen_ejecutivo}</p>`;
-            if (a.hipotesis) html += `<h4>🎯 Hipótesis</h4><p>${a.hipotesis}</p>`;
+            if (a.resumen_ejecutivo) html += `<h4> Resumen</h4><p>${a.resumen_ejecutivo}</p>`;
+            if (a.hipotesis) html += `<h4> Hipótesis</h4><p>${a.hipotesis}</p>`;
             if (a.cobertura_mainstream) html += `<h4>📰 Cobertura actual</h4><p>${a.cobertura_mainstream}</p>`;
             if (a.angulo_ciego) html += `<h4>💡 Ángulo ciego</h4><p style="color: #28a745; font-weight: 600;">${a.angulo_ciego}</p>`;
             if (a.pregunta_incomoda) html += `<h4>🔥 Pregunta incómoda</h4><p style="color: #dc3545; font-weight: 600;">${a.pregunta_incomoda}</p>`;
@@ -427,8 +490,8 @@
             if (a.preguntas_fuente && a.preguntas_fuente.length) { html += '<h4>❓ Preguntas para fuente</h4><ul>'; a.preguntas_fuente.forEach(q => { html += `<li>${q}</li>`; }); html += '</ul>'; }
             if (a.senales_clave && a.senales_clave.length) { html += '<h4>🔍 Señales clave</h4><div>'; a.senales_clave.forEach(s => { html += `<span class="tag">${s}</span>`; }); html += '</div>'; }
             if (a.angulos_periodisticos && a.angulos_periodisticos.length) { html += '<h4>📝 Ángulos</h4><ul>'; a.angulos_periodisticos.forEach(ang => { html += `<li>${ang}</li>`; }); html += '</ul>'; }
-            if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) { html += '<h4>📚 Fuentes</h4><ul>'; a.fuentes_sugeridas.forEach(f => { html += `<li>${f}</li>`; }); html += '</ul>'; }
-            if (a.titulares_ejemplo && a.titulares_ejemplo.length) { html += '<h4>📝 Titulares sugeridos</h4><ul>'; a.titulares_ejemplo.forEach(t => { html += `<li>📌 ${t}</li>`; }); html += '</ul>'; }
+            if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) { html += '<h4> Fuentes</h4><ul>'; a.fuentes_sugeridas.forEach(f => { html += `<li>${f}</li>`; }); html += '</ul>'; }
+            if (a.titulares_ejemplo && a.titulares_ejemplo.length) { html += '<h4>📝 Titulares sugeridos</h4><ul>'; a.titulares_ejemplo.forEach(t => { html += `<li> ${t}</li>`; }); html += '</ul>'; }
             if (a.datos_duros && a.datos_duros.length) { html += '<h4>📊 Datos a verificar</h4><div>'; a.datos_duros.forEach(d => { html += `<span class="tag">${d}</span>`; }); html += '</div>'; }
             if (a.timeline_sugerido) html += `<h4>⏰ Timeline</h4><p>${a.timeline_sugerido}</p>`;
             if (a.angulo_conector) html += `<h4>💡 Ángulo conector</h4><p>${a.angulo_conector}</p>`;
@@ -457,13 +520,13 @@
                 history.forEach(item => {
                     const score = item.score || 0;
                     const date = item.created_at ? new Date(item.created_at).toLocaleString('es-CL') : '';
-                    const modeLabels = {'standard': '📊', 'briefing': '⚡', 'devil': '😈', 'compare': '️'};
+                    const modeLabels = {'standard': '📊', 'briefing': '⚡', 'devil': '😈', 'compare': '⚖️'};
                     html += `<div class="trend-item" style="border-left-color: #4facfe;">
                         <div class="topic">${modeLabels[item.mode] || ''} ${item.topic}${item.topic2 ? ' vs ' + item.topic2 : ''}</div>
                         <div class="meta">📂 ${item.category || 'General'} | 📅 ${date} ${score > 0 ? '| Score: ' + score + '/10' : ''}</div>
                         <div style="margin-top: 6px;">
                             <button class="cat-btn" style="font-size: 10px; padding: 3px 8px;" onclick="reAnalyze('${item.topic.replace(/'/g, "\\'")}', '${item.category || ''}', '${item.mode}')">🔄 Re-analizar</button>
-                            <button class="cat-btn" style="font-size: 10px; padding: 3px 8px; background: #dc3545; color: white; border-color: #dc3545;" onclick="deleteAnalysis(${item.id})">🗑️</button>
+                            <button class="cat-btn" style="font-size: 10px; padding: 3px 8px; background: #dc3545; color: white; border-color: #dc3545;" onclick="deleteAnalysis(${item.id})">️</button>
                         </div>
                     </div>`;
                 });
