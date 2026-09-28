@@ -184,7 +184,7 @@ def save_to_cache(articles, status):
                 'timestamp': datetime.now(timezone.utc).isoformat()
             }, f, ensure_ascii=False)
         os.replace(temp_path, CACHE_FILE)
-        print(f"[CACHE] 💾 Guardados {len(articles)} artículos")
+        print(f"[CACHE]  Guardados {len(articles)} artículos")
     except Exception as e:
         print(f"[CACHE] Error guardando: {str(e)}")
 
@@ -222,48 +222,78 @@ def fetch_raw_articles(force_refresh=False):
     save_to_cache(unique_articles, status)
     return unique_articles, status
 
-def predict_trends(articles, top=8):
-    """Predicción algorítmica con scoring realista"""
+def group_related_articles(articles, top=8):
+    """Agrupa artículos relacionados por similitud de palabras clave"""
     if not articles:
         return []
     
-    print(f"[PREDICT] Procesando {len(articles)} artículos (algorítmico)...")
+    print(f"[GROUP] Agrupando {len(articles)} artículos...")
     now = datetime.now(timezone.utc)
     
-    scored = []
+    # Crear grupos basados en palabras clave compartidas
+    groups = defaultdict(list)
+    
     for a in articles:
         title = a['title']
-        source = a['source']
+        norm = _norm(title)
+        words = re.findall(r'[a-zñ]{4,}', norm)
+        significant = [w for w in words if w not in STOPWORDS]
         
+        if len(significant) < 3:
+            continue
+        
+        # Crear clave con las 5 palabras más significativas
+        key = ' '.join(sorted(significant[:5]))
+        groups[key].append(a)
+    
+    # Calcular score por grupo
+    scored = []
+    for key, items in groups.items():
+        sources = set(item['source'] for item in items)
+        n_articles = len(items)
+        
+        # Requiere al menos 2 artículos o 2 fuentes distintas
+        if n_articles < 2 and len(sources) < 2:
+            continue
+        
+        # Recencia promedio
+        avg_age = 0
         try:
-            fs = a.get('first_seen')
-            if isinstance(fs, str):
-                fs = datetime.fromisoformat(fs.replace('Z', '+00:00'))
-            age_hours = (now - fs).total_seconds() / 3600
-            recency_score = max(0, 50 - (age_hours * 8))
-        except Exception:
-            recency_score = 25
+            ages = []
+            for item in items:
+                fs = item.get('first_seen')
+                if isinstance(fs, str):
+                    fs = datetime.fromisoformat(fs.replace('Z', '+00:00'))
+                age_hours = (now - fs).total_seconds() / 3600
+                ages.append(age_hours)
+            avg_age = sum(ages) / len(ages)
+        except:
+            avg_age = 12
         
-        source_bonus = 0
-        if source == 'biobio': source_bonus = 15
-        elif source == 'latercera': source_bonus = 12
-        elif source == 'cooperativa': source_bonus = 8
-        elif source == 'df': source_bonus = 6
+        recency_score = max(0, 100 - (avg_age * 5))
         
-        length = len(title)
-        length_score = 8 if 40 <= length <= 100 else 4
+        # Bonus por diversidad de fuentes
+        source_bonus = len(sources) * 15
         
-        total_score = recency_score + source_bonus + length_score
+        # Bonus por volumen
+        volume_bonus = min(20, n_articles * 5)
+        
+        total_score = (recency_score * 0.4) + source_bonus + volume_bonus
+        
+        # Usar el titular más representativo (el más largo y descriptivo)
+        representative = max(items, key=lambda x: len(x['title']))
         
         scored.append({
-            'topic': title,
-            'source': source,
-            'score': round(min(85, total_score)),
-            'first_seen': a.get('first_seen')
+            'topic': representative['title'],
+            'score': round(min(95, total_score)),
+            'sources': sorted(sources),
+            'count': n_articles,
+            'articles': items[:3]  # Top 3 artículos del grupo
         })
     
     scored.sort(key=lambda x: x['score'], reverse=True)
     
+    # Eliminar duplicados semánticos
     result = []
     seen_topics = set()
     
@@ -279,14 +309,23 @@ def predict_trends(articles, top=8):
             seen_topics.add(norm)
             alert_level = 'critical' if s['score'] >= 80 else ('high' if s['score'] >= 65 else None)
             
+            news_list = []
+            for art in s['articles']:
+                news_list.append({
+                    'titulo': art['title'],
+                    'fuente': art['source'],
+                    'url': art.get('url', ''),
+                    'fecha': art.get('first_seen', '')[:10]
+                })
+            
             result.append({
                 'topic': s['topic'],
                 'score': s['score'],
                 'category': guess_category(s['topic']),
-                'news_count': 1,
-                'news': [{'titulo': s['topic'], 'fuente': s['source'], 'url': '', 'fecha': now.strftime('%Y-%m-%d')}],
+                'news_count': s['count'],
+                'news': news_list,
                 'alert_level': alert_level,
-                'source': 'Algoritmo de Tendencias',
+                'source': f"{', '.join(s['sources'])}",
                 'is_realtime': True,
                 'timestamp': now.isoformat()
             })
@@ -294,61 +333,64 @@ def predict_trends(articles, top=8):
     return result
 
 def cross_predictions_func(articles, category='all', top=6):
-    """Predicción cruzada con IA - ANALÍTICA, no solo titulares"""
+    """Identifica TENDENCIAS EMERGENTES usando IA"""
     if not articles:
         print("[CROSS] Sin artículos")
         return []
     
-    # Filtrar artículos por categoría para darle contexto relevante a la IA
+    # Filtrar artículos por categoría si es necesario
     if category != 'all':
         keywords_raw = SEARCH_KEYWORDS.get(category, category.lower())
         keywords = [kw.strip().lower() for kw in keywords_raw.split(' OR ')]
-        filtered_articles = [a for a in articles if any(kw in a['title'].lower() for kw in keywords)]
-        recent = filtered_articles[:15] if len(filtered_articles) >= 5 else articles[:15]
-    else:
-        recent = articles[:15]
-        
-    if len(recent) < 3:
-        print(f"[CROSS] Solo {len(recent)} artículos relevantes, insuficientes")
+        filtered = [a for a in articles if any(kw in a['title'].lower() for kw in keywords)]
+        if len(filtered) >= 5:
+            articles = filtered
+    
+    if len(articles) < 5:
+        print(f"[CROSS] Solo {len(articles)} artículos, insuficientes")
         return []
     
+    # Tomar 20 artículos variados
+    recent = articles[:20]
     headlines = "\n".join([f"- [{a['source']}] {a['title']}" for a in recent])
-    category_instruction = f"Enfócate específicamente en tendencias relacionadas con: {category}." if category != 'all' else "Cubre una variedad de categorías (política, economía, sociedad, etc.)."
     
-    prompt = f"""Eres un analista editorial experto en tendencias noticiosas.
+    category_instruction = f"Enfócate en tendencias relacionadas con: {category}." if category != 'all' else "Cubre una variedad de categorías."
+    
+    prompt = f"""Eres un analista de tendencias editoriales experto. Tu trabajo es identificar TENDENCIAS EMERGENTES (temas que están creciendo en relevancia), no solo resumir noticias.
 
 {category_instruction}
-Analiza estos titulares recientes de medios chilenos y genera predicciones sobre qué temas se volverán tendencia en las próximas 6-24 horas.
+
+Analiza estos titulares recientes y detecta PATRONES, TEMAS RECURRENTES o SITUACIONES que están EVOLUCIONANDO:
 
 TITULARES ACTUALES:
 {headlines}
 
-Para cada predicción, proporciona:
-- "topic": El tema/tendencia predicho (1 oración clara y atractiva)
-- "score": Probabilidad realista de volverse tendencia (40-85, varía los scores, no pongas todos iguales)
-- "reasoning": Por qué crees que se volverá tendencia (2-3 oraciones analíticas, identifica patrones)
-- "signals": 2-3 señales concretas que observas en los titulares
-- "impact": Nivel de impacto (bajo, medio, alto)
-- "timeframe": Cuándo explotará (próximas horas, mañana, esta semana)
-- "category": Categoría (Política, Economía, Sociedad, Deportes, Tecnología, Internacional, etc.)
+Identifica {top} TENDENCIAS EMERGENTES. Para cada una:
+- "topic": El tema/tendencia (qué está pasando y por qué es relevante)
+- "score": Nivel de relevancia actual (40-85, varía los scores)
+- "reasoning": Por qué esto es una TENDENCIA emergente (no una noticia aislada). Identifica el patrón.
+- "signals": 2-3 señales concretas que muestran que esto está CRECIENDO
+- "impact": Impacto esperado (bajo, medio, alto)
+- "timeframe": Cuándo alcanzará su punto máximo (próximas horas, mañana, esta semana)
+- "category": Categoría
 
-Responde SOLO con un array JSON de {top} predicciones. Formato exacto:
+Responde SOLO con un array JSON:
 [
   {{
-    "topic": "Crisis energética se intensifica en el norte",
-    "score": 72,
-    "reasoning": "Tres medios reportan cortes de luz y el gobierno anuncia medidas urgentes. El patrón sugiere una escalada inminente.",
-    "signals": ["Cortes en 3 regiones", "Declaraciones ministeriales", "Protestas ciudadanas"],
+    "topic": "Crisis energética en el norte de Chile",
+    "score": 78,
+    "reasoning": "Tres medios reportan cortes simultáneos y el gobierno anuncia medidas urgentes. Esto no es un evento aislado: es un patrón de fallas sistémicas que se intensifica.",
+    "signals": ["Cortes en 3 regiones en 48h", "Declaraciones ministeriales urgentes", "Protestas ciudadanas creciendo"],
     "impact": "alto",
-    "timeframe": "próximas horas",
+    "timeframe": "esta semana",
     "category": "Sociedad"
   }}
 ]
 
-IMPORTANTE: 
+IMPORTANTE:
+- Identifica PATRONES, no noticias sueltas
 - Varía los scores (ej: 65, 72, 81)
-- Sé analítico, identifica PATRONES, no solo resumas noticias.
-- Responde SOLO con el array JSON, sin texto adicional."""
+- Responde SOLO con el array JSON"""
 
     api_key = os.getenv('QWEN_API_KEY')
     if not api_key:
@@ -359,7 +401,7 @@ IMPORTANTE:
     payload = {
         'model': 'qwen-plus',
         'input': {'messages': [{'role': 'user', 'content': prompt}]},
-        'parameters': {'temperature': 0.3, 'max_tokens': 2000}
+        'parameters': {'temperature': 0.4, 'max_tokens': 2000}
     }
     
     try:
@@ -376,69 +418,77 @@ IMPORTANTE:
         
         if response.status_code == 200:
             result = response.json()
+            print(f"[CROSS] Response keys: {result.keys()}")
             
-            try:
-                if 'output' in result and 'choices' in result['output']:
-                    text = result['output']['choices'][0]['message']['content']
-                else:
-                    text = str(result)
-                
-                print(f"[CROSS] Texto crudo (primeros 150 chars): {text[:150]}")
-                
-                # Extracción de JSON robusta
-                text = text.strip()
-                start_idx = text.find('[')
-                end_idx = text.rfind(']')
-                
-                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-                    json_str = text[start_idx:end_idx+1]
-                else:
-                    match = re.search(r'\[.*\]', text, re.DOTALL)
-                    json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
-                
-                json_str = json_str.replace('```json', '').replace('```', '').strip()
-                
-                if not json_str or json_str == '[]':
-                    print("[CROSS] ⚠️ La IA no devolvió un JSON válido o está vacío")
-                    return []
-                
-                predictions = json.loads(json_str)
-                print(f"[CROSS] ✅ Parseadas {len(predictions)} predicciones")
-                
-                now = datetime.now(timezone.utc)
-                formatted = []
-                for p in predictions[:top]:
-                    score = p.get('score', 50)
-                    score = max(40, min(85, int(score))) # Asegurar que sea int y esté en rango
-                    
-                    formatted.append({
-                        'topic': p.get('topic', ''),
-                        'score': score,
-                        'reasoning': p.get('reasoning', ''),
-                        'signals': p.get('signals', []),
-                        'impact': p.get('impact', 'medio'),
-                        'timeframe': p.get('timeframe', 'próximas horas'),
-                        'category': p.get('category', guess_category(p.get('topic', ''))),
-                        'news_count': len(p.get('signals', [])),
-                        'news': [{'titulo': p.get('reasoning', ''), 'fuente': 'Análisis IA', 'url': '', 'fecha': now.strftime('%Y-%m-%d')}],
-                        'alert_level': 'critical' if score >= 80 else ('high' if score >= 65 else None),
-                        'source': 'Predicción Cruzada IA',
-                        'is_realtime': True,
-                        'timestamp': now.isoformat()
-                    })
-                return formatted
-            except json.JSONDecodeError as e:
-                print(f"[CROSS] ❌ Error de JSON Decode: {str(e)}")
-                print(f"[CROSS] String que falló: {text[:500]}")
+            # EXTRAER TEXTO DE DIFERENTES FORMATOS
+            text = None
+            if 'output' in result:
+                output = result['output']
+                if 'choices' in output:
+                    text = output['choices'][0]['message']['content']
+                elif 'text' in output:
+                    text = output['text']
+            elif 'choices' in result:
+                text = result['choices'][0]['message']['content']
+            
+            if not text:
+                print(f"[CROSS] ❌ No se pudo extraer texto. Response: {str(result)[:200]}")
                 return []
-            except Exception as e:
-                print(f"[CROSS] ❌ Error parseando: {str(e)}")
+            
+            print(f"[CROSS] Texto crudo (primeros 200 chars): {text[:200]}")
+            
+            # Extracción de JSON robusta
+            text = text.strip()
+            start_idx = text.find('[')
+            end_idx = text.rfind(']')
+            
+            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                json_str = text[start_idx:end_idx+1]
+            else:
+                match = re.search(r'\[.*\]', text, re.DOTALL)
+                json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
+            
+            json_str = json_str.replace('```json', '').replace('```', '').strip()
+            
+            if not json_str or json_str == '[]':
+                print("[CROSS] ️ JSON vacío")
                 return []
+            
+            predictions = json.loads(json_str)
+            print(f"[CROSS] ✅ Parseadas {len(predictions)} predicciones")
+            
+            now = datetime.now(timezone.utc)
+            formatted = []
+            for p in predictions[:top]:
+                score = p.get('score', 50)
+                score = max(40, min(85, int(score)))
+                
+                formatted.append({
+                    'topic': p.get('topic', ''),
+                    'score': score,
+                    'reasoning': p.get('reasoning', ''),
+                    'signals': p.get('signals', []),
+                    'impact': p.get('impact', 'medio'),
+                    'timeframe': p.get('timeframe', 'próximas horas'),
+                    'category': p.get('category', guess_category(p.get('topic', ''))),
+                    'news_count': len(p.get('signals', [])),
+                    'news': [{'titulo': p.get('reasoning', ''), 'fuente': 'Análisis IA', 'url': '', 'fecha': now.strftime('%Y-%m-%d')}],
+                    'alert_level': 'critical' if score >= 80 else ('high' if score >= 65 else None),
+                    'source': 'Predicción Cruzada IA',
+                    'is_realtime': True,
+                    'timestamp': now.isoformat()
+                })
+            return formatted
         else:
             print(f"[CROSS] ❌ Error HTTP: {response.text[:200]}")
             return []
+    except json.JSONDecodeError as e:
+        print(f"[CROSS] ❌ Error JSON: {str(e)}")
+        return []
     except Exception as e:
         print(f"[CROSS] ❌ Excepción: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return []
 
 def guess_category(topic):
@@ -490,14 +540,18 @@ def analyze_with_qwen(prompt, mode='standard'):
             result = response.json()
             
             try:
-                if 'output' in result and 'choices' in result['output']:
-                    text = result['output']['choices'][0]['message']['content']
+                text = None
+                if 'output' in result:
+                    output = result['output']
+                    if 'choices' in output:
+                        text = output['choices'][0]['message']['content']
+                    elif 'text' in output:
+                        text = output['text']
                 elif 'choices' in result:
                     text = result['choices'][0]['message']['content']
-                elif 'output' in result and 'text' in result['output']:
-                    text = result['output']['text']
-                else:
-                    text = str(result)
+                
+                if not text:
+                    return None, "No se pudo extraer texto"
                 
                 match = re.search(r'\{.*\}', text, re.DOTALL)
                 json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
@@ -575,8 +629,11 @@ def get_predictions_route():
         if not articles:
             return jsonify({'predictions': [], 'source_status': status, 'category': category})
         
-        algo_predictions = predict_trends(articles, top=4)
+        # 1. Agrupar artículos relacionados (tendencias algorítmicas)
+        algo_predictions = group_related_articles(articles, top=4)
+        print(f"[PREDICT] Algorítmicas: {len(algo_predictions)}")
         
+        # 2. Predicciones cruzadas con IA (tendencias emergentes)
         cross_predictions = []
         try:
             cross_predictions = cross_predictions_func(articles, category=category, top=6)
@@ -584,12 +641,13 @@ def get_predictions_route():
         except Exception as e:
             print(f"[PREDICT] IA falló: {str(e)}")
         
+        # 3. Combinar
         if not cross_predictions:
-            print("[PREDICT] Usando solo predicciones algorítmicas")
             all_predictions = algo_predictions
         else:
             all_predictions = cross_predictions + algo_predictions
         
+        # Eliminar duplicados
         seen = set()
         unique_predictions = []
         for p in all_predictions:
@@ -659,15 +717,15 @@ def analyze():
         analysis, error = analyze_with_qwen(prompt, mode)
         
         if error or not analysis:
-            print(f"[ANALYZE] ⚠️ Qwen falló: {error}. Usando fallback MEJORADO.")
+            print(f"[ANALYZE] ⚠️ Qwen falló: {error}. Usando fallback.")
             analysis = {
                 'puntaje_relevancia': 6,
                 'justificacion_puntaje': f'Según {len(news)} noticias recientes sobre "{topic}".',
-                'hipotesis': f'El tema "{topic}" muestra actividad mediática {"alta" if len(news) >= 3 else "moderada"} en las últimas horas.',
-                'senales_clave': [f'{len(news)} menciones en medios', f'Fuentes: {", ".join(set(n["fuente"] for n in news[:3]))}'] if news else ['Tema emergente'],
-                'angulos_periodisticos': [f'Impacto de {topic} en la sociedad', f'Perspectivas sobre {topic}', f'Antecedentes del caso'],
-                'fuentes_sugeridas': ['Expertos en la materia', 'Organismos oficiales relacionados', 'Actores directamente involucrados'],
-                'titulares_ejemplo': [f'Análisis: {topic}', f'Las claves de {topic}', f'{topic}: Lo que debes saber'],
+                'hipotesis': f'El tema "{topic}" muestra actividad mediática {"alta" if len(news) >= 3 else "moderada"}.',
+                'senales_clave': [f'{len(news)} menciones en medios'] if news else ['Tema emergente'],
+                'angulos_periodisticos': [f'Impacto de {topic}', f'Perspectivas sobre {topic}'],
+                'fuentes_sugeridas': ['Expertos', 'Organismos oficiales'],
+                'titulares_ejemplo': [f'Análisis: {topic}'],
                 'noticias_reales': news
             }
         else:
