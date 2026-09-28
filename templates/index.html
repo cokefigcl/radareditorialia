@@ -22,9 +22,8 @@
         .cat-btn.active { background: #007bff; color: white; border-color: #007bff; }
         .cat-btn:hover { border-color: #007bff; }
         .cat-separator { width: 1px; height: 20px; background: #ddd; margin: 0 5px; }
-        .main-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; padding: 15px 20px; max-width: 1600px; margin: 0 auto; }
-        @media (max-width: 1200px) { .main-grid { grid-template-columns: 1fr 1fr; } }
-        @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; } }
+        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 15px 20px; max-width: 1200px; margin: 0 auto; }
+        @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
         .module { background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; flex-direction: column; max-height: 75vh; overflow: hidden; }
         .module-header { padding: 15px 20px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
         .module-header h3 { font-size: 16px; font-weight: 700; }
@@ -38,18 +37,19 @@
         .trend-item .meta { font-size: 11px; color: #666; margin-top: 4px; }
         .prediction-item { padding: 12px; margin-bottom: 10px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff; }
         .prediction-item.critical { border-left-color: #dc3545; background: #fff5f5; }
-        .prediction-item.high { border-left-color: #f57f17; background: #fffef5; }
+        .prediction-item.high { border-left-color: #fd7e14; background: #fff8f0; }
+        .prediction-item.medium { border-left-color: #ffc107; background: #fffef5; }
+        .prediction-item.low { border-left-color: #28a745; background: #f0fff4; }
         .prediction-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
         .prediction-topic { font-size: 14px; font-weight: 700; color: #333; flex: 1; line-height: 1.3; }
         .prediction-score { font-size: 18px; font-weight: bold; padding: 4px 10px; border-radius: 15px; min-width: 55px; text-align: center; margin-left: 10px; }
         .score-high { background: #e8f5e9; color: #2e7d32; }
         .score-medium { background: #fff8e1; color: #f57f17; }
         .score-low { background: #ffebee; color: #c62828; }
-        .prediction-meta { font-size: 11px; color: #666; display: flex; gap: 10px; flex-wrap: wrap; }
+        .prediction-meta { font-size: 11px; color: #666; display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 5px; }
+        .prediction-reasoning { font-size: 12px; color: #555; margin-bottom: 5px; font-style: italic; }
         .prediction-alert { background: #fff3cd; padding: 6px 10px; border-radius: 4px; font-size: 11px; color: #856404; margin-top: 8px; }
-        .prediction-news { margin-top: 8px; padding-top: 8px; border-top: 1px solid #e0e0e0; }
-        .prediction-news-item { font-size: 11px; color: #555; margin: 3px 0; padding-left: 12px; }
-        .prediction-news-item::before { content: "📰 "; }
+        .prediction-signals { font-size: 11px; color: #888; margin-top: 5px; }
         .realtime-badge { display: inline-block; background: #dc3545; color: white; padding: 1px 6px; border-radius: 8px; font-size: 9px; font-weight: bold; margin-left: 6px; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         .analysis-form { display: flex; flex-direction: column; gap: 10px; }
@@ -89,23 +89,15 @@
         .empty-state { text-align: center; padding: 30px 20px; color: #999; font-size: 13px; }
         .footer { text-align: center; padding: 15px; color: #666; font-size: 11px; }
         .footer a { color: #007bff; text-decoration: none; }
-        .projection-item { background: white; padding: 10px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid #667eea; }
-        .projection-item.critical { border-left-color: #dc3545; }
-        .projection-item.high { border-left-color: #fd7e14; }
-        .projection-item.medium { border-left-color: #ffc107; }
-        .projection-item.low { border-left-color: #28a745; }
-        .projection-scenario { font-weight: 600; font-size: 13px; margin-bottom: 5px; line-height: 1.3; }
-        .projection-meta { display: flex; gap: 10px; font-size: 11px; color: #666; flex-wrap: wrap; margin-bottom: 5px; }
-        .projection-signals { font-size: 11px; color: #888; margin-top: 5px; }
     </style>
 </head>
 <body>
     <div class="topbar">
-        <div class="topbar-title">📰 Radar <span>Editorial</span> con IA</div>
+        <div class="topbar-title"> Radar <span>Editorial</span> con IA</div>
         <div class="status-bar" id="statusBar">
             <div class="status-item"><span class="label">💵</span><span class="value" id="statusDolar">--</span></div>
-            <div class="status-item"><span class="label"></span><span class="value" id="statusUF">--</span></div>
-            <div class="status-item"><span class="label">️</span><span class="value" id="statusClima">--</span></div>
+            <div class="status-item"><span class="label">📊</span><span class="value" id="statusUF">--</span></div>
+            <div class="status-item"><span class="label">🌡️</span><span class="value" id="statusClima">--</span></div>
             <div class="status-item"><span class="label">🔌</span><span class="value status-ok" id="statusGdelt">●</span></div>
             <div class="status-item"><span class="label">🤖</span><span class="value status-ok" id="statusQwen">●</span></div>
         </div>
@@ -123,44 +115,24 @@
     </div>
     
     <div class="main-grid">
+        <!-- MÓDULO PREDICCIONES (unificado) -->
         <div class="module">
             <div class="module-header">
-                <h3>🔥 Tendencias</h3>
-                <button onclick="loadTrending(true)">🔄</button>
-            </div>
-            <div class="module-body" id="trendingList">
-                <div class="perro-loader-container">
-                    <img src="https://ltv.cl/x/uriweb.png" alt="Perro detective" class="perro-loader">
-                    <div class="perro-loader-text">🔍 El perro husmea las noticias...</div>
-                </div>
-            </div>
-            
-            <div style="padding: 15px 20px; border-top: 2px solid #e0e0e0; background: #f8f9fa;">
-                <h4 style="font-size: 14px; color: #667eea; margin-bottom: 10px;">
-                     Proyecciones <button onclick="loadProjections()" style="font-size: 10px; padding: 3px 8px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 8px;">Actualizar</button>
-                </h4>
-                <div id="projectionsList" style="font-size: 12px; color: #666;">
-                    <p style="text-align: center; padding: 10px;">Haz clic en "Actualizar" para ver proyecciones</p>
-                </div>
-            </div>
-        </div>
-        
-        <div class="module">
-            <div class="module-header">
-                <h3>🔮 Predicciones</h3>
+                <h3>🔮 Predicciones Cruzadas</h3>
                 <button onclick="loadPredictions(true)">🔄</button>
             </div>
             <div class="module-body" id="predictionsList">
                 <div class="gata-loader-container">
                     <img src="https://ltv.cl/x/maybisweb.png" alt="Gata vidente" class="gata-loader">
-                    <div class="gata-loader-text">🔮 La gata consulta la bola de cristal...</div>
+                    <div class="gata-loader-text">🔮 La gata cruza datos y proyecta...</div>
                 </div>
             </div>
         </div>
         
+        <!-- MÓDULO ANÁLISIS -->
         <div class="module module-analysis">
             <div class="module-header">
-                <h3> Análisis</h3>
+                <h3>🔍 Análisis</h3>
             </div>
             <div class="module-body">
                 <div class="analysis-form">
@@ -174,7 +146,7 @@
                         <div style="font-size: 11px; color: #666; margin-bottom: 5px;">Modo:</div>
                         <div class="mode-btns">
                             <div class="tooltip-container"><button class="mode-btn active" onclick="selectMode('standard')">📊 Estándar</button><span class="tooltip-text"><strong>Análisis Estándar</strong>Genera una hipótesis editorial, señales clave, ángulos periodísticos, fuentes sugeridas y titulares de ejemplo.</span></div>
-                            <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('briefing')"> Briefing</button><span class="tooltip-text"><strong>Briefing Periodístico</strong>Genera un resumen ejecutivo, preguntas exactas para tu fuente, datos duros a verificar y timeline sugerido.</span></div>
+                            <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('briefing')">⚡ Briefing</button><span class="tooltip-text"><strong>Briefing Periodístico</strong>Genera un resumen ejecutivo, preguntas exactas para tu fuente, datos duros a verificar y timeline sugerido.</span></div>
                             <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('devil')">😈 Abogado del Diablo</button><span class="tooltip-text"><strong>Abogado del Diablo</strong>Identifica lo que todos los medios ya están diciendo, revela el ángulo ciego y plantea la pregunta incómoda.</span></div>
                             <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('compare')">⚖️ Comparar</button><span class="tooltip-text"><strong>Comparador de Temas</strong>Compara dos temas: cuál tiene más recorrido, fuentes comunes y recomendación de cuál cubrir primero.</span></div>
                         </div>
@@ -196,7 +168,7 @@
         </div>
     </div>
     
-    <div style="max-width: 1600px; margin: 0 auto; padding: 0 20px 20px;">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 0 20px 20px;">
         <div class="module" style="max-height: none;">
             <div class="module-header" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
                 <h3>📚 Historial</h3>
@@ -208,7 +180,7 @@
     </div>
     
     <div class="footer">
-        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | v6.8.0
+        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | v7.0.0
     </div>
 
     <script>
@@ -217,9 +189,8 @@
         let currentMode = 'standard';
         let currentLens = '';
 
-        const gataPhrases = ["🔮 La gata consulta la bola de cristal...", "✨ Los astros revelan las tendencias...", "🌙 El universo susurra secretos...", "🔮 Prediciendo el futuro editorial...", "⭐ Las estrellas se alinean...", " La gata ve lo que viene...", " Maybis está meditando...", "✨ Visionando el mañana..."];
-        const perroPhrases = ["🔍 El perro husmea las noticias...", "🐕 Rastreando tendencias...", "👃 Olfateando titulares...", "🔎 Investigando el momento...", "📰 El detective busca pistas...", "🐾 Siguiendo el rastro...", "🔍 Uri está investigando...", "📋 Revisando cada detalle..."];
-        const analysisPhrases = ["🧠 La IA está pensando...", "🤖 Procesando datos...", "💡 Generando insights...", "📊 Analizando patrones...", "🎯 Apuntando al ángulo perfecto...", "✨ Creando magia editorial...", "🔮 La gata analiza el tema...", "⚡ Pensamiento profundo..."];
+        const gataPhrases = ["🔮 La gata cruza datos y proyecta...", "✨ Analizando señales convergentes...", "🌙 Proyectando escenarios futuros...", " Detectando temas emergentes...", "⭐ Cruzando fuentes con IA...", " La gata anticipa tendencias...", " Maybis predice el futuro editorial...", "✨ Visionando lo que viene..."];
+        const analysisPhrases = ["🧠 La IA está pensando...", "🤖 Procesando datos...", "💡 Generando insights...", " Analizando patrones...", "🎯 Apuntando al ángulo perfecto...", "✨ Creando magia editorial...", "🔮 La gata analiza el tema...", "⚡ Pensamiento profundo..."];
 
         function getRandomPhrase(phrases) { return phrases[Math.floor(Math.random() * phrases.length)]; }
 
@@ -229,7 +200,6 @@
                 categories = await catRes.json();
                 renderFilters();
                 loadStatus();
-                loadTrending(false);
                 loadPredictions(false);
                 loadHistory();
             } catch (err) { console.error('Error:', err); }
@@ -264,7 +234,7 @@
                     btn.classList.add('active');
                 }
             });
-            loadTrending(false);
+            loadPredictions(false);
         }
 
         async function loadStatus() {
@@ -287,97 +257,20 @@
             } catch (err) { console.error('[STATUS] Error:', err); }
         }
 
-        async function loadTrending(force = false) {
-            const list = document.getElementById('trendingList');
-            list.innerHTML = `<div class="perro-loader-container"><img src="https://ltv.cl/x/uriweb.png" alt="Perro detective" class="perro-loader"><div class="perro-loader-text">${getRandomPhrase(perroPhrases)}</div></div>`;
-            try {
-                const refreshParam = force ? '&refresh=true' : '';
-                const url = '/api/trending?category=' + encodeURIComponent(currentCategory) + '&limit=8' + refreshParam;
-                const res = await fetch(url);
-                const data = await res.json();
-                const trends = data.trends || [];
-                const status = data.source_status || {};
-                
-                if (!trends || trends.length === 0) {
-                    const blocked = Object.values(status).some(s => s === 'blocked_or_empty');
-                    const msg = blocked ? '️ Algunas fuentes están bloqueadas temporalmente.' : 'Sin tendencias disponibles para esta categoría';
-                    list.innerHTML = `<div class="empty-state">${msg}</div>`;
-                    return;
-                }
-                
-                let html = '';
-                trends.forEach((t, i) => {
-                    html += `<div class="trend-item" onclick="useTrend('${t.topic.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">
-                        <div class="topic">${i + 1}. ${t.topic}</div>
-                        <div class="meta">📊 ${t.source || 'Medio'} | ${t.region || 'Chile'}</div>
-                    </div>`;
-                });
-                list.innerHTML = html;
-            } catch (err) { 
-                console.error('[TRENDS] Error:', err);
-                list.innerHTML = '<div class="empty-state">Error cargando</div>'; 
-            }
-        }
-
-        async function loadProjections() {
-            const list = document.getElementById('projectionsList');
-            list.innerHTML = '<p style="text-align: center; padding: 10px;">🔮 Analizando tendencias...</p>';
-            
-            try {
-                const url = '/api/projections?category=' + encodeURIComponent(currentCategory);
-                const res = await fetch(url);
-                const data = await res.json();
-                const projections = data.projections || [];
-                
-                if (!projections || projections.length === 0) {
-                    list.innerHTML = '<p style="text-align: center; padding: 10px;">Sin proyecciones disponibles</p>';
-                    return;
-                }
-                
-                let html = '';
-                projections.forEach(p => {
-                    const impactColor = {
-                        'bajo': '#28a745',
-                        'medio': '#ffc107',
-                        'alto': '#fd7e14',
-                        'crítico': '#dc3545'
-                    }[p.impact.toLowerCase()] || '#6c757d';
-                    
-                    const impactClass = p.impact.toLowerCase() === 'crítico' ? 'critical' : 
-                                       p.impact.toLowerCase() === 'alto' ? 'high' : 
-                                       p.impact.toLowerCase() === 'medio' ? 'medium' : 'low';
-                    
-                    html += `<div class="projection-item ${impactClass}">
-                        <div class="projection-scenario">${p.scenario}</div>
-                        <div class="projection-meta">
-                            <span>📊 ${p.probability}% probabilidad</span>
-                            <span> ${p.timeframe}</span>
-                            <span style="color: ${impactColor}; font-weight: 600;">Impacto: ${p.impact}</span>
-                        </div>
-                        ${p.signals && p.signals.length > 0 ? `<div class="projection-signals">📡 Señales: ${p.signals.join(', ')}</div>` : ''}
-                    </div>`;
-                });
-                
-                list.innerHTML = html;
-            } catch (err) {
-                console.error('[PROJECTIONS] Error:', err);
-                list.innerHTML = '<p style="text-align: center; padding: 10px; color: #dc3545;">Error cargando proyecciones</p>';
-            }
-        }
-
         async function loadPredictions(force = false) {
             const list = document.getElementById('predictionsList');
             list.innerHTML = `<div class="gata-loader-container"><img src="https://ltv.cl/x/maybisweb.png" alt="Gata vidente" class="gata-loader"><div class="gata-loader-text">${getRandomPhrase(gataPhrases)}</div></div>`;
             try {
                 const refreshParam = force ? '?refresh=true' : '';
-                const res = await fetch('/api/predictions' + refreshParam);
+                const url = '/api/predictions' + refreshParam + (currentCategory !== 'all' ? '&category=' + encodeURIComponent(currentCategory) : '');
+                const res = await fetch(url);
                 const data = await res.json();
                 const predictions = data.predictions || [];
                 const status = data.source_status || {};
                 
                 if (!predictions || predictions.length === 0) {
                     const blocked = Object.values(status).some(s => s === 'blocked_or_empty');
-                    const msg = blocked ? '⚠️ Fuentes bloqueadas. Usando datos en caché...' : 'Sin predicciones disponibles';
+                    const msg = blocked ? '⚠️ Fuentes bloqueadas. Intenta actualizar.' : 'Sin predicciones disponibles';
                     list.innerHTML = `<div class="empty-state">${msg}</div>`;
                     return;
                 }
@@ -385,21 +278,33 @@
                 let html = '';
                 predictions.forEach(p => {
                     const scoreClass = p.score >= 70 ? 'score-high' : (p.score >= 40 ? 'score-medium' : 'score-low');
-                    const cardClass = p.alert_level === 'critical' ? 'critical' : (p.alert_level === 'high' ? 'high' : '');
+                    const impactClass = p.impact ? p.impact.toLowerCase() : 'medium';
+                    const cardClass = p.alert_level === 'critical' ? 'critical' : (p.alert_level === 'high' ? 'high' : (impactClass === 'medio' ? 'medium' : 'low'));
+                    
                     html += `<div class="prediction-item ${cardClass}">
                         <div class="prediction-top">
-                            <div class="prediction-topic">${p.topic}${p.is_realtime ? '<span class="realtime-badge">LIVE</span>' : ''}</div>
+                            <div class="prediction-topic">${p.topic}${p.is_realtime ? '<span class="realtime-badge">IA</span>' : ''}</div>
                             <div class="prediction-score ${scoreClass}">${p.score}%</div>
                         </div>
                         <div class="prediction-meta">
                             <span>📂 ${p.category || 'General'}</span>
-                            <span> ${p.news_count} artículos</span>
-                            <span>📡 ${p.sources ? p.sources.join(', ') : p.source}</span>
+                            <span>⏰ ${p.timeframe || 'próximas horas'}</span>
+                            <span style="color: ${getImpactColor(p.impact)}; font-weight: 600;">Impacto: ${p.impact || 'medio'}</span>
                         </div>`;
+                    
+                    if (p.reasoning) {
+                        html += `<div class="prediction-reasoning">💡 ${p.reasoning}</div>`;
+                    }
+                    
+                    if (p.signals && p.signals.length > 0) {
+                        html += `<div class="prediction-signals">📡 Señales: ${p.signals.join(' • ')}</div>`;
+                    }
+                    
                     if (p.alert_level) {
-                        const alertText = p.alert_level === 'critical' ? ' ALERTA CRÍTICA' : '⚠️ ALERTA: Crecimiento acelerado';
+                        const alertText = p.alert_level === 'critical' ? '🚨 ALERTA CRÍTICA' : '⚠️ ALERTA: Crecimiento acelerado';
                         html += `<div class="prediction-alert">${alertText}</div>`;
                     }
+                    
                     html += '</div>';
                 });
                 list.innerHTML = html;
@@ -407,6 +312,16 @@
                 console.error('[PREDICTIONS] Error:', err);
                 list.innerHTML = '<div class="empty-state">Error cargando</div>'; 
             }
+        }
+
+        function getImpactColor(impact) {
+            const colors = {
+                'bajo': '#28a745',
+                'medio': '#ffc107',
+                'alto': '#fd7e14',
+                'crítico': '#dc3545'
+            };
+            return colors[impact?.toLowerCase()] || '#6c757d';
         }
 
         function useTrend(topic) { document.getElementById('topicInput').value = topic; }
@@ -477,12 +392,12 @@
             
             if (data.mode === 'standard' && score > 0) {
                 const scoreClass = score >= 7 ? 'score-high' : (score >= 4 ? 'score-medium' : 'score-low');
-                const scoreLabel = score >= 9 ? '🔴 CRÍTICA' : (score >= 7 ? '✅ ALTA' : (score >= 4 ? '⚠️ MEDIA' : '🔵 BAJA'));
+                const scoreLabel = score >= 9 ? ' CRÍTICA' : (score >= 7 ? '✅ ALTA' : (score >= 4 ? '⚠️ MEDIA' : '🔵 BAJA'));
                 html += `<div style="margin-bottom: 10px;"><span class="score-badge ${scoreClass}">${score}/10 - ${scoreLabel}</span></div>`;
             }
-            if (a.resumen_ejecutivo) html += `<h4> Resumen</h4><p>${a.resumen_ejecutivo}</p>`;
-            if (a.hipotesis) html += `<h4> Hipótesis</h4><p>${a.hipotesis}</p>`;
-            if (a.cobertura_mainstream) html += `<h4>📰 Cobertura actual</h4><p>${a.cobertura_mainstream}</p>`;
+            if (a.resumen_ejecutivo) html += `<h4>📝 Resumen</h4><p>${a.resumen_ejecutivo}</p>`;
+            if (a.hipotesis) html += `<h4>🎯 Hipótesis</h4><p>${a.hipotesis}</p>`;
+            if (a.cobertura_mainstream) html += `<h4> Cobertura actual</h4><p>${a.cobertura_mainstream}</p>`;
             if (a.angulo_ciego) html += `<h4>💡 Ángulo ciego</h4><p style="color: #28a745; font-weight: 600;">${a.angulo_ciego}</p>`;
             if (a.pregunta_incomoda) html += `<h4>🔥 Pregunta incómoda</h4><p style="color: #dc3545; font-weight: 600;">${a.pregunta_incomoda}</p>`;
             if (a.mas_recorrido) html += `<h4>📊 Más recorrido</h4><p>${a.mas_recorrido}</p>`;
@@ -490,8 +405,8 @@
             if (a.preguntas_fuente && a.preguntas_fuente.length) { html += '<h4>❓ Preguntas para fuente</h4><ul>'; a.preguntas_fuente.forEach(q => { html += `<li>${q}</li>`; }); html += '</ul>'; }
             if (a.senales_clave && a.senales_clave.length) { html += '<h4>🔍 Señales clave</h4><div>'; a.senales_clave.forEach(s => { html += `<span class="tag">${s}</span>`; }); html += '</div>'; }
             if (a.angulos_periodisticos && a.angulos_periodisticos.length) { html += '<h4>📝 Ángulos</h4><ul>'; a.angulos_periodisticos.forEach(ang => { html += `<li>${ang}</li>`; }); html += '</ul>'; }
-            if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) { html += '<h4> Fuentes</h4><ul>'; a.fuentes_sugeridas.forEach(f => { html += `<li>${f}</li>`; }); html += '</ul>'; }
-            if (a.titulares_ejemplo && a.titulares_ejemplo.length) { html += '<h4>📝 Titulares sugeridos</h4><ul>'; a.titulares_ejemplo.forEach(t => { html += `<li> ${t}</li>`; }); html += '</ul>'; }
+            if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) { html += '<h4>📚 Fuentes</h4><ul>'; a.fuentes_sugeridas.forEach(f => { html += `<li>${f}</li>`; }); html += '</ul>'; }
+            if (a.titulares_ejemplo && a.titulares_ejemplo.length) { html += '<h4>📝 Titulares sugeridos</h4><ul>'; a.titulares_ejemplo.forEach(t => { html += `<li>📌 ${t}</li>`; }); html += '</ul>'; }
             if (a.datos_duros && a.datos_duros.length) { html += '<h4>📊 Datos a verificar</h4><div>'; a.datos_duros.forEach(d => { html += `<span class="tag">${d}</span>`; }); html += '</div>'; }
             if (a.timeline_sugerido) html += `<h4>⏰ Timeline</h4><p>${a.timeline_sugerido}</p>`;
             if (a.angulo_conector) html += `<h4>💡 Ángulo conector</h4><p>${a.angulo_conector}</p>`;
@@ -499,7 +414,7 @@
             if (a.riesgos_sesgos && a.riesgos_sesgos.length) { html += '<h4>⚠️ Riesgos</h4><div>'; a.riesgos_sesgos.forEach(r => { html += `<span class="tag">${r}</span>`; }); html += '</div>'; }
             
             if (a.noticias_reales && a.noticias_reales.length > 0) {
-                html += '<h4>📰 Noticias</h4>';
+                html += '<h4> Noticias</h4>';
                 a.noticias_reales.forEach(n => {
                     if (n.url) html += `<div style="font-size: 12px; margin: 4px 0;"><a href="${n.url}" target="_blank" style="color: #007bff;">📰 ${n.titulo}</a> <span style="color: #666;">- ${n.fuente}</span></div>`;
                     else html += `<div style="font-size: 12px; margin: 4px 0;">📰 ${n.titulo} <span style="color: #666;">- ${n.fuente}</span></div>`;
@@ -523,10 +438,10 @@
                     const modeLabels = {'standard': '📊', 'briefing': '⚡', 'devil': '😈', 'compare': '⚖️'};
                     html += `<div class="trend-item" style="border-left-color: #4facfe;">
                         <div class="topic">${modeLabels[item.mode] || ''} ${item.topic}${item.topic2 ? ' vs ' + item.topic2 : ''}</div>
-                        <div class="meta">📂 ${item.category || 'General'} | 📅 ${date} ${score > 0 ? '| Score: ' + score + '/10' : ''}</div>
+                        <div class="meta"> ${item.category || 'General'} | 📅 ${date} ${score > 0 ? '| Score: ' + score + '/10' : ''}</div>
                         <div style="margin-top: 6px;">
                             <button class="cat-btn" style="font-size: 10px; padding: 3px 8px;" onclick="reAnalyze('${item.topic.replace(/'/g, "\\'")}', '${item.category || ''}', '${item.mode}')">🔄 Re-analizar</button>
-                            <button class="cat-btn" style="font-size: 10px; padding: 3px 8px; background: #dc3545; color: white; border-color: #dc3545;" onclick="deleteAnalysis(${item.id})">️</button>
+                            <button class="cat-btn" style="font-size: 10px; padding: 3px 8px; background: #dc3545; color: white; border-color: #dc3545;" onclick="deleteAnalysis(${item.id})">🗑️</button>
                         </div>
                     </div>`;
                 });
