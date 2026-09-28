@@ -56,14 +56,14 @@ CATEGORIES = [
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
     {'name': 'Chile', 'icon': '🇨', 'type': 'region'},
-    {'name': 'Internacional', 'icon': '', 'type': 'region'},
+    {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
     {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
-    {'name': 'Ciencia y Tecnología', 'icon': '', 'type': 'otros'},
+    {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
     {'name': 'Cultura', 'icon': '🎭', 'type': 'otros'},
     {'name': 'Ocio', 'icon': '🎮', 'type': 'otros'},
     {'name': 'Salud', 'icon': '🏥', 'type': 'otros'},
     {'name': 'Sociedad', 'icon': '👥', 'type': 'otros'},
-    {'name': 'TV y Espectáculos', 'icon': '', 'type': 'otros'}
+    {'name': 'TV y Espectáculos', 'icon': '📺', 'type': 'otros'}
 ]
 
 SEARCH_KEYWORDS = {
@@ -223,7 +223,7 @@ def fetch_raw_articles(force_refresh=False):
     return unique_articles, status
 
 def predict_trends(articles, top=8):
-    """Predicción algorítmica con scoring realista (no todo 100%)"""
+    """Predicción algorítmica con scoring realista"""
     if not articles:
         return []
     
@@ -240,29 +240,25 @@ def predict_trends(articles, top=8):
             if isinstance(fs, str):
                 fs = datetime.fromisoformat(fs.replace('Z', '+00:00'))
             age_hours = (now - fs).total_seconds() / 3600
-            # Recencia: máximo 60 puntos, decae rápido
-            recency_score = max(0, 60 - (age_hours * 10))
+            recency_score = max(0, 50 - (age_hours * 8))
         except Exception:
-            recency_score = 30
+            recency_score = 25
         
-        # Bonus por fuente (máximo 20 puntos)
         source_bonus = 0
-        if source == 'biobio': source_bonus = 20
-        elif source == 'latercera': source_bonus = 15
-        elif source == 'cooperativa': source_bonus = 10
-        elif source == 'df': source_bonus = 8
+        if source == 'biobio': source_bonus = 15
+        elif source == 'latercera': source_bonus = 12
+        elif source == 'cooperativa': source_bonus = 8
+        elif source == 'df': source_bonus = 6
         
-        # Longitud (máximo 10 puntos)
         length = len(title)
-        length_score = 10 if 40 <= length <= 100 else 5
+        length_score = 8 if 40 <= length <= 100 else 4
         
-        # Total máximo realista: 60+20+10 = 90
         total_score = recency_score + source_bonus + length_score
         
         scored.append({
             'topic': title,
             'source': source,
-            'score': round(min(95, total_score)),
+            'score': round(min(85, total_score)),
             'first_seen': a.get('first_seen')
         })
     
@@ -281,7 +277,7 @@ def predict_trends(articles, top=8):
         
         if not is_duplicate and len(result) < top:
             seen_topics.add(norm)
-            alert_level = 'critical' if s['score'] >= 85 else ('high' if s['score'] >= 70 else None)
+            alert_level = 'critical' if s['score'] >= 80 else ('high' if s['score'] >= 65 else None)
             
             result.append({
                 'topic': s['topic'],
@@ -298,53 +294,66 @@ def predict_trends(articles, top=8):
     return result
 
 def cross_predictions_func(articles, category='all', top=6):
-    """Predicción cruzada con IA - scores realistas"""
+    """Predicción cruzada con IA - ANALÍTICA, no solo titulares"""
     if not articles:
         print("[CROSS] Sin artículos")
         return []
     
-    if category != 'all':
-        keywords_raw = SEARCH_KEYWORDS.get(category, 'chile')
-        keywords = [kw.strip().lower() for kw in keywords_raw.split(' OR ')]
-        articles = [a for a in articles if any(kw in a['title'].lower() for kw in keywords)]
+    # NO filtrar artículos por categoría aquí, usar todos para mejor análisis
+    # El filtrado se hace después en el resultado
     
     if len(articles) < 5:
         print(f"[CROSS] Solo {len(articles)} artículos, insuficientes")
         return []
     
-    recent = articles[:20]
+    # Tomar 15 artículos variados
+    recent = articles[:15]
     headlines = "\n".join([f"- [{a['source']}] {a['title']}" for a in recent])
     
-    prompt = f"""Eres un analista editorial experto. Analiza estos titulares recientes y detecta qué temas tienen POTENCIAL de convertirse en tendencia.
+    prompt = f"""Eres un analista editorial experto en tendencias noticiosas.
+
+Analiza estos titulares recientes de medios chilenos y genera predicciones sobre qué temas se volverán tendencia en las próximas 6-24 horas.
 
 TITULARES ACTUALES:
 {headlines}
 
-Responde SOLO con un array JSON de {top} predicciones. Formato EXACTO:
+Para cada predicción, proporciona:
+- "topic": El tema/tendencia predicho (1 oración clara)
+- "score": Probabilidad realista de volverse tendencia (40-85, varía los scores)
+- "reasoning": Por qué crees que se volverá tendencia (2-3 oraciones analíticas)
+- "signals": 2-3 señales concretas que observas en los titulares
+- "impact": Nivel de impacto (bajo, medio, alto)
+- "timeframe": Cuándo explotará (próximas horas, mañana, esta semana)
+- "category": Categoría (Política, Economía, Sociedad, Deportes, Tecnología, Internacional, etc.)
+
+Responde SOLO con un array JSON de {top} predicciones. Formato:
 [
   {{
-    "topic": "Tema claro en español",
-    "score": 75,
-    "reasoning": "Por qué será tendencia",
-    "signals": ["Señal 1", "Señal 2"],
+    "topic": "Crisis energética se intensifica",
+    "score": 72,
+    "reasoning": "Tres medios reportan cortes de luz y el gobierno anuncia medidas urgentes. El patrón sugiere escalada.",
+    "signals": ["Cortes en 3 regiones", "Declaraciones ministeriales", "Protestas ciudadanas"],
     "impact": "alto",
     "timeframe": "próximas horas",
-    "category": "Política"
+    "category": "Sociedad"
   }}
 ]
 
-IMPORTANTE: Usa scores REALISTAS entre 60 y 90. NO pongas todo 100. Varía los scores según la relevancia real de cada tema."""
+IMPORTANTE: 
+- Varía los scores (no todos iguales)
+- Sé analítico, no solo descriptivo
+- Enfócate en PATRONES y TENDENCIAS, no en noticias aisladas"""
 
     api_key = os.getenv('QWEN_API_KEY')
     if not api_key:
-        print("[CROSS] ❌ Sin API Key")
+        print("[CROSS]  Sin API Key")
         return []
     
     headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
     payload = {
         'model': 'qwen-plus',
         'input': {'messages': [{'role': 'user', 'content': prompt}]},
-        'parameters': {'temperature': 0.3, 'max_tokens': 1500}
+        'parameters': {'temperature': 0.4, 'max_tokens': 2000}
     }
     
     try:
@@ -353,7 +362,7 @@ IMPORTANTE: Usa scores REALISTAS entre 60 y 90. NO pongas todo 100. Varía los s
             'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
             headers=headers,
             json=payload,
-            timeout=45,
+            timeout=60,
             impersonate="chrome"
         )
         
@@ -361,15 +370,12 @@ IMPORTANTE: Usa scores REALISTAS entre 60 y 90. NO pongas todo 100. Varía los s
         
         if response.status_code == 200:
             result = response.json()
-            print(f"[CROSS] Respuesta keys: {result.keys()}")
             
             try:
                 if 'output' in result and 'choices' in result['output']:
                     text = result['output']['choices'][0]['message']['content']
                 else:
                     text = str(result)
-                
-                print(f"[CROSS] Texto: {text[:300]}...")
                 
                 match = re.search(r'\[.*\]', text, re.DOTALL)
                 json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
@@ -382,10 +388,12 @@ IMPORTANTE: Usa scores REALISTAS entre 60 y 90. NO pongas todo 100. Varía los s
                 for p in predictions[:top]:
                     score = p.get('score', 50)
                     # Asegurar scores realistas
-                    if score > 95:
-                        score = 85 + (score - 95) // 2
-                    if score < 40:
-                        score = 40 + (score % 20)
+                    score = max(40, min(85, score))
+                    
+                    # Filtrar por categoría si es necesario
+                    pred_category = p.get('category', 'General')
+                    if category != 'all' and category.lower() not in pred_category.lower():
+                        continue
                     
                     formatted.append({
                         'topic': p.get('topic', ''),
@@ -394,10 +402,10 @@ IMPORTANTE: Usa scores REALISTAS entre 60 y 90. NO pongas todo 100. Varía los s
                         'signals': p.get('signals', []),
                         'impact': p.get('impact', 'medio'),
                         'timeframe': p.get('timeframe', 'próximas horas'),
-                        'category': p.get('category', guess_category(p.get('topic', ''))),
+                        'category': pred_category,
                         'news_count': len(p.get('signals', [])),
                         'news': [{'titulo': p.get('reasoning', ''), 'fuente': 'Análisis IA', 'url': '', 'fecha': now.strftime('%Y-%m-%d')}],
-                        'alert_level': 'critical' if score >= 85 else ('high' if score >= 70 else None),
+                        'alert_level': 'critical' if score >= 80 else ('high' if score >= 65 else None),
                         'source': 'Predicción Cruzada IA',
                         'is_realtime': True,
                         'timestamp': now.isoformat()
@@ -405,8 +413,6 @@ IMPORTANTE: Usa scores REALISTAS entre 60 y 90. NO pongas todo 100. Varía los s
                 return formatted
             except Exception as e:
                 print(f"[CROSS] Error parseando: {str(e)}")
-                import traceback
-                traceback.print_exc()
                 return []
         else:
             print(f"[CROSS] Error HTTP: {response.text[:200]}")
@@ -462,7 +468,6 @@ def analyze_with_qwen(prompt, mode='standard'):
         
         if response.status_code == 200:
             result = response.json()
-            print(f"[QWEN] Respuesta keys: {result.keys()}")
             
             try:
                 if 'output' in result and 'choices' in result['output']:
@@ -550,16 +555,25 @@ def get_predictions_route():
         if not articles:
             return jsonify({'predictions': [], 'source_status': status, 'category': category})
         
+        # 1. Predicciones algorítmicas (siempre funcionan)
         algo_predictions = predict_trends(articles, top=4)
         
+        # 2. Predicciones cruzadas con IA (pueden fallar)
         cross_predictions = []
         try:
             cross_predictions = cross_predictions_func(articles, category=category, top=6)
+            print(f"[PREDICT] Cruzadas: {len(cross_predictions)}")
         except Exception as e:
-            print(f"[PREDICT] IA falló: {str(e)}. Usando solo algorítmicas.")
+            print(f"[PREDICT] IA falló: {str(e)}")
         
-        all_predictions = cross_predictions + algo_predictions
+        # 3. Si no hay cruzadas, usar solo algorítmicas
+        if not cross_predictions:
+            print("[PREDICT] Usando solo predicciones algorítmicas")
+            all_predictions = algo_predictions
+        else:
+            all_predictions = cross_predictions + algo_predictions
         
+        # Eliminar duplicados
         seen = set()
         unique_predictions = []
         for p in all_predictions:
@@ -570,6 +584,8 @@ def get_predictions_route():
         
         unique_predictions.sort(key=lambda x: x['score'], reverse=True)
         
+        print(f"[PREDICT] ✅ Total: {len(unique_predictions)} predicciones")
+        
         return jsonify({
             'predictions': unique_predictions[:8],
             'source_status': status,
@@ -577,6 +593,8 @@ def get_predictions_route():
         })
     except Exception as e:
         print(f"[PREDICT] ERROR CRÍTICO: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'predictions': [], 'error': str(e)}), 500
 
 @app.route('/api/status', methods=['GET'])
@@ -625,8 +643,7 @@ def analyze():
         analysis, error = analyze_with_qwen(prompt, mode)
         
         if error or not analysis:
-            print(f"[ANALYZE] ️ Qwen falló: {error}. Usando fallback MEJORADO.")
-            # Fallback MEJORADO - específico para el tema
+            print(f"[ANALYZE] ⚠️ Qwen falló: {error}. Usando fallback MEJORADO.")
             analysis = {
                 'puntaje_relevancia': 6,
                 'justificacion_puntaje': f'Según {len(news)} noticias recientes sobre "{topic}".',
