@@ -194,6 +194,12 @@ def fetch_raw_articles(force_refresh=False):
     for a in articles:
         if a['title'] not in seen:
             seen.add(a['title'])
+            # CORRECCIÓN: Asegurar que first_seen sea string para JSON
+            fs = a.get('first_seen')
+            if isinstance(fs, datetime):
+                a['first_seen'] = fs.isoformat()
+            elif not fs:
+                a['first_seen'] = datetime.now(timezone.utc).isoformat()
             unique_articles.append(a)
 
     print(f"[FETCH] Total artículos únicos: {len(unique_articles)}")
@@ -218,7 +224,16 @@ def predict_trends(articles, top: int = 8):
             cands.add(_norm(m))
             T[_norm(m)]["label"][m] += 1
             
-        age_h = ((now - a['first_seen']).total_seconds() / 3600) if a.get('first_seen') else 12
+        first_seen = a.get('first_seen')
+        if isinstance(first_seen, str):
+            try:
+                first_seen = datetime.fromisoformat(first_seen.replace('Z', '+00:00'))
+            except:
+                first_seen = now
+        if not first_seen:
+            first_seen = now
+            
+        age_h = ((now - first_seen).total_seconds() / 3600)
         
         for c in cands:
             d = T[c]
@@ -247,23 +262,33 @@ def predict_trends(articles, top: int = 8):
         })
 
     scored.sort(key=lambda x: x["score"], reverse=True)
+    
     result = []
+    added_keys = set()
     for s in scored:
-        if any(s["key"] != r["key"] and s["key"] in r["key"].split() for r in result):
-            continue
-        result.append({
-            'topic': s['term'],
-            'score': s['score'],
-            'category': guess_category(s['term']),
-            'news_count': s['articles'],
-            'news': [{'titulo': 'Agrupado por Frecuencia', 'fuente': ', '.join(s['sources']), 'url': '', 'fecha': now.strftime('%Y-%m-%d')}],
-            'alert_level': 'critical' if s['level'] == 'critica' else ('high' if s['level'] == 'alta' else None),
-            'source': 'Algoritmo de Crecimiento',
-            'is_realtime': True,
-            'timestamp': now.isoformat()
-        })
-        if len(result) == top:
-            break
+        # CORRECCIÓN: Lógica segura para evitar unigramas absorbidos por bigramas
+        is_subsumed = False
+        for r_key in added_keys:
+            if s["key"] in r_key.split() or r_key in s["key"].split():
+                is_subsumed = True
+                break
+        
+        if not is_subsumed:
+            added_keys.add(s["key"])
+            result.append({
+                'topic': s['term'],
+                'score': s['score'],
+                'category': guess_category(s['term']),
+                'news_count': s['articles'],
+                'news': [{'titulo': 'Agrupado por Frecuencia', 'fuente': ', '.join(s['sources']), 'url': '', 'fecha': now.strftime('%Y-%m-%d')}],
+                'alert_level': 'critical' if s['level'] == 'critica' else ('high' if s['level'] == 'alta' else None),
+                'source': 'Algoritmo de Crecimiento',
+                'is_realtime': True,
+                'timestamp': now.isoformat()
+            })
+            if len(result) == top:
+                break
+                
     return result
 
 def guess_category(topic):
