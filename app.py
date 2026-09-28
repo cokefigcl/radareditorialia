@@ -5,8 +5,9 @@ import json
 import sqlite3
 import requests
 import re
-import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
+from collections import Counter
+from bs4 import BeautifulSoup
 
 load_dotenv()
 
@@ -81,26 +82,16 @@ SEARCH_KEYWORDS = {
     'TV y Espectáculos': 'televisión OR espectáculos'
 }
 
-RSS_FEEDS = [
-    'https://feeds.feedburner.com/radiobiobio/NNeJ',
-    'https://www.elmostrador.cl/feed/',
-    'https://www.cooperativa.cl/noticias/site/tax/port/all/rss____1.xml',
-    'https://www.latercera.com/arc/outboundfeeds/rss/',
-    'https://www.df.cl/noticias/site/tax/port/all/rss____1.xml',
-    'https://www.ciperchile.cl/feed/',
-    'https://www.theclinic.cl/feed/',
-    'https://www.lanacion.cl/feed/',
-    'https://feeds.bbci.co.uk/mundo/rss.xml',
-    'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/america/portada',
-    'https://rss.dw.com/rdf/rss-sp-top',
-    'https://cnnespanol.cnn.com/feed/',
-    'https://e00-elmundo.uecdn.es/rss/portada.xml',
-    'https://rss.nytimes.com/services/xml/rss/nyt/World.xml',
-    'https://www.theguardian.com/world/rss',
-    'https://www.ft.com/world?format=rss',
-    'https://techcrunch.com/feed/',
-    'https://www.wired.com/feed/rss'
+# Scraping directo de páginas web (más confiable que RSS)
+SCRAPE_URLS = [
+    {'url': 'https://www.biobiochile.cl/', 'name': 'BioBioChile', 'selector': 'h2, h3'},
+    {'url': 'https://www.latercera.com/', 'name': 'La Tercera', 'selector': 'h2, h3'},
+    {'url': 'https://www.cooperativa.cl/', 'name': 'Cooperativa', 'selector': 'h2, h3'},
+    {'url': 'https://www.df.cl/', 'name': 'Diario Financiero', 'selector': 'h2, h3'},
 ]
+
+# Reddit para tendencias tempranas
+REDDIT_SUBREDDITS = ['chile', 'ChileanPolitics']
 
 def get_cached_news(max_age_minutes=60):
     if os.path.exists(CACHE_FILE):
@@ -124,7 +115,59 @@ def save_to_cache(articles):
     except Exception as e:
         print(f"[CACHE] Error guardando: {str(e)}")
 
+def scrape_website(url_config):
+    """Scrapea titulares directamente de la página web"""
+    articles = []
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        response = requests.get(url_config['url'], headers=headers, timeout=10)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            headlines = soup.select(url_config['selector'])
+            for headline in headlines[:20]:
+                title = headline.get_text().strip()
+                if title and len(title) > 15 and len(title) < 200:
+                    articles.append({
+                        'title': title,
+                        'source': url_config['name'],
+                        'link': url_config['url'],
+                        'published': datetime.now().isoformat()
+                    })
+            print(f"[SCRAPE] ✅ {url_config['name']}: {len(articles)} titulares")
+    except Exception as e:
+        print(f"[SCRAPE] ❌ {url_config['name']}: {str(e)}")
+    return articles
+
+def fetch_reddit_trends():
+    """Obtiene tendencias de Reddit Chile"""
+    articles = []
+    headers = {'User-Agent': 'RadarEditorial/1.0'}
+    
+    for subreddit in REDDIT_SUBREDDITS:
+        try:
+            url = f'https://www.reddit.com/r/{subreddit}/hot.json?limit=20'
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                for post in data['data']['children']:
+                    title = post['data']['title']
+                    if title and len(title) > 10:
+                        articles.append({
+                            'title': title,
+                            'source': f'Reddit r/{subreddit}',
+                            'link': f"https://reddit.com{post['data']['permalink']}",
+                            'published': datetime.fromtimestamp(post['data']['created_utc']).isoformat()
+                        })
+                print(f"[REDDIT] ✅ r/{subreddit}: {len(articles)} posts")
+        except Exception as e:
+            print(f"[REDDIT] ❌ r/{subreddit}: {str(e)}")
+    
+    return articles
+
 def fetch_raw_articles(force_refresh=False):
+    """Sistema híbrido: Scraping + Reddit"""
     if not force_refresh:
         cached = get_cached_news(max_age_minutes=60)
         if cached:
@@ -132,182 +175,126 @@ def fetch_raw_articles(force_refresh=False):
             return cached
     
     all_articles = []
-    api_key = os.getenv('NEWSAPI_KEY')
     
-    print(f"[FETCH] NewsAPI Key configurada: {'Sí' if api_key else 'NO'}")
+    # 1. Scraping directo de medios chilenos
+    print(f"[FETCH] Scraping {len(SCRAPE_URLS)} sitios web...")
+    for url_config in SCRAPE_URLS:
+        articles = scrape_website(url_config)
+        all_articles.extend(articles)
     
-    if api_key:
-        try:
-            url = 'https://newsapi.org/v2/top-headlines'
-            params = {'country': 'cl', 'language': 'es', 'pageSize': 30, 'apiKey': api_key}
-            response = requests.get(url, params=params, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                for item in data.get('articles', []):
-                    if item.get('title'):
-                        all_articles.append({
-                            'title': item['title'].strip(),
-                            'source': item.get('source', {}).get('name', 'NewsAPI'),
-                            'link': item.get('url', ''),
-                            'published': item.get('publishedAt', '')
-                        })
-                print(f"[FETCH] ✅ NewsAPI: {len(all_articles)} artículos")
-        except Exception as e:
-            print(f"[FETCH] ❌ NewsAPI Excepción: {str(e)}")
-
-    if len(all_articles) < 40:
-        print(f"[FETCH] Intentando {len(RSS_FEEDS)} feeds RSS...")
-        session = requests.Session()
-        session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'application/rss+xml, application/xml, text/html, */*',
-            'Accept-Language': 'es-CL,es;q=0.9,en;q=0.8'
-        })
-        
-        for url in RSS_FEEDS:
-            try:
-                response = session.get(url, timeout=8, allow_redirects=True)
-                if response.status_code == 200:
-                    content = re.sub(r'\sxmlns="[^"]+"', '', response.text, count=1)
-                    root = ET.fromstring(content.encode('utf-8'))
-                    
-                    source_name = root.find('.//channel/title')
-                    source_text = source_name.text.strip() if source_name is not None and source_name.text else 'Medio'
-                    
-                    items = root.findall('.//item') or root.findall('.//entry')
-                    count = 0
-                    for item in items[:10]:
-                        title_elem = item.find('title')
-                        title = title_elem.text.strip() if title_elem is not None and title_elem.text else ''
-                        if title and len(title) > 10:
-                            if not any(a['title'] == title for a in all_articles):
-                                all_articles.append({
-                                    'title': title,
-                                    'source': source_text,
-                                    'link': item.find('link').text if item.find('link') is not None else '',
-                                    'published': ''
-                                })
-                                count += 1
-                    if count > 0:
-                        print(f"[FETCH] ✅ {source_text}: {count} artículos")
-            except Exception:
-                pass
-                
-    print(f"[FETCH] Total artículos recolectados: {len(all_articles)}")
-    if all_articles:
-        save_to_cache(all_articles)
-    return all_articles
-
-def analyze_with_ai_editor(articles):
-    api_key = os.getenv('QWEN_API_KEY')
-    if not api_key or len(articles) < 5:
-        return None
+    # 2. Reddit para tendencias tempranas
+    print("[FETCH] Consultando Reddit...")
+    reddit_articles = fetch_reddit_trends()
+    all_articles.extend(reddit_articles)
     
-    headlines = [f"- [{a['source']}] {a['title']}" for a in articles[:50]]
-    prompt = f"""Eres un Editor Jefe. Analiza estos titulares (mezcla de Chile e internacionales).
-1. Agrupar titulares que se refieran al mismo evento.
-2. Crear un 'topic' (título resumen SIEMPRE en español).
-3. Asignar 'score' (0-100) por relevancia.
-4. Listar 'sources' (medios).
-5. Devolver SOLO un array JSON con los 8 temas más importantes.
-
-Formato:
-[
-  {{"topic": "Título en español", "score": 85, "sources": ["BioBio", "NYT"], "summary": "Descripción de 10 palabras"}}
-]
-
-Titulares:
-{chr(10).join(headlines)}
-"""
+    # Eliminar duplicados
+    seen = set()
+    unique_articles = []
+    for article in all_articles:
+        if article['title'] not in seen:
+            seen.add(article['title'])
+            unique_articles.append(article)
     
-    headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
-    payload = {'model': 'qwen-plus', 'input': {'messages': [{'role': 'user', 'content': prompt}]}, 'parameters': {'temperature': 0.1, 'max_tokens': 1500}}
+    print(f"[FETCH] Total artículos únicos: {len(unique_articles)}")
+    if unique_articles:
+        save_to_cache(unique_articles)
     
-    try:
-        response = requests.post('https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation', headers=headers, json=payload, timeout=45)
-        if response.status_code == 200:
-            text = response.json()['output']['choices'][0]['message']['content']
-            match = re.search(r'\[.*\]', text, re.DOTALL)
-            json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
-            return json.loads(json_str)
-    except Exception as e:
-        print(f"[AI] Falló: {str(e)}")
-    return None
+    return unique_articles
 
-def get_predictions(force_refresh=False):
-    print(f"[PREDICT] Iniciando... (refresh={force_refresh})")
-    raw = fetch_raw_articles(force_refresh=force_refresh)
+def predict_trends(articles):
+    """Algoritmo de predicción por frecuencia + novedad"""
+    if not articles:
+        return []
     
-    ai_result = analyze_with_ai_editor(raw)
-    if ai_result:
-        return format_ai_predictions(ai_result)
+    # Palabras a ignorar
+    stop_words = {'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'al', 'y', 'o', 'que', 'por', 'para', 'con', 'en', 'a', 'se', 'su', 'chile', 'santiago', 'hoy', 'más', 'the', 'and', 'for', 'that', 'this', 'es', 'son', 'como', 'pero', 'también'}
     
-    if raw:
-        return get_algorithmic_fallback(raw)
-    return []
-
-def format_ai_predictions(ai_data):
-    predictions = []
-    for item in ai_data[:8]:
-        predictions.append({
-            'topic': item.get('topic', 'Tema'),
-            'score': min(int(item.get('score', 50)), 100),
-            'category': guess_category(item.get('topic', '')),
-            'news_count': len(item.get('sources', [])),
-            'news': [{'titulo': item.get('summary', ''), 'fuente': ', '.join(item.get('sources', [])), 'url': '', 'fecha': datetime.now().strftime('%Y-%m-%d')}],
-            'alert_level': 'critical' if item.get('score', 0) >= 85 else ('high' if item.get('score', 0) >= 70 else None),
-            'source': 'IA Editor Jefe',
-            'is_realtime': True,
-            'timestamp': datetime.now().isoformat()
-        })
-    return sorted(predictions, key=lambda x: x['score'], reverse=True)
-
-def get_algorithmic_fallback(articles):
-    from collections import Counter
-    stop_words = {'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'al', 'y', 'o', 'que', 'por', 'para', 'con', 'en', 'a', 'se', 'su', 'chile', 'santiago', 'hoy', 'más', 'the', 'and', 'for', 'that', 'this'}
+    # Contar frecuencia de palabras
     word_counts = Counter()
-    topic_sources = {}
-    topic_examples = {}
+    word_sources = {}
+    word_examples = {}
+    word_recency = {}
     
     for article in articles:
-        words = [w for w in re.findall(r'\b\w{4,}\b', article['title'].lower()) if w not in stop_words]
+        title_lower = article['title'].lower()
+        words = [w for w in re.findall(r'\b\w{4,}\b', title_lower) if w not in stop_words]
+        
         for word in words:
             word_counts[word] += 1
-            if word not in topic_sources:
-                topic_sources[word] = set()
-                topic_examples[word] = []
-            topic_sources[word].add(article['source'])
-            if len(topic_examples[word]) < 2:
-                topic_examples[word].append({'titulo': article['title'], 'fuente': article['source']})
-                
+            
+            if word not in word_sources:
+                word_sources[word] = set()
+                word_examples[word] = []
+                word_recency[word] = []
+            
+            word_sources[word].add(article['source'])
+            if len(word_examples[word]) < 3:
+                word_examples[word].append(article['title'])
+            
+            # Calcular recencia (artículos más recientes = más relevantes)
+            try:
+                pub_time = datetime.fromisoformat(article['published'])
+                hours_ago = (datetime.now() - pub_time).total_seconds() / 3600
+                word_recency[word].append(hours_ago)
+            except:
+                pass
+    
+    # Calcular score para cada palabra
     predictions = []
-    for word, count in word_counts.most_common(8):
-        sources = topic_sources[word]
-        if len(sources) >= 2:
+    for word, count in word_counts.most_common(20):
+        sources = word_sources[word]
+        num_sources = len(sources)
+        
+        # Solo considerar palabras que aparecen en al menos 2 fuentes o 3+ veces
+        if num_sources >= 2 or count >= 3:
+            # Score base por frecuencia
+            frequency_score = min(count * 10, 50)
+            
+            # Bonus por múltiples fuentes
+            source_bonus = min(num_sources * 15, 30)
+            
+            # Bonus por recencia (promedio de horas)
+            if word_recency[word]:
+                avg_hours = sum(word_recency[word]) / len(word_recency[word])
+                recency_bonus = max(0, 20 - avg_hours)  # Más reciente = más bonus
+            else:
+                recency_bonus = 10
+            
+            total_score = min(int(frequency_score + source_bonus + recency_bonus), 100)
+            
+            # Determinar nivel de alerta
+            alert_level = None
+            if total_score >= 85:
+                alert_level = 'critical'
+            elif total_score >= 70:
+                alert_level = 'high'
+            
             predictions.append({
-                'topic': topic_examples[word][0]['titulo'],
-                'score': min(50 + len(sources) * 20, 90),
-                'category': guess_category(topic_examples[word][0]['titulo']),
-                'news_count': len(sources),
-                'news': topic_examples[word],
-                'alert_level': 'high' if len(sources) >= 3 else None,
-                'source': 'Análisis de Frecuencia',
+                'topic': word_examples[word][0],
+                'score': total_score,
+                'category': guess_category(word_examples[word][0]),
+                'news_count': num_sources,
+                'news': [{'titulo': t, 'fuente': 'Múltiples fuentes', 'url': '', 'fecha': datetime.now().strftime('%Y-%m-%d')} for t in word_examples[word][:3]],
+                'alert_level': alert_level,
+                'source': 'Predicción por Frecuencia',
                 'is_realtime': True,
                 'timestamp': datetime.now().isoformat()
             })
-    return sorted(predictions, key=lambda x: x['score'], reverse=True)[:6]
+    
+    # Ordenar por score y devolver top 8
+    return sorted(predictions, key=lambda x: x['score'], reverse=True)[:8]
 
 def guess_category(topic):
     topic_lower = topic.lower()
     keywords = {
-        'Deportes': ['fútbol', 'deporte', 'selección'],
+        'Deportes': ['fútbol', 'deporte', 'selección', 'campeonato'],
         'Economía': ['dólar', 'inflación', 'economía', 'peso', 'cobre', 'financial', 'market'],
         'Chile': ['gobierno', 'presidente', 'congreso', 'ley', 'chile'],
         'Internacional': ['eeuu', 'europa', 'guerra', 'mundial', 'world', 'global'],
         'Tecnología': ['tecnología', 'app', 'digital', 'ia', 'inteligencia', 'tech', 'startup'],
-        'Salud': ['salud', 'hospital', 'médico'],
+        'Salud': ['salud', 'hospital', 'médico', 'vacuna'],
         'Sociedad': ['sociedad', 'educación', 'migración'],
-        'TV y Espectáculos': ['actor', 'actriz', 'tv', 'famoso'],
+        'TV y Espectáculos': ['actor', 'actriz', 'tv', 'famoso', 'farándula'],
         'Eléctrico': ['eléctric', 'transmisión', 'distribución'],
     }
     for category, words in keywords.items():
@@ -335,7 +322,7 @@ def get_status_panel():
     return {
         'mindicador': {'dolar': 950, 'uf': 36000, 'status': 'ok'},
         'weather': {'temperature': 22, 'windspeed': 10, 'status': 'ok'},
-        'apis': {'rss': 'ok', 'qwen': 'ok' if os.getenv('QWEN_API_KEY') else 'error'},
+        'apis': {'scraping': 'ok', 'reddit': 'ok'},
         'timestamp': datetime.now().isoformat()
     }
 
@@ -353,39 +340,6 @@ def search_news(topic, max_results=5):
                 break
     return news_items
 
-def analyze_with_qwen(prompt, mode='standard'):
-    api_key = os.getenv('QWEN_API_KEY')
-    if not api_key: return None, "QWEN_API_KEY no configurada"
-    headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
-    payload = {'model': 'qwen-plus', 'input': {'messages': [{'role': 'user', 'content': prompt}]}, 'parameters': {'temperature': 0.1 if mode == 'briefing' else 0.7, 'max_tokens': 2000}}
-    try:
-        response = requests.post('https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation', headers=headers, json=payload, timeout=60)
-        if response.status_code == 200:
-            text = response.json()['output']['choices'][0]['message']['content']
-            match = re.search(r'\{.*\}', text, re.DOTALL)
-            json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
-            return json.loads(json_str), None
-        return None, f"Error HTTP {response.status_code}"
-    except Exception as e:
-        return None, f"Error: {str(e)}"
-
-def generate_analysis(topic, topic2, category, region, mode, lens, news):
-    news_text = "\n\nNoticias:\n" + "\n".join([f"- {n['titulo']}" for n in news[:5]]) if news else ""
-    if mode == 'briefing':
-        prompt = f"""BRIEFING: TEMA: {topic} | REGIÓN: {region or 'Chile'}{news_text}
-JSON: {{"resumen_ejecutivo": "Párrafo claro", "preguntas_fuente": ["P1", "P2", "P3"], "datos_duros": ["D1", "D2"], "timeline_sugerido": "Cuándo publicar", "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
-    elif mode == 'devil':
-        prompt = f"""ABOGADO DEL DIABLO: TEMA: {topic}{news_text}
-JSON: {{"cobertura_mainstream": "Lo que todos dicen", "angulo_ciego": "Lo que NADIE pregunta", "riesgos_sesgos": ["R1", "R2"], "pregunta_incomoda": "Pregunta incómoda", "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
-    elif mode == 'compare' and topic2:
-        prompt = f"""COMPARA: TEMA A: {topic} | TEMA B: {topic2}{news_text}
-JSON: {{"tema_a": "{topic}", "tema_b": "{topic2}", "mas_recorrido": "Cuál tiene más recorrido", "fuentes_comunes": ["F1", "F2"], "angulo_conector": "Ángulo conector", "recomendacion": "Cuál cubrir primero", "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
-    else:
-        lens_instruction = {"data": "\nENFOQUE: Estadísticas.", "controversy": "\nENFOQUE: Conflictos.", "human": "\nENFOQUE: Personas.", "economic": "\nENFOQUE: Finanzas."}.get(lens, "")
-        prompt = f"""Analiza: TEMA: {topic}{news_text}{lens_instruction}
-JSON: {{"puntaje_relevancia": 7, "justificacion_puntaje": "Explicación", "hipotesis": "Hipótesis", "senales_clave": ["S1", "S2"], "angulos_periodisticos": ["A1", "A2"], "fuentes_sugeridas": ["F1", "F2"], "titulares_ejemplo": ["T1", "T2"], "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
-    return prompt
-
 @app.route('/')
 def index(): return render_template('index.html')
 
@@ -402,7 +356,9 @@ def get_trending():
 @app.route('/api/predictions', methods=['GET'])
 def get_predictions_route():
     force_refresh = request.args.get('refresh') == 'true'
-    return jsonify(get_predictions(force_refresh=force_refresh))
+    articles = fetch_raw_articles(force_refresh=force_refresh)
+    predictions = predict_trends(articles)
+    return jsonify(predictions)
 
 @app.route('/api/status', methods=['GET'])
 def get_status(): return jsonify(get_status_panel())
@@ -427,35 +383,6 @@ def delete_history(analysis_id):
     conn.commit()
     conn.close()
     return jsonify({'success': True})
-
-@app.route('/api/analyze', methods=['POST'])
-def analyze():
-    try:
-        data = request.json
-        topic = data.get('topic', '').strip()
-        topic2 = data.get('topic2', '').strip()
-        category = data.get('category')
-        region = data.get('region')
-        mode = data.get('mode', 'standard')
-        lens = data.get('lens', '')
-        if not topic: return jsonify({'error': 'Falta el tema'}), 400
-        
-        news = search_news(topic, max_results=5)
-        prompt = generate_analysis(topic, topic2, category, region, mode, lens, news)
-        analysis, error = analyze_with_qwen(prompt, mode)
-        
-        if error or not analysis:
-            analysis = {'puntaje_relevancia': 5, 'hipotesis': 'Análisis en modo fallback.', 'noticias_reales': news}
-        
-        score = analysis.get('puntaje_relevancia', 5)
-        conn = get_db()
-        conn.cursor().execute('INSERT INTO trends (topic, topic2, category, region, mode, analysis, score) VALUES (?, ?, ?, ?, ?, ?, ?)', (topic, topic2 if mode == 'compare' else None, category, region, mode, json.dumps(analysis, ensure_ascii=False), score))
-        conn.commit()
-        conn.close()
-        
-        return jsonify({'topic': topic, 'category': category, 'mode': mode, 'analysis': analysis, 'score': score, 'timestamp': datetime.now().isoformat()})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
