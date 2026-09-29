@@ -53,15 +53,15 @@
 </head>
 <body>
     <div class="topbar">
-        <div class="topbar-title"> Dashboard <span>Tendencias</span></div>
+        <div class="topbar-title">📊 Dashboard <span>Tendencias</span></div>
         <div class="topbar-nav">
             <a href="/" class="nav-btn secondary">← Volver al Radar</a>
-            <button onclick="loadDashboard()" class="nav-btn">🔄 Actualizar</button>
+            <button onclick="loadAll()" class="nav-btn">🔄 Actualizar</button>
         </div>
     </div>
     
     <div class="dashboard-container">
-        <!-- KPIs -->
+        <!-- KPIs Principales -->
         <div class="kpi-grid">
             <div class="kpi-card kpi-1">
                 <div class="label">Total Artículos</div>
@@ -85,7 +85,31 @@
             </div>
         </div>
         
-        <!-- Gráficos -->
+        <!-- NUEVO: KPIs de Uso de APIs -->
+        <div class="kpi-grid">
+            <div class="kpi-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="label">Total Solicitudes IA</div>
+                <div class="value" id="usageTotalRequests">--</div>
+                <div class="sublabel">Todas las APIs</div>
+            </div>
+            <div class="kpi-card" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                <div class="label">Tasa de Éxito</div>
+                <div class="value" id="usageSuccessRate">--</div>
+                <div class="sublabel">Solicitudes exitosas</div>
+            </div>
+            <div class="kpi-card" style="background: linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%);">
+                <div class="label">Tokens Usados</div>
+                <div class="value" id="usageTotalTokens">--</div>
+                <div class="sublabel">Input + Output</div>
+            </div>
+            <div class="kpi-card" style="background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);">
+                <div class="label">Costo Total</div>
+                <div class="value" id="usageTotalCost">--</div>
+                <div class="sublabel">USD estimado</div>
+            </div>
+        </div>
+        
+        <!-- Gráficos Principales -->
         <div class="module">
             <div class="module-header">
                 <h3>📈 Análisis Visual de Datos</h3>
@@ -99,7 +123,7 @@
                         </div>
                     </div>
                     <div class="chart-card">
-                        <h4> Aporte por Fuente</h4>
+                        <h4>📡 Aporte por Fuente</h4>
                         <div class="chart-container">
                             <canvas id="sourceChart"></canvas>
                         </div>
@@ -108,6 +132,44 @@
                         <h4>🎯 Distribución de Scores</h4>
                         <div class="chart-container">
                             <canvas id="scoreChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- NUEVO: Gráficos de Uso -->
+        <div class="module">
+            <div class="module-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <h3> Uso de APIs (Qwen)</h3>
+            </div>
+            <div class="module-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="chart-card">
+                        <h4>📈 Uso por Día (últimos 7 días)</h4>
+                        <div class="chart-container" style="height: 200px;">
+                            <canvas id="usageDailyChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h4>🔌 Uso por Endpoint</h4>
+                        <div class="chart-container" style="height: 200px;">
+                            <canvas id="usageEndpointChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                        <div>
+                            <strong>📅 Hoy:</strong>
+                            <span id="usageTodayRequests" style="margin-left: 10px; font-size: 18px; font-weight: bold;">--</span>
+                            solicitudes
+                        </div>
+                        <div>
+                            <strong>💰 Costo hoy:</strong>
+                            <span id="usageTodayCost" style="margin-left: 10px; font-size: 18px; font-weight: bold; color: #28a745;">--</span>
+                            USD
                         </div>
                     </div>
                 </div>
@@ -137,23 +199,24 @@
     </div>
     
     <div class="footer">
-        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | Dashboard v8.1
+        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | Dashboard v9.1
     </div>
 
     <script>
         console.log("╔════════════════════════════════════════╗");
-        console.log("║  DASHBOARD v8.1 CARGADO               ║");
+        console.log("║  DASHBOARD v9.1 CARGADO               ║");
+        console.log("║  + Tracking de APIs                   ║");
         console.log("╚════════════════════════════════════════╝");
         
         let categoryChartInstance = null;
         let sourceChartInstance = null;
         let scoreChartInstance = null;
+        let usageDailyChartInstance = null;
+        let usageEndpointChartInstance = null;
 
         async function loadDashboard() {
             try {
-                const res = await fetch('/api/statistics?_t=' + Date.now(), {
-                    cache: 'no-store'
-                });
+                const res = await fetch('/api/statistics?_t=' + Date.now(), { cache: 'no-store' });
                 const data = await res.json();
                 
                 if (data.error) {
@@ -188,9 +251,7 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 10 } }
-                        }
+                        plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 10 } } }
                     }
                 });
                 
@@ -239,9 +300,7 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } }
-                        }
+                        plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } } }
                     }
                 });
                 
@@ -256,6 +315,16 @@
                     'emol': 'Emol',
                     'ciper': 'CIPER Chile',
                     '24horas': '24 Horas',
+                    'bbc_mundo': 'BBC Mundo',
+                    'elpais': 'El País América',
+                    'cnn_es': 'CNN en Español',
+                    'dw_es': 'DW Español',
+                    'france24': 'France 24',
+                    'reuters': 'Reuters',
+                    'guardian': 'The Guardian',
+                    'aljazeera': 'Al Jazeera',
+                    'techcrunch': 'TechCrunch',
+                    'ap_news': 'AP News',
                     'google_trends': 'Google Trends',
                     'wikipedia': 'Wikipedia Trending'
                 };
@@ -263,7 +332,7 @@
                 for (const [key, value] of Object.entries(stats.by_source || {})) {
                     const status = sourceStatus[key] || 'unknown';
                     const statusClass = status === 'ok' ? 'status-ok' : (status === 'empty' ? 'status-empty' : 'status-error');
-                    const statusText = status === 'ok' ? '✅ OK' : (status === 'empty' ? '⚠️ Vacío' : '❌ Error');
+                    const statusText = status === 'ok' ? '✅ OK' : (status === 'empty' ? '️ Vacío' : '❌ Error');
                     const displayName = sourceNames[key] || key;
                     
                     tbody.innerHTML += `
@@ -282,7 +351,108 @@
             }
         }
 
-        loadDashboard();
+        async function loadUsageStats() {
+            try {
+                const res = await fetch('/api/usage?_t=' + Date.now(), { cache: 'no-store' });
+                const data = await res.json();
+                
+                if (data.error) {
+                    console.error('[USAGE] Error:', data.error);
+                    return;
+                }
+                
+                document.getElementById('usageTotalRequests').textContent = data.total_requests || 0;
+                document.getElementById('usageSuccessRate').textContent = (data.success_rate || 0) + '%';
+                document.getElementById('usageTotalTokens').textContent = (data.total_tokens || 0).toLocaleString();
+                document.getElementById('usageTotalCost').textContent = '$' + (data.total_cost || 0).toFixed(4);
+                document.getElementById('usageTodayRequests').textContent = data.today_requests || 0;
+                document.getElementById('usageTodayCost').textContent = '$' + (data.today_cost || 0).toFixed(4);
+                
+                const dailyLabels = data.daily_usage.map(d => d.day);
+                const dailyRequests = data.daily_usage.map(d => d.requests);
+                const dailyCosts = data.daily_usage.map(d => d.cost);
+                
+                if (usageDailyChartInstance) usageDailyChartInstance.destroy();
+                usageDailyChartInstance = new Chart(document.getElementById('usageDailyChart'), {
+                    type: 'line',
+                    data: {
+                        labels: dailyLabels,
+                        datasets: [
+                            {
+                                label: 'Solicitudes',
+                                data: dailyRequests,
+                                borderColor: '#667eea',
+                                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            },
+                            {
+                                label: 'Costo (USD)',
+                                data: dailyCosts,
+                                borderColor: '#f5576c',
+                                backgroundColor: 'rgba(245, 87, 108, 0.1)',
+                                tension: 0.4,
+                                fill: true,
+                                yAxisID: 'y1'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } },
+                        scales: {
+                            y: { beginAtZero: true, ticks: { font: { size: 10 } } },
+                            y1: { 
+                                position: 'right', 
+                                beginAtZero: true,
+                                ticks: { font: { size: 10 } },
+                                grid: { drawOnChartArea: false }
+                            }
+                        }
+                    }
+                });
+                
+                const endpointLabels = data.by_endpoint.map(e => e.endpoint);
+                const endpointCounts = data.by_endpoint.map(e => e.count);
+                const endpointColors = ['#667eea', '#f093fb', '#4facfe', '#fa709a', '#fee140'];
+                
+                if (usageEndpointChartInstance) usageEndpointChartInstance.destroy();
+                usageEndpointChartInstance = new Chart(document.getElementById('usageEndpointChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: endpointLabels,
+                        datasets: [{
+                            label: 'Solicitudes',
+                            data: endpointCounts,
+                            backgroundColor: endpointColors,
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, ticks: { font: { size: 10 } } },
+                            x: { ticks: { font: { size: 10 }, maxRotation: 45 } }
+                        }
+                    }
+                });
+                
+                console.log('[USAGE] ✅ Actualizado');
+                
+            } catch (err) {
+                console.error('[USAGE] ❌ Error:', err);
+            }
+        }
+
+        async function loadAll() {
+            await loadDashboard();
+            await loadUsageStats();
+        }
+
+        loadAll();
     </script>
 </body>
 </html>
