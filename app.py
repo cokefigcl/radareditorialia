@@ -42,9 +42,21 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS api_usage (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                endpoint TEXT NOT NULL,
+                tokens_input INTEGER DEFAULT 0,
+                tokens_output INTEGER DEFAULT 0,
+                cost_usd REAL DEFAULT 0.0,
+                success INTEGER DEFAULT 1,
+                error_msg TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
         conn.commit()
         conn.close()
-        print("[DB] ✅ Tabla trends inicializada")
+        print("[DB] ✅ Tablas inicializadas (trends + api_usage)")
     except Exception as e:
         print(f"[DB] Error inicializando: {e}")
 
@@ -59,7 +71,7 @@ CATEGORIES = [
     {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    {'name': 'Chile', 'icon': '🇨', 'type': 'region'},
+    {'name': 'Chile', 'icon': '🇨🇱', 'type': 'region'},
     {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
     {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
     {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
@@ -90,7 +102,6 @@ SEARCH_KEYWORDS = {
     'TV y Espectáculos': 'televisión OR espectáculos OR farándula OR entertainment'
 }
 
-# FUENTES CHILENAS
 SOURCES_CL = {
     "biobio": {"home": "https://www.biobiochile.cl/", "domain": "biobiochile.cl"},
     "latercera": {"home": "https://www.latercera.com/", "domain": "latercera.com"},
@@ -101,7 +112,6 @@ SOURCES_CL = {
     "24horas": {"home": "https://www.24horas.cl/", "domain": "24horas.cl"},
 }
 
-# FUENTES INTERNACIONALES EN ESPAÑOL
 SOURCES_ES = {
     "bbc_mundo": {"rss": "https://feeds.bbci.co.uk/mundo/rss.xml", "name": "BBC Mundo"},
     "elpais": {"rss": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/america/portada", "name": "El País América"},
@@ -110,7 +120,6 @@ SOURCES_ES = {
     "france24": {"rss": "https://www.france24.com/es/rss", "name": "France 24"},
 }
 
-# FUENTES INTERNACIONALES EN INGLÉS
 SOURCES_EN = {
     "reuters": {"rss": "https://feeds.reuters.com/reuters/worldNews", "name": "Reuters"},
     "guardian": {"rss": "https://www.theguardian.com/world/rss", "name": "The Guardian"},
@@ -174,40 +183,33 @@ def _from_gnews(name, cfg):
     return out
 
 def _from_rss(name, cfg):
-    """Obtiene artículos desde RSS feed"""
     articles = []
     try:
         xml = _get(cfg["rss"])
         if not xml:
             return []
-        
         root = ET.fromstring(xml)
         for item in root.iter("item"):
             title = item.findtext("title", "").strip()
             link = item.findtext("link", "")
             pub_date = item.findtext("pubDate", "")
-            
             if title and len(title) > 20:
                 try:
                     ts = parsedate_to_datetime(pub_date) if pub_date else datetime.now(timezone.utc)
                 except:
                     ts = datetime.now(timezone.utc)
-                
                 articles.append({
                     'title': title,
                     'source': name,
                     'url': link,
                     'first_seen': ts.isoformat()
                 })
-        
         print(f"[RSS] ✅ {cfg.get('name', name)}: {len(articles)} artículos")
     except Exception as e:
         print(f"[RSS] ❌ {cfg.get('name', name)}: {str(e)}")
-    
-    return articles[:20]  # Limitar a 20 por fuente
+    return articles[:20]
 
 def fetch_google_trends():
-    """Obtiene tendencias de Google Trends Chile"""
     articles = []
     try:
         url = "https://trends.google.com/trending/rss?geo=CL"
@@ -230,7 +232,6 @@ def fetch_google_trends():
     return articles
 
 def fetch_wikipedia_trending():
-    """Obtiene artículos de Wikipedia más vistos hoy"""
     articles = []
     try:
         today = datetime.now(timezone.utc)
@@ -278,6 +279,23 @@ def save_to_cache(articles, status):
     except Exception:
         pass
 
+def track_api_usage(endpoint, tokens_input=0, tokens_output=0, success=True, error_msg=None):
+    """Registra el uso de una API"""
+    try:
+        COST_PER_1M_INPUT = 0.40
+        COST_PER_1M_OUTPUT = 1.20
+        cost = (tokens_input / 1_000_000 * COST_PER_1M_INPUT) + (tokens_output / 1_000_000 * COST_PER_1M_OUTPUT)
+        conn = sqlite3.connect(DB_PATH)
+        conn.cursor().execute(
+            '''INSERT INTO api_usage (endpoint, tokens_input, tokens_output, cost_usd, success, error_msg)
+               VALUES (?, ?, ?, ?, ?, ?)''',
+            (endpoint, tokens_input, tokens_output, cost, 1 if success else 0, error_msg)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[TRACK] Error: {str(e)}")
+
 def fetch_raw_articles(force_refresh=False):
     if not force_refresh:
         articles, status = get_cached_data(max_age_minutes=60)
@@ -286,7 +304,6 @@ def fetch_raw_articles(force_refresh=False):
 
     print("[FETCH] Iniciando recolección...")
     
-    # 1. Medios chilenos (scraping + Google News fallback)
     def work_cl(item):
         name, cfg = item
         arts = _from_homepage(name, cfg)
@@ -301,7 +318,6 @@ def fetch_raw_articles(force_refresh=False):
             status[name] = st
             print(f"[FETCH] {name}: {len(arts)} artículos - {st}")
     
-    # 2. Fuentes internacionales en español (RSS)
     def work_es(item):
         name, cfg = item
         arts = _from_rss(name, cfg)
@@ -312,7 +328,6 @@ def fetch_raw_articles(force_refresh=False):
             articles.extend(arts)
             status[name] = st
     
-    # 3. Fuentes internacionales en inglés (RSS)
     def work_en(item):
         name, cfg = item
         arts = _from_rss(name, cfg)
@@ -323,7 +338,6 @@ def fetch_raw_articles(force_refresh=False):
             articles.extend(arts)
             status[name] = st
     
-    # 4. Google Trends
     try:
         trends_articles = fetch_google_trends()
         articles.extend(trends_articles)
@@ -331,7 +345,6 @@ def fetch_raw_articles(force_refresh=False):
     except:
         status['google_trends'] = 'error'
     
-    # 5. Wikipedia Trending
     try:
         wiki_articles = fetch_wikipedia_trending()
         articles.extend(wiki_articles)
@@ -446,6 +459,8 @@ IMPORTANTE: Varía los scores (40-85). Responde SOLO con el array JSON."""
     if not api_key:
         return []
     
+    tokens_input = len(prompt) // 4
+    
     try:
         response = cr.post(
             'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
@@ -458,6 +473,9 @@ IMPORTANTE: Varía los scores (40-85). Responde SOLO con el array JSON."""
         if response.status_code == 200:
             result = response.json()
             text = result.get('output', {}).get('choices', [{}])[0].get('message', {}).get('content') or result.get('output', {}).get('text') or str(result)
+            
+            tokens_output = len(text) // 4
+            track_api_usage('predictions', tokens_input, tokens_output, success=True)
             
             start_idx, end_idx = text.find('['), text.rfind(']')
             if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
@@ -480,8 +498,10 @@ IMPORTANTE: Varía los scores (40-85). Responde SOLO con el array JSON."""
                     'is_realtime': True,
                     'timestamp': now.isoformat()
                 } for p in predictions[:top]]
-    except Exception:
-        pass
+        else:
+            track_api_usage('predictions', tokens_input, 0, success=False, error_msg=f"HTTP {response.status_code}")
+    except Exception as e:
+        track_api_usage('predictions', tokens_input, 0, success=False, error_msg=str(e))
     return []
 
 def guess_category(topic):
@@ -507,7 +527,6 @@ def guess_category(topic):
     return 'Tendencias'
 
 def get_statistics(articles):
-    """Genera estadísticas para los gráficos"""
     stats = {
         'by_source': {},
         'by_category': {},
@@ -541,6 +560,8 @@ def analyze_with_qwen(prompt, mode='standard'):
         'parameters': {'temperature': 0.1 if mode == 'briefing' else 0.7, 'max_tokens': 2000}
     }
     
+    tokens_input = len(prompt) // 4
+    
     try:
         response = cr.post(
             'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
@@ -554,13 +575,19 @@ def analyze_with_qwen(prompt, mode='standard'):
             result = response.json()
             text = result.get('output', {}).get('choices', [{}])[0].get('message', {}).get('content') or result.get('output', {}).get('text') or str(result)
             
+            tokens_output = len(text) // 4
+            track_api_usage('analyze', tokens_input, tokens_output, success=True)
+            
             match = re.search(r'\{.*\}', text, re.DOTALL)
             json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
             
             return json.loads(json_str), None
+        else:
+            track_api_usage('analyze', tokens_input, 0, success=False, error_msg=f"HTTP {response.status_code}")
+            return None, f"Error HTTP {response.status_code}"
     except Exception as e:
+        track_api_usage('analyze', tokens_input, 0, success=False, error_msg=str(e))
         return None, f"Error: {str(e)}"
-    return None, "Error desconocido"
 
 def generate_analysis(topic, topic2, category, region, mode, lens, news):
     news_text = "\n\nNoticias:\n" + "\n".join([f"- {n['titulo']}" for n in news[:5]]) if news else ""
@@ -677,7 +704,6 @@ def get_status():
 
 @app.route('/api/statistics', methods=['GET'])
 def get_statistics_route():
-    """Endpoint para gráficos y estadísticas"""
     try:
         articles, status = fetch_raw_articles(force_refresh=False)
         stats = get_statistics(articles)
@@ -702,6 +728,70 @@ def get_statistics_route():
     except Exception as e:
         print(f"[STATS] Error: {str(e)}")
         return jsonify({'error': str(e)}), 200
+
+@app.route('/api/usage', methods=['GET'])
+def get_usage_stats():
+    """Obtiene estadísticas de uso de APIs"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT COUNT(*) FROM api_usage')
+        total_requests = cursor.fetchone()[0]
+        
+        cursor.execute('SELECT success, COUNT(*) FROM api_usage GROUP BY success')
+        success_stats = dict(cursor.fetchall())
+        successful = success_stats.get(1, 0)
+        failed = success_stats.get(0, 0)
+        
+        cursor.execute('SELECT SUM(tokens_input), SUM(tokens_output) FROM api_usage')
+        total_input, total_output = cursor.fetchone()
+        total_tokens = (total_input or 0) + (total_output or 0)
+        
+        cursor.execute('SELECT SUM(cost_usd) FROM api_usage')
+        total_cost = cursor.fetchone()[0] or 0.0
+        
+        today = datetime.now().strftime('%Y-%m-%d')
+        cursor.execute('''
+            SELECT COUNT(*), SUM(cost_usd) 
+            FROM api_usage 
+            WHERE DATE(created_at) = ?
+        ''', (today,))
+        today_requests, today_cost = cursor.fetchone()
+        
+        cursor.execute('''
+            SELECT endpoint, COUNT(*), SUM(cost_usd) 
+            FROM api_usage 
+            GROUP BY endpoint
+        ''')
+        by_endpoint = [{'endpoint': row[0], 'count': row[1], 'cost': row[2] or 0} for row in cursor.fetchall()]
+        
+        cursor.execute('''
+            SELECT DATE(created_at) as day, COUNT(*), SUM(cost_usd)
+            FROM api_usage
+            WHERE created_at >= datetime('now', '-7 days')
+            GROUP BY day
+            ORDER BY day
+        ''')
+        daily_usage = [{'day': row[0], 'requests': row[1], 'cost': row[2] or 0} for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        return jsonify({
+            'total_requests': total_requests,
+            'successful': successful,
+            'failed': failed,
+            'total_tokens': total_tokens,
+            'total_cost': round(total_cost, 4),
+            'today_requests': today_requests or 0,
+            'today_cost': round(today_cost or 0, 4),
+            'by_endpoint': by_endpoint,
+            'daily_usage': daily_usage,
+            'success_rate': round((successful / total_requests * 100) if total_requests > 0 else 0, 1)
+        })
+    except Exception as e:
+        print(f"[USAGE] Error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
