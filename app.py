@@ -59,7 +59,7 @@ CATEGORIES = [
     {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    {'name': 'Chile', 'icon': '🇨🇱', 'type': 'region'},
+    {'name': 'Chile', 'icon': '🇨', 'type': 'region'},
     {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
     {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
     {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
@@ -75,22 +75,23 @@ SEARCH_KEYWORDS = {
     'Automotriz': 'autos OR vehículos OR electromovilidad',
     'Belleza': 'belleza OR cosmética OR skincare',
     'Minería': 'minería OR cobre OR litio',
-    'IA': 'inteligencia artificial OR IA',
-    'Tendencias': 'tendencias',
-    'Tecnología': 'tecnología OR 5G',
-    'Economía': 'economía OR dólar OR inflación',
+    'IA': 'inteligencia artificial OR IA OR artificial intelligence',
+    'Tendencias': 'tendencias OR trends',
+    'Tecnología': 'tecnología OR 5G OR tech OR technology',
+    'Economía': 'economía OR dólar OR inflación OR economy OR financial',
     'Chile': 'chile',
-    'Internacional': 'internacional',
-    'Deportes': 'deportes OR fútbol',
-    'Ciencia y Tecnología': 'ciencia OR tecnología',
-    'Cultura': 'cultura OR arte OR música OR cine OR teatro',
-    'Ocio': 'ocio OR entretenimiento',
-    'Salud': 'salud OR medicina',
-    'Sociedad': 'sociedad',
-    'TV y Espectáculos': 'televisión OR espectáculos OR farándula'
+    'Internacional': 'internacional OR international OR world OR global',
+    'Deportes': 'deportes OR fútbol OR sports',
+    'Ciencia y Tecnología': 'ciencia OR tecnología OR science OR technology',
+    'Cultura': 'cultura OR arte OR música OR cine OR teatro OR culture',
+    'Ocio': 'ocio OR entretenimiento OR entertainment',
+    'Salud': 'salud OR medicina OR health',
+    'Sociedad': 'sociedad OR society',
+    'TV y Espectáculos': 'televisión OR espectáculos OR farándula OR entertainment'
 }
 
-SOURCES = {
+# FUENTES CHILENAS
+SOURCES_CL = {
     "biobio": {"home": "https://www.biobiochile.cl/", "domain": "biobiochile.cl"},
     "latercera": {"home": "https://www.latercera.com/", "domain": "latercera.com"},
     "cooperativa": {"home": "https://www.cooperativa.cl/", "domain": "cooperativa.cl"},
@@ -100,7 +101,25 @@ SOURCES = {
     "24horas": {"home": "https://www.24horas.cl/", "domain": "24horas.cl"},
 }
 
-STOPWORDS = {'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'al', 'y', 'o', 'que', 'por', 'para', 'con', 'en', 'a', 'se', 'su', 'chile', 'santiago', 'hoy', 'más', 'the', 'and', 'for', 'that', 'this', 'es', 'son', 'como', 'pero', 'también', 'sin', 'sobre', 'entre'}
+# FUENTES INTERNACIONALES EN ESPAÑOL
+SOURCES_ES = {
+    "bbc_mundo": {"rss": "https://feeds.bbci.co.uk/mundo/rss.xml", "name": "BBC Mundo"},
+    "elpais": {"rss": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/america/portada", "name": "El País América"},
+    "cnn_es": {"rss": "https://cnnespanol.cnn.com/feed/", "name": "CNN en Español"},
+    "dw_es": {"rss": "https://rss.dw.com/rdf/rss-sp-top", "name": "DW Español"},
+    "france24": {"rss": "https://www.france24.com/es/rss", "name": "France 24"},
+}
+
+# FUENTES INTERNACIONALES EN INGLÉS
+SOURCES_EN = {
+    "reuters": {"rss": "https://feeds.reuters.com/reuters/worldNews", "name": "Reuters"},
+    "guardian": {"rss": "https://www.theguardian.com/world/rss", "name": "The Guardian"},
+    "aljazeera": {"rss": "https://www.aljazeera.com/xml/rss/all.xml", "name": "Al Jazeera"},
+    "techcrunch": {"rss": "https://techcrunch.com/feed/", "name": "TechCrunch"},
+    "ap_news": {"rss": "https://rsshub.app/apnews/topics/apf-topnews", "name": "AP News"},
+}
+
+STOPWORDS = {'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'al', 'y', 'o', 'que', 'por', 'para', 'con', 'en', 'a', 'se', 'su', 'chile', 'santiago', 'hoy', 'más', 'the', 'and', 'for', 'that', 'this', 'es', 'son', 'como', 'pero', 'también', 'sin', 'sobre', 'entre', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'dare', 'ought', 'used', 'to', 'of', 'in', 'on', 'at', 'by', 'with', 'about', 'against', 'between', 'through', 'during', 'before', 'after', 'above', 'below', 'from', 'up', 'down', 'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 'just', 'because', 'until', 'while', 'although', 'though', 'if', 'unless', 'since', 'as', 'what', 'which', 'who', 'whom', 'whose'}
 
 def _norm(s):
     return "".join(c for c in unicodedata.normalize("NFKD", str(s).lower()) if not unicodedata.combining(c))
@@ -108,7 +127,7 @@ def _norm(s):
 def _get(url, retries=3, timeout=10):
     for i in range(retries):
         try:
-            r = cr.get(url, impersonate="chrome", timeout=timeout, headers={"Accept-Language": "es-CL,es;q=0.9"})
+            r = cr.get(url, impersonate="chrome", timeout=timeout, headers={"Accept-Language": "es-CL,es;q=0.9,en;q=0.8"})
             if r.status_code == 200:
                 return r.text
             if r.status_code in (403, 429, 503):
@@ -154,6 +173,39 @@ def _from_gnews(name, cfg):
         pass
     return out
 
+def _from_rss(name, cfg):
+    """Obtiene artículos desde RSS feed"""
+    articles = []
+    try:
+        xml = _get(cfg["rss"])
+        if not xml:
+            return []
+        
+        root = ET.fromstring(xml)
+        for item in root.iter("item"):
+            title = item.findtext("title", "").strip()
+            link = item.findtext("link", "")
+            pub_date = item.findtext("pubDate", "")
+            
+            if title and len(title) > 20:
+                try:
+                    ts = parsedate_to_datetime(pub_date) if pub_date else datetime.now(timezone.utc)
+                except:
+                    ts = datetime.now(timezone.utc)
+                
+                articles.append({
+                    'title': title,
+                    'source': name,
+                    'url': link,
+                    'first_seen': ts.isoformat()
+                })
+        
+        print(f"[RSS] ✅ {cfg.get('name', name)}: {len(articles)} artículos")
+    except Exception as e:
+        print(f"[RSS] ❌ {cfg.get('name', name)}: {str(e)}")
+    
+    return articles[:20]  # Limitar a 20 por fuente
+
 def fetch_google_trends():
     """Obtiene tendencias de Google Trends Chile"""
     articles = []
@@ -174,7 +226,7 @@ def fetch_google_trends():
                     })
             print(f"[TRENDS] ✅ Google Trends: {len(articles)} tendencias")
     except Exception as e:
-        print(f"[TRENDS]  Google Trends: {str(e)}")
+        print(f"[TRENDS] ❌ Google Trends: {str(e)}")
     return articles
 
 def fetch_wikipedia_trending():
@@ -234,7 +286,8 @@ def fetch_raw_articles(force_refresh=False):
 
     print("[FETCH] Iniciando recolección...")
     
-    def work(item):
+    # 1. Medios chilenos (scraping + Google News fallback)
+    def work_cl(item):
         name, cfg = item
         arts = _from_homepage(name, cfg)
         if arts: return name, arts, "ok"
@@ -243,11 +296,34 @@ def fetch_raw_articles(force_refresh=False):
 
     articles, status = [], {}
     with ThreadPoolExecutor(max_workers=4) as ex:
-        for name, arts, st in ex.map(work, SOURCES.items()):
+        for name, arts, st in ex.map(work_cl, SOURCES_CL.items()):
             articles.extend(arts)
             status[name] = st
             print(f"[FETCH] {name}: {len(arts)} artículos - {st}")
     
+    # 2. Fuentes internacionales en español (RSS)
+    def work_es(item):
+        name, cfg = item
+        arts = _from_rss(name, cfg)
+        return name, arts, "ok" if arts else "empty"
+    
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        for name, arts, st in ex.map(work_es, SOURCES_ES.items()):
+            articles.extend(arts)
+            status[name] = st
+    
+    # 3. Fuentes internacionales en inglés (RSS)
+    def work_en(item):
+        name, cfg = item
+        arts = _from_rss(name, cfg)
+        return name, arts, "ok" if arts else "empty"
+    
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        for name, arts, st in ex.map(work_en, SOURCES_EN.items()):
+            articles.extend(arts)
+            status[name] = st
+    
+    # 4. Google Trends
     try:
         trends_articles = fetch_google_trends()
         articles.extend(trends_articles)
@@ -255,6 +331,7 @@ def fetch_raw_articles(force_refresh=False):
     except:
         status['google_trends'] = 'error'
     
+    # 5. Wikipedia Trending
     try:
         wiki_articles = fetch_wikipedia_trending()
         articles.extend(wiki_articles)
@@ -410,18 +487,19 @@ IMPORTANTE: Varía los scores (40-85). Responde SOLO con el array JSON."""
 def guess_category(topic):
     topic_lower = str(topic).lower()
     keywords = {
-        'Deportes': ['fútbol', 'deporte', 'selección', 'campeonato'],
-        'Economía': ['dólar', 'inflación', 'economía', 'peso', 'cobre'],
+        'Deportes': ['fútbol', 'deporte', 'selección', 'campeonato', 'soccer', 'football'],
+        'Economía': ['dólar', 'inflación', 'economía', 'peso', 'cobre', 'financial', 'economy', 'market', 'stock'],
         'Chile': ['gobierno', 'presidente', 'congreso', 'ley', 'chile'],
-        'Internacional': ['eeuu', 'europa', 'guerra', 'mundial'],
-        'Tecnología': ['tecnología', 'app', 'digital', 'ia', 'inteligencia'],
-        'Salud': ['salud', 'hospital', 'médico'],
-        'Sociedad': ['sociedad', 'educación', 'migración'],
-        'TV y Espectáculos': ['actor', 'actriz', 'tv', 'famoso', 'farándula'],
-        'Eléctrico': ['eléctric', 'transmisión', 'distribución'],
-        'Automotriz': ['auto', 'vehículo', 'volvo', 'automotriz'],
-        'Minería': ['minería', 'cobre', 'litio', 'mina'],
-        'Cultura': ['cultura', 'arte', 'música', 'cine', 'teatro']
+        'Internacional': ['eeuu', 'europa', 'guerra', 'mundial', 'international', 'world', 'global', 'united states', 'europe'],
+        'Tecnología': ['tecnología', 'app', 'digital', 'ia', 'inteligencia', 'tech', 'technology', 'ai', 'artificial intelligence', 'startup'],
+        'Salud': ['salud', 'hospital', 'médico', 'vacuna', 'health', 'medical', 'pandemic'],
+        'Sociedad': ['sociedad', 'educación', 'migración', 'society', 'education', 'migration'],
+        'TV y Espectáculos': ['actor', 'actriz', 'tv', 'famoso', 'farándula', 'entertainment', 'celebrity'],
+        'Eléctrico': ['eléctric', 'transmisión', 'distribución', 'electric', 'energy'],
+        'Automotriz': ['auto', 'vehículo', 'volvo', 'automotriz', 'car', 'vehicle', 'ev'],
+        'Minería': ['minería', 'cobre', 'litio', 'mina', 'mining', 'copper', 'lithium'],
+        'Cultura': ['cultura', 'arte', 'música', 'cine', 'teatro', 'culture', 'art', 'music', 'film'],
+        'Ciencia y Tecnología': ['ciencia', 'tecnología', 'science', 'technology', 'research', 'discovery']
     }
     for cat, words in keywords.items():
         if any(word in topic_lower for word in words):
