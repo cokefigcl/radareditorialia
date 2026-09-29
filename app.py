@@ -51,8 +51,8 @@ def init_db():
 init_db()
 
 CATEGORIES = [
-    {'name': 'Eléctrico', 'icon': '', 'type': 'tema'},
-    {'name': 'Automotriz', 'icon': '', 'type': 'tema'},
+    {'name': 'Eléctrico', 'icon': '⚡', 'type': 'tema'},
+    {'name': 'Automotriz', 'icon': '🚗', 'type': 'tema'},
     {'name': 'Belleza', 'icon': '💄', 'type': 'tema'},
     {'name': 'Minería', 'icon': '⛏️', 'type': 'tema'},
     {'name': 'IA', 'icon': '🤖', 'type': 'tema'},
@@ -358,7 +358,55 @@ def guess_category(topic):
             return cat
     return 'Tendencias'
 
-# ==================== RUTAS ====================
+def analyze_with_qwen(prompt, mode='standard'):
+    api_key = os.getenv('QWEN_API_KEY')
+    if not api_key:
+        return None, "QWEN_API_KEY no configurada"
+    
+    headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
+    payload = {
+        'model': 'qwen-plus',
+        'input': {'messages': [{'role': 'user', 'content': prompt}]},
+        'parameters': {'temperature': 0.1 if mode == 'briefing' else 0.7, 'max_tokens': 2000}
+    }
+    
+    try:
+        response = cr.post(
+            'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
+            headers=headers,
+            json=payload,
+            timeout=60,
+            impersonate="chrome"
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            text = result.get('output', {}).get('choices', [{}])[0].get('message', {}).get('content') or result.get('output', {}).get('text') or str(result)
+            
+            match = re.search(r'\{.*\}', text, re.DOTALL)
+            json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
+            
+            return json.loads(json_str), None
+    except Exception as e:
+        return None, f"Error: {str(e)}"
+    return None, "Error desconocido"
+
+def generate_analysis(topic, topic2, category, region, mode, lens, news):
+    news_text = "\n\nNoticias:\n" + "\n".join([f"- {n['titulo']}" for n in news[:5]]) if news else ""
+    
+    if mode == 'briefing':
+        return f"""Eres editor experto. BRIEFING sobre: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}
+Responde SOLO JSON: {{"resumen_ejecutivo": "Párrafo claro", "preguntas_fuente": ["¿Qué pasó?", "¿Quiénes afectan?", "¿Qué sigue?"], "datos_duros": ["Dato 1", "Dato 2"], "timeline_sugerido": "Esta semana", "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
+    elif mode == 'devil':
+        return f"""Editor crítico. ABOGADO DEL DIABLO: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}
+Responde SOLO JSON: {{"cobertura_mainstream": "Lo que todos dicen", "angulo_ciego": "Lo que NADIE pregunta", "riesgos_sesgos": ["Sesgo 1", "Sesgo 2"], "pregunta_incomoda": "Pregunta incómoda", "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
+    elif mode == 'compare' and topic2:
+        return f"""Editor estratégico. COMPARA: TEMA A: {topic} | TEMA B: {topic2} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}
+Responde SOLO JSON: {{"tema_a": "{topic}", "tema_b": "{topic2}", "mas_recorrido": "Cuál tiene más recorrido", "fuentes_comunes": ["Fuente 1", "Fuente 2"], "angulo_conector": "Ángulo conector", "recomendacion": "Cuál cubrir primero", "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
+    else:
+        lens_instruction = {"data": "\nENFOQUE: Estadísticas.", "controversy": "\nENFOQUE: Conflictos.", "human": "\nENFOQUE: Personas.", "economic": "\nENFOQUE: Finanzas."}.get(lens, "")
+        return f"""Analiza tendencia: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}{lens_instruction}
+Responde SOLO JSON: {{"puntaje_relevancia": 7, "justificacion_puntaje": "Explicación del puntaje", "hipotesis": "Hipótesis editorial", "senales_clave": ["Señal 1", "Señal 2"], "angulos_periodisticos": ["Ángulo 1", "Ángulo 2"], "fuentes_sugeridas": ["Fuente 1", "Fuente 2"], "titulares_ejemplo": ["Titular 1", "Titular 2"], "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
 
 @app.route('/')
 def index():
@@ -367,6 +415,28 @@ def index():
 @app.route('/api/categories', methods=['GET'])
 def get_categories():
     return jsonify(CATEGORIES)
+
+@app.route('/api/trending', methods=['GET'])
+def get_trending():
+    category = request.args.get('category', 'all')
+    limit = int(request.args.get('limit', 6))
+    force_refresh = request.args.get('refresh') == 'true'
+    articles, status = fetch_raw_articles(force_refresh=force_refresh)
+    
+    keywords_raw = SEARCH_KEYWORDS.get(category, 'chile')
+    keywords = [kw.strip().lower() for kw in keywords_raw.split(' OR ')]
+    
+    trends = []
+    seen = set()
+    for a in articles:
+        if category == 'all' or any(kw in a['title'].lower() for kw in keywords):
+            if a['title'] not in seen:
+                seen.add(a['title'])
+                trends.append({'topic': a['title'], 'source': a['source'], 'region': 'Chile'})
+        if len(trends) >= limit:
+            break
+    
+    return jsonify({'trends': trends, 'source_status': status})
 
 @app.route('/api/predictions', methods=['GET'])
 def get_predictions_route():
@@ -379,18 +449,15 @@ def get_predictions_route():
         if not articles:
             return jsonify({'predictions': [], 'source_status': status, 'category': category})
         
-        # 1. Siempre generamos predicciones algorítmicas como red de seguridad
         algo_predictions = group_related_articles(articles, top=8)
         print(f"[PREDICT] Algorítmicas: {len(algo_predictions)}")
         
         cross_predictions = []
         try:
-            # 2. Intentamos filtrar, pero si hay pocos, usamos todos para que la IA no falle
             if category != 'all':
                 keywords_raw = SEARCH_KEYWORDS.get(category, category.lower())
                 keywords = [kw.strip().lower() for kw in keywords_raw.split(' OR ')]
                 filtered = [a for a in articles if any(kw in a['title'].lower() for kw in keywords)]
-                print(f"[PREDICT] Filtrados: {len(filtered)}")
                 
                 if len(filtered) >= 3:
                     cross_predictions = cross_predictions_func(filtered, category=category, top=6)
@@ -402,10 +469,8 @@ def get_predictions_route():
         except Exception as e:
             print(f"[PREDICT] IA falló, usando algorítmicas: {str(e)}")
         
-        # 3. Combinar (priorizando IA si existe)
         all_predictions = cross_predictions if cross_predictions else algo_predictions
         
-        # 4. Deduplicar
         seen, unique = set(), []
         for p in all_predictions:
             norm = _norm(p.get('topic', ''))
@@ -421,7 +486,6 @@ def get_predictions_route():
     except Exception as e:
         print(f"[PREDICT] ERROR CRÍTICO: {str(e)}")
         traceback.print_exc()
-        # DEVOLVEMOS 200 OK CON ARRAY VACÍO PARA QUE EL FRONTEND NO SE ROMPA
         return jsonify({'predictions': [], 'error': str(e), 'category': request.args.get('category', 'all')}), 200
 
 @app.route('/api/status', methods=['GET'])
@@ -436,17 +500,114 @@ def get_status():
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
-    # ... (Mantén tu lógica de analyze actual, funciona bien según los logs)
-    return jsonify({'status': 'ok'}) # Placeholder para brevedad, usa tu versión anterior de analyze
+    try:
+        data = request.json
+        topic = data.get('topic', '').strip()
+        topic2 = data.get('topic2', '').strip()
+        category = data.get('category')
+        region = data.get('region')
+        mode = data.get('mode', 'standard')
+        lens = data.get('lens', '')
+        
+        if not topic:
+            return jsonify({'error': 'Falta el tema'}), 400
+        
+        print(f"\n{'='*60}\n[ANALYZE] Topic: {topic}, Mode: {mode}")
+        
+        articles, _ = fetch_raw_articles(force_refresh=False)
+        news = []
+        topic_lower = topic.lower()
+        for a in articles:
+            if topic_lower in a['title'].lower():
+                news.append({
+                    'titulo': a['title'],
+                    'fuente': a['source'],
+                    'url': a['url'],
+                    'fecha': a.get('first_seen', '')[:10] if a.get('first_seen') else ''
+                })
+                if len(news) >= 5:
+                    break
+        
+        print(f"[ANALYZE] Noticias encontradas: {len(news)}")
+        
+        prompt = generate_analysis(topic, topic2, category, region, mode, lens, news)
+        analysis, error = analyze_with_qwen(prompt, mode)
+        
+        if error or not analysis:
+            print(f"[ANALYZE] ⚠️ Qwen falló: {error}. Usando fallback.")
+            analysis = {
+                'puntaje_relevancia': 6,
+                'justificacion_puntaje': f'Según {len(news)} noticias recientes.',
+                'hipotesis': f'El tema "{topic}" muestra actividad mediática.',
+                'senales_clave': [f'{len(news)} menciones en medios'] if news else ['Tema emergente'],
+                'angulos_periodisticos': [f'Impacto de {topic}', f'Perspectivas sobre {topic}'],
+                'fuentes_sugeridas': ['Expertos', 'Organismos oficiales'],
+                'titulares_ejemplo': [f'Análisis: {topic}'],
+                'noticias_reales': news
+            }
+        
+        if 'noticias_reales' not in analysis:
+            analysis['noticias_reales'] = news
+        
+        score = analysis.get('puntaje_relevancia', 5)
+        
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.cursor().execute(
+                'INSERT INTO trends (topic, topic2, category, region, mode, analysis, score) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                (topic, topic2 if mode == 'compare' else None, category, region, mode, json.dumps(analysis, ensure_ascii=False), score)
+            )
+            conn.commit()
+            conn.close()
+            print("[DB] ✅ Guardado en historial")
+        except Exception as e:
+            print(f"[DB] Error: {str(e)}")
+        
+        return jsonify({
+            'topic': topic, 'topic2': topic2, 'category': category, 'region': region,
+            'mode': mode, 'lens': lens, 'analysis': analysis, 'score': score,
+            'timestamp': datetime.now(timezone.utc).isoformat()
+        })
+    except Exception as e:
+        print(f"[ERROR] {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/history', methods=['GET'])
 def get_history():
-    # ... (Mantén tu lógica de history actual)
-    return jsonify([]) # Placeholder para brevedad
+    limit = int(request.args.get('limit', 10))
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        rows = conn.cursor().execute(
+            'SELECT id, topic, topic2, category, region, mode, analysis, score, created_at FROM trends ORDER BY created_at DESC LIMIT ?',
+            (limit,)
+        ).fetchall()
+        conn.close()
+        
+        history = []
+        for row in rows:
+            try:
+                analysis = json.loads(row[6]) if row[6] else {}
+            except Exception:
+                analysis = {}
+            history.append({
+                'id': row[0], 'topic': row[1], 'topic2': row[2], 'category': row[3],
+                'region': row[4], 'mode': row[5], 'analysis': analysis,
+                'score': row[7] or 0, 'created_at': row[8]
+            })
+        return jsonify(history)
+    except Exception:
+        return jsonify([])
 
 @app.route('/api/history/<int:analysis_id>', methods=['DELETE'])
 def delete_history(analysis_id):
-    return jsonify({'success': True})
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.cursor().execute('DELETE FROM trends WHERE id = ?', (analysis_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
