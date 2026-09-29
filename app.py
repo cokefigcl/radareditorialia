@@ -174,7 +174,7 @@ def fetch_google_trends():
                     })
             print(f"[TRENDS] ✅ Google Trends: {len(articles)} tendencias")
     except Exception as e:
-        print(f"[TRENDS] ❌ Google Trends: {str(e)}")
+        print(f"[TRENDS]  Google Trends: {str(e)}")
     return articles
 
 def fetch_wikipedia_trending():
@@ -501,9 +501,15 @@ Responde SOLO JSON: {{"tema_a": "{topic}", "tema_b": "{topic2}", "mas_recorrido"
         return f"""Analiza tendencia: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}{lens_instruction}
 Responde SOLO JSON: {{"puntaje_relevancia": 7, "justificacion_puntaje": "Explicación del puntaje", "hipotesis": "Hipótesis editorial", "senales_clave": ["Señal 1", "Señal 2"], "angulos_periodisticos": ["Ángulo 1", "Ángulo 2"], "fuentes_sugeridas": ["Fuente 1", "Fuente 2"], "titulares_ejemplo": ["Titular 1", "Titular 2"], "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
 
+# ==================== RUTAS ====================
+
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/dashboard')
+def dashboard():
+    return render_template('dashboard.html')
 
 @app.route('/api/categories', methods=['GET'])
 def get_categories():
@@ -606,6 +612,7 @@ def get_statistics_route():
         
         return jsonify({
             'stats': stats,
+            'source_status': status,
             'predictions_count': len(predictions),
             'predictions_by_score': {
                 'high': len([p for p in predictions if p.get('score', 0) >= 70]),
