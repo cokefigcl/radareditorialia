@@ -6,8 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Radar Editorial con IA v8.0</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <title>Radar Editorial con IA v8.1</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; }
@@ -93,17 +92,22 @@
         .empty-state { text-align: center; padding: 30px 20px; color: #999; font-size: 13px; }
         .footer { text-align: center; padding: 15px; color: #666; font-size: 11px; }
         .footer a { color: #007bff; text-decoration: none; }
+        .nav-btn { padding: 6px 14px; background: #11998e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; text-decoration: none; font-weight: 600; }
+        .nav-btn:hover { background: #0d7a6f; }
     </style>
 </head>
 <body>
     <div class="topbar">
         <div class="topbar-title">📰 Radar <span>Editorial</span> con IA</div>
-        <div class="status-bar" id="statusBar">
-            <div class="status-item"><span class="label">💵</span><span class="value" id="statusDolar">--</span></div>
-            <div class="status-item"><span class="label"></span><span class="value" id="statusUF">--</span></div>
-            <div class="status-item"><span class="label">️</span><span class="value" id="statusClima">--</span></div>
-            <div class="status-item"><span class="label">🔌</span><span class="value status-ok" id="statusGdelt">●</span></div>
-            <div class="status-item"><span class="label">🤖</span><span class="value status-ok" id="statusQwen">●</span></div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <a href="/dashboard" class="nav-btn">📊 Dashboard</a>
+            <div class="status-bar" id="statusBar">
+                <div class="status-item"><span class="label">💵</span><span class="value" id="statusDolar">--</span></div>
+                <div class="status-item"><span class="label">📊</span><span class="value" id="statusUF">--</span></div>
+                <div class="status-item"><span class="label">🌡️</span><span class="value" id="statusClima">--</span></div>
+                <div class="status-item"><span class="label">🔌</span><span class="value status-ok" id="statusGdelt">●</span></div>
+                <div class="status-item"><span class="label">🤖</span><span class="value status-ok" id="statusQwen">●</span></div>
+            </div>
         </div>
     </div>
     
@@ -134,7 +138,7 @@
         
         <div class="module module-analysis">
             <div class="module-header">
-                <h3> Análisis</h3>
+                <h3>🔍 Análisis</h3>
             </div>
             <div class="module-body">
                 <div class="analysis-form">
@@ -147,8 +151,8 @@
                     <div>
                         <div style="font-size: 11px; color: #666; margin-bottom: 5px;">Modo:</div>
                         <div class="mode-btns">
-                            <div class="tooltip-container"><button class="mode-btn active" onclick="selectMode('standard')">📊 Estándar</button><span class="tooltip-text"><strong>Análisis Estándar</strong>Genera una hipótesis editorial, señales clave, ángulos periodísticos, fuentes sugeridas y titulares de ejemplo.</span></div>
-                            <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('briefing')"> Briefing</button><span class="tooltip-text"><strong>Briefing Periodístico</strong>Genera un resumen ejecutivo, preguntas exactas para tu fuente, datos duros a verificar y timeline sugerido.</span></div>
+                            <div class="tooltip-container"><button class="mode-btn active" onclick="selectMode('standard')"> Estándar</button><span class="tooltip-text"><strong>Análisis Estándar</strong>Genera una hipótesis editorial, señales clave, ángulos periodísticos, fuentes sugeridas y titulares de ejemplo.</span></div>
+                            <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('briefing')">⚡ Briefing</button><span class="tooltip-text"><strong>Briefing Periodístico</strong>Genera un resumen ejecutivo, preguntas exactas para tu fuente, datos duros a verificar y timeline sugerido.</span></div>
                             <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('devil')">😈 Abogado del Diablo</button><span class="tooltip-text"><strong>Abogado del Diablo</strong>Identifica lo que todos los medios ya están diciendo, revela el ángulo ciego y plantea la pregunta incómoda.</span></div>
                             <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('compare')">⚖️ Comparar</button><span class="tooltip-text"><strong>Comparador de Temas</strong>Compara dos temas: cuál tiene más recorrido, fuentes comunes y recomendación de cuál cubrir primero.</span></div>
                         </div>
@@ -170,50 +174,6 @@
         </div>
     </div>
     
-    <!-- DASHBOARD CON GRÁFICOS -->
-    <div style="max-width: 1200px; margin: 0 auto; padding: 0 20px 15px;">
-        <div class="module" style="max-height: none;">
-            <div class="module-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
-                <h3> Dashboard de Tendencias</h3>
-                <button onclick="loadDashboard()" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 11px;">🔄 Actualizar</button>
-            </div>
-            <div class="module-body" style="max-height: 400px;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                        <h4 style="font-size: 13px; color: #666; margin-bottom: 10px;">📂 Por Categoría</h4>
-                        <canvas id="categoryChart" height="200"></canvas>
-                    </div>
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                        <h4 style="font-size: 13px; color: #666; margin-bottom: 10px;">📡 Por Fuente</h4>
-                        <canvas id="sourceChart" height="200"></canvas>
-                    </div>
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                        <h4 style="font-size: 13px; color: #666; margin-bottom: 10px;">🎯 Distribución de Scores</h4>
-                        <canvas id="scoreChart" height="200"></canvas>
-                    </div>
-                </div>
-                <div id="dashboardStats" style="margin-top: 15px; display: flex; gap: 15px; flex-wrap: wrap;">
-                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 20px; border-radius: 8px; flex: 1; min-width: 150px;">
-                        <div style="font-size: 11px; opacity: 0.9;">Total Artículos</div>
-                        <div style="font-size: 24px; font-weight: bold;" id="statTotal">--</div>
-                    </div>
-                    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 12px 20px; border-radius: 8px; flex: 1; min-width: 150px;">
-                        <div style="font-size: 11px; opacity: 0.9;">Fuentes Activas</div>
-                        <div style="font-size: 24px; font-weight: bold;" id="statSources">--</div>
-                    </div>
-                    <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 12px 20px; border-radius: 8px; flex: 1; min-width: 150px;">
-                        <div style="font-size: 11px; opacity: 0.9;">Tendencias Detectadas</div>
-                        <div style="font-size: 24px; font-weight: bold;" id="statTrends">--</div>
-                    </div>
-                    <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; padding: 12px 20px; border-radius: 8px; flex: 1; min-width: 150px;">
-                        <div style="font-size: 11px; opacity: 0.9;">Predicciones IA</div>
-                        <div style="font-size: 24px; font-weight: bold;" id="statPredictions">--</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
     <div style="max-width: 1200px; margin: 0 auto; padding: 0 20px 20px;">
         <div class="module" style="max-height: none;">
             <div class="module-header" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
@@ -226,24 +186,20 @@
     </div>
     
     <div class="footer">
-        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | v8.0
+        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | v8.1
     </div>
 
     <script>
-        console.log("╔════════════════════════════════════════╗");
-        console.log("║  RADAR EDITORIAL v8.0 CARGADO         ║");
-        console.log("║  Dashboard + 7 fuentes + Google Trends ║");
+        console.log("════════════════════════════════════════╗");
+        console.log("║  RADAR EDITORIAL v8.1 CARGADO         ║");
         console.log("╚════════════════════════════════════════╝");
         
         let currentCategory = 'all';
         let categories = [];
         let currentMode = 'standard';
         let currentLens = '';
-        let categoryChartInstance = null;
-        let sourceChartInstance = null;
-        let scoreChartInstance = null;
 
-        const gataPhrases = ["🔮 La gata cruza datos y proyecta...", "✨ Analizando señales convergentes...", "🌙 Proyectando escenarios futuros...", "🔮 Detectando temas emergentes...", "⭐ Cruzando fuentes con IA...", "🌌 La gata anticipa tendencias...", "🔮 Maybis predice el futuro editorial...", "✨ Visionando lo que viene..."];
+        const gataPhrases = ["🔮 La gata cruza datos y proyecta...", "✨ Analizando señales convergentes...", "🌙 Proyectando escenarios futuros...", " Detectando temas emergentes...", "⭐ Cruzando fuentes con IA...", "🌌 La gata anticipa tendencias...", "🔮 Maybis predice el futuro editorial...", "✨ Visionando lo que viene..."];
         const analysisPhrases = [" Uri investiga el tema...", "🐕 Analizando pistas...", "📋 Revisando fuentes...", "🔎 Buscando ángulos...", "📰 Investigando a fondo...", "🐾 Siguiendo el rastro...", "🔍 Uri está en ello...", "📊 Cruzando datos..."];
 
         function getRandomPhrase(phrases) { return phrases[Math.floor(Math.random() * phrases.length)]; }
@@ -366,7 +322,7 @@
                             <div class="prediction-topic">${p.topic} <span style="font-size:10px; background:#667eea; color:white; padding:2px 6px; border-radius:4px; margin-left:5px;">${p.category || 'General'}</span></div>
                             <div class="prediction-score ${scoreClass}">${p.score}%</div>
                         </div>
-                        ${p.reasoning ? `<div class="prediction-reasoning"> ${p.reasoning}</div>` : ''}
+                        ${p.reasoning ? `<div class="prediction-reasoning">💡 ${p.reasoning}</div>` : ''}
                         <div class="prediction-meta">
                             <span>⏰ ${p.timeframe || 'próximas horas'}</span>
                             <span style="color: ${getImpactColor(p.impact)}; font-weight: 600;">Impacto: ${p.impact || 'medio'}</span>
@@ -388,107 +344,6 @@
         function getImpactColor(impact) {
             const colors = {'bajo': '#28a745', 'medio': '#ffc107', 'alto': '#fd7e14', 'crítico': '#dc3545'};
             return colors[impact?.toLowerCase()] || '#6c757d';
-        }
-
-        async function loadDashboard() {
-            try {
-                const res = await fetch('/api/statistics?_t=' + Date.now(), {
-                    cache: 'no-store'
-                });
-                const data = await res.json();
-                
-                if (data.error) {
-                    console.error('[DASHBOARD] Error:', data.error);
-                    return;
-                }
-                
-                const stats = data.stats;
-                
-                document.getElementById('statTotal').textContent = stats.total_articles || 0;
-                document.getElementById('statSources').textContent = stats.sources_count || 0;
-                document.getElementById('statTrends').textContent = stats.trends_detected || 0;
-                document.getElementById('statPredictions').textContent = data.predictions_count || 0;
-                
-                const catLabels = Object.keys(stats.by_category || {});
-                const catData = Object.values(stats.by_category || {});
-                const catColors = ['#667eea', '#f093fb', '#4facfe', '#fa709a', '#fee140', '#38ef7d', '#11998e', '#ff6b6b', '#feca57'];
-                
-                if (categoryChartInstance) categoryChartInstance.destroy();
-                categoryChartInstance = new Chart(document.getElementById('categoryChart'), {
-                    type: 'doughnut',
-                    data: {
-                        labels: catLabels.slice(0, 8),
-                        datasets: [{
-                            data: catData.slice(0, 8),
-                            backgroundColor: catColors,
-                            borderWidth: 2,
-                            borderColor: '#fff'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: 'bottom', labels: { font: { size: 10 } } }
-                        }
-                    }
-                });
-                
-                const srcLabels = Object.keys(stats.by_source || {});
-                const srcData = Object.values(stats.by_source || {});
-                const srcColors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dfe6e9', '#fd79a8', '#a29bfe'];
-                
-                if (sourceChartInstance) sourceChartInstance.destroy();
-                sourceChartInstance = new Chart(document.getElementById('sourceChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: srcLabels,
-                        datasets: [{
-                            label: 'Artículos',
-                            data: srcData,
-                            backgroundColor: srcColors,
-                            borderRadius: 6
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            y: { beginAtZero: true, ticks: { font: { size: 10 } } },
-                            x: { ticks: { font: { size: 9 }, maxRotation: 45 } }
-                        }
-                    }
-                });
-                
-                const scoreDist = data.predictions_by_score || {high: 0, medium: 0, low: 0};
-                
-                if (scoreChartInstance) scoreChartInstance.destroy();
-                scoreChartInstance = new Chart(document.getElementById('scoreChart'), {
-                    type: 'pie',
-                    data: {
-                        labels: ['Alto (70-100)', 'Medio (40-69)', 'Bajo (0-39)'],
-                        datasets: [{
-                            data: [scoreDist.high, scoreDist.medium, scoreDist.low],
-                            backgroundColor: ['#28a745', '#ffc107', '#dc3545'],
-                            borderWidth: 2,
-                            borderColor: '#fff'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: 'bottom', labels: { font: { size: 10 } } }
-                        }
-                    }
-                });
-                
-                console.log('[DASHBOARD] ✅ Actualizado');
-                
-            } catch (err) {
-                console.error('[DASHBOARD]  Error:', err);
-            }
         }
 
         function useTrend(topic) { document.getElementById('topicInput').value = topic; }
@@ -564,7 +419,7 @@
             
             if (data.mode === 'standard' && score > 0) {
                 const scoreClass = score >= 7 ? 'score-high' : (score >= 4 ? 'score-medium' : 'score-low');
-                const scoreLabel = score >= 9 ? '🔴 CRÍTICA' : (score >= 7 ? '✅ ALTA' : (score >= 4 ? '⚠️ MEDIA' : '🔵 BAJA'));
+                const scoreLabel = score >= 9 ? '🔴 CRÍTICA' : (score >= 7 ? '✅ ALTA' : (score >= 4 ? '️ MEDIA' : '🔵 BAJA'));
                 html += `<div style="margin-bottom: 10px;"><span class="score-badge ${scoreClass}">${score}/10 - ${scoreLabel}</span></div>`;
             }
             if (a.resumen_ejecutivo) html += `<h4>📝 Resumen</h4><p>${a.resumen_ejecutivo}</p>`;
@@ -577,16 +432,16 @@
             if (a.preguntas_fuente && a.preguntas_fuente.length) { html += '<h4>❓ Preguntas para fuente</h4><ul>'; a.preguntas_fuente.forEach(q => { html += `<li>${q}</li>`; }); html += '</ul>'; }
             if (a.senales_clave && a.senales_clave.length) { html += '<h4>🔍 Señales clave</h4><div>'; a.senales_clave.forEach(s => { html += `<span class="tag">${s}</span>`; }); html += '</div>'; }
             if (a.angulos_periodisticos && a.angulos_periodisticos.length) { html += '<h4>📝 Ángulos</h4><ul>'; a.angulos_periodisticos.forEach(ang => { html += `<li>${ang}</li>`; }); html += '</ul>'; }
-            if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) { html += '<h4> Fuentes</h4><ul>'; a.fuentes_sugeridas.forEach(f => { html += `<li>${f}</li>`; }); html += '</ul>'; }
+            if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) { html += '<h4>📚 Fuentes</h4><ul>'; a.fuentes_sugeridas.forEach(f => { html += `<li>${f}</li>`; }); html += '</ul>'; }
             if (a.titulares_ejemplo && a.titulares_ejemplo.length) { html += '<h4>📝 Titulares sugeridos</h4><ul>'; a.titulares_ejemplo.forEach(t => { html += `<li>📌 ${t}</li>`; }); html += '</ul>'; }
-            if (a.datos_duros && a.datos_duros.length) { html += '<h4>📊 Datos a verificar</h4><div>'; a.datos_duros.forEach(d => { html += `<span class="tag">${d}</span>`; }); html += '</div>'; }
+            if (a.datos_duros && a.datos_duros.length) { html += '<h4> Datos a verificar</h4><div>'; a.datos_duros.forEach(d => { html += `<span class="tag">${d}</span>`; }); html += '</div>'; }
             if (a.timeline_sugerido) html += `<h4>⏰ Timeline</h4><p>${a.timeline_sugerido}</p>`;
             if (a.angulo_conector) html += `<h4>💡 Ángulo conector</h4><p>${a.angulo_conector}</p>`;
-            if (a.fuentes_comunes && a.fuentes_comunes.length) { html += '<h4> Fuentes comunes</h4><div>'; a.fuentes_comunes.forEach(f => { html += `<span class="tag">${f}</span>`; }); html += '</div>'; }
+            if (a.fuentes_comunes && a.fuentes_comunes.length) { html += '<h4>🔗 Fuentes comunes</h4><div>'; a.fuentes_comunes.forEach(f => { html += `<span class="tag">${f}</span>`; }); html += '</div>'; }
             if (a.riesgos_sesgos && a.riesgos_sesgos.length) { html += '<h4>⚠️ Riesgos</h4><div>'; a.riesgos_sesgos.forEach(r => { html += `<span class="tag">${r}</span>`; }); html += '</div>'; }
             
             if (a.noticias_reales && a.noticias_reales.length > 0) {
-                html += '<h4> Noticias</h4>';
+                html += '<h4>📰 Noticias</h4>';
                 a.noticias_reales.forEach(n => {
                     if (n.url) html += `<div style="font-size: 12px; margin: 4px 0;"><a href="${n.url}" target="_blank" style="color: #007bff;">📰 ${n.titulo}</a> <span style="color: #666;">- ${n.fuente}</span></div>`;
                     else html += `<div style="font-size: 12px; margin: 4px 0;">📰 ${n.titulo} <span style="color: #666;">- ${n.fuente}</span></div>`;
@@ -637,7 +492,6 @@
         }
 
         loadFilters();
-        loadDashboard();
     </script>
 </body>
 </html>
