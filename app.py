@@ -52,24 +52,24 @@ CATEGORIES = [
     {'name': 'Belleza', 'icon': '💄', 'type': 'tema'},
     {'name': 'Minería', 'icon': '⛏️', 'type': 'tema'},
     {'name': 'IA', 'icon': '🤖', 'type': 'tema'},
-    {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
+    {'name': 'Tendencias', 'icon': '', 'type': 'tema'},
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
-    {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    {'name': 'Chile', 'icon': '🇨🇱', 'type': 'region'},
-    {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
+    {'name': 'Economía', 'icon': '', 'type': 'tema'},
+    {'name': 'Chile', 'icon': '', 'type': 'region'},
+    {'name': 'Internacional', 'icon': '', 'type': 'region'},
     {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
-    {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
+    {'name': 'Ciencia y Tecnología', 'icon': '', 'type': 'otros'},
     {'name': 'Cultura', 'icon': '🎭', 'type': 'otros'},
     {'name': 'Ocio', 'icon': '🎮', 'type': 'otros'},
     {'name': 'Salud', 'icon': '🏥', 'type': 'otros'},
     {'name': 'Sociedad', 'icon': '👥', 'type': 'otros'},
-    {'name': 'TV y Espectáculos', 'icon': '📺', 'type': 'otros'}
+    {'name': 'TV y Espectáculos', 'icon': '', 'type': 'otros'}
 ]
 
 SEARCH_KEYWORDS = {
     'Eléctrico': 'eléctricas OR transmisión OR distribución',
     'Automotriz': 'autos OR vehículos OR electromovilidad',
-    'Belleza': 'belleza OR cosmética',
+    'Belleza': 'belleza OR cosmética OR skincare',
     'Minería': 'minería OR cobre OR litio',
     'IA': 'inteligencia artificial OR IA',
     'Tendencias': 'tendencias',
@@ -79,11 +79,11 @@ SEARCH_KEYWORDS = {
     'Internacional': 'internacional',
     'Deportes': 'deportes OR fútbol',
     'Ciencia y Tecnología': 'ciencia OR tecnología',
-    'Cultura': 'cultura OR arte',
+    'Cultura': 'cultura OR arte OR música OR cine OR teatro',
     'Ocio': 'ocio OR entretenimiento',
     'Salud': 'salud OR medicina',
     'Sociedad': 'sociedad',
-    'TV y Espectáculos': 'televisión OR espectáculos'
+    'TV y Espectáculos': 'televisión OR espectáculos OR farándula'
 }
 
 SOURCES = {
@@ -230,7 +230,6 @@ def group_related_articles(articles, top=8):
     print(f"[GROUP] Agrupando {len(articles)} artículos...")
     now = datetime.now(timezone.utc)
     
-    # Crear grupos basados en palabras clave compartidas
     groups = defaultdict(list)
     
     for a in articles:
@@ -242,21 +241,17 @@ def group_related_articles(articles, top=8):
         if len(significant) < 3:
             continue
         
-        # Crear clave con las 5 palabras más significativas
         key = ' '.join(sorted(significant[:5]))
         groups[key].append(a)
     
-    # Calcular score por grupo
     scored = []
     for key, items in groups.items():
         sources = set(item['source'] for item in items)
         n_articles = len(items)
         
-        # Requiere al menos 2 artículos o 2 fuentes distintas
         if n_articles < 2 and len(sources) < 2:
             continue
         
-        # Recencia promedio
         avg_age = 0
         try:
             ages = []
@@ -271,16 +266,11 @@ def group_related_articles(articles, top=8):
             avg_age = 12
         
         recency_score = max(0, 100 - (avg_age * 5))
-        
-        # Bonus por diversidad de fuentes
         source_bonus = len(sources) * 15
-        
-        # Bonus por volumen
         volume_bonus = min(20, n_articles * 5)
         
         total_score = (recency_score * 0.4) + source_bonus + volume_bonus
         
-        # Usar el titular más representativo (el más largo y descriptivo)
         representative = max(items, key=lambda x: len(x['title']))
         
         scored.append({
@@ -288,12 +278,11 @@ def group_related_articles(articles, top=8):
             'score': round(min(95, total_score)),
             'sources': sorted(sources),
             'count': n_articles,
-            'articles': items[:3]  # Top 3 artículos del grupo
+            'articles': items[:3]
         })
     
     scored.sort(key=lambda x: x['score'], reverse=True)
     
-    # Eliminar duplicados semánticos
     result = []
     seen_topics = set()
     
@@ -333,63 +322,57 @@ def group_related_articles(articles, top=8):
     return result
 
 def cross_predictions_func(articles, category='all', top=6):
-    """Identifica TENDENCIAS EMERGENTES usando IA"""
+    """Identifica TENDENCIAS EMERGENTES - FILTRADO FLEXIBLE"""
     if not articles:
         print("[CROSS] Sin artículos")
         return []
     
-    # Filtrar artículos por categoría si es necesario
+    # Filtrado FLEXIBLE: si hay pocos artículos de la categoría, usar todos
     if category != 'all':
         keywords_raw = SEARCH_KEYWORDS.get(category, category.lower())
         keywords = [kw.strip().lower() for kw in keywords_raw.split(' OR ')]
         filtered = [a for a in articles if any(kw in a['title'].lower() for kw in keywords)]
+        
+        # Si hay al menos 5 artículos de la categoría, usarlos. Si no, usar todos.
         if len(filtered) >= 5:
             articles = filtered
+            print(f"[CROSS] Usando {len(articles)} artículos de categoría '{category}'")
+        else:
+            print(f"[CROSS] Solo {len(filtered)} artículos de '{category}', usando todos ({len(articles)})")
     
-    if len(articles) < 5:
+    if len(articles) < 3:
         print(f"[CROSS] Solo {len(articles)} artículos, insuficientes")
         return []
     
-    # Tomar 20 artículos variados
     recent = articles[:20]
     headlines = "\n".join([f"- [{a['source']}] {a['title']}" for a in recent])
     
-    category_instruction = f"Enfócate en tendencias relacionadas con: {category}." if category != 'all' else "Cubre una variedad de categorías."
+    category_instruction = f"Prioriza tendencias relacionadas con: {category}." if category != 'all' else "Cubre una variedad de categorías."
     
-    prompt = f"""Eres un analista de tendencias editoriales experto. Tu trabajo es identificar TENDENCIAS EMERGENTES (temas que están creciendo en relevancia), no solo resumir noticias.
+    prompt = f"""Eres un analista de tendencias editoriales experto.
 
 {category_instruction}
 
-Analiza estos titulares recientes y detecta PATRONES, TEMAS RECURRENTES o SITUACIONES que están EVOLUCIONANDO:
+Analiza estos titulares recientes y detecta PATRONES o TEMAS EMERGENTES:
 
 TITULARES ACTUALES:
 {headlines}
 
-Identifica {top} TENDENCIAS EMERGENTES. Para cada una:
-- "topic": El tema/tendencia (qué está pasando y por qué es relevante)
-- "score": Nivel de relevancia actual (40-85, varía los scores)
-- "reasoning": Por qué esto es una TENDENCIA emergente (no una noticia aislada). Identifica el patrón.
-- "signals": 2-3 señales concretas que muestran que esto está CRECIENDO
-- "impact": Impacto esperado (bajo, medio, alto)
-- "timeframe": Cuándo alcanzará su punto máximo (próximas horas, mañana, esta semana)
-- "category": Categoría
-
-Responde SOLO con un array JSON:
+Identifica {top} TENDENCIAS EMERGENTES. Formato JSON:
 [
   {{
-    "topic": "Crisis energética en el norte de Chile",
-    "score": 78,
-    "reasoning": "Tres medios reportan cortes simultáneos y el gobierno anuncia medidas urgentes. Esto no es un evento aislado: es un patrón de fallas sistémicas que se intensifica.",
-    "signals": ["Cortes en 3 regiones en 48h", "Declaraciones ministeriales urgentes", "Protestas ciudadanas creciendo"],
+    "topic": "Tema claro y específico",
+    "score": 72,
+    "reasoning": "Por qué es tendencia (2-3 oraciones)",
+    "signals": ["Señal 1", "Señal 2"],
     "impact": "alto",
-    "timeframe": "esta semana",
-    "category": "Sociedad"
+    "timeframe": "próximas horas",
+    "category": "Categoría"
   }}
 ]
 
 IMPORTANTE:
-- Identifica PATRONES, no noticias sueltas
-- Varía los scores (ej: 65, 72, 81)
+- Varía los scores (40-85)
 - Responde SOLO con el array JSON"""
 
     api_key = os.getenv('QWEN_API_KEY')
@@ -418,9 +401,7 @@ IMPORTANTE:
         
         if response.status_code == 200:
             result = response.json()
-            print(f"[CROSS] Response keys: {result.keys()}")
             
-            # EXTRAER TEXTO DE DIFERENTES FORMATOS
             text = None
             if 'output' in result:
                 output = result['output']
@@ -432,12 +413,9 @@ IMPORTANTE:
                 text = result['choices'][0]['message']['content']
             
             if not text:
-                print(f"[CROSS] ❌ No se pudo extraer texto. Response: {str(result)[:200]}")
+                print(f"[CROSS] ❌ No se pudo extraer texto")
                 return []
             
-            print(f"[CROSS] Texto crudo (primeros 200 chars): {text[:200]}")
-            
-            # Extracción de JSON robusta
             text = text.strip()
             start_idx = text.find('[')
             end_idx = text.rfind(']')
@@ -480,15 +458,13 @@ IMPORTANTE:
                 })
             return formatted
         else:
-            print(f"[CROSS] ❌ Error HTTP: {response.text[:200]}")
+            print(f"[CROSS]  Error HTTP: {response.text[:200]}")
             return []
     except json.JSONDecodeError as e:
         print(f"[CROSS] ❌ Error JSON: {str(e)}")
         return []
     except Exception as e:
         print(f"[CROSS] ❌ Excepción: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return []
 
 def guess_category(topic):
@@ -505,6 +481,7 @@ def guess_category(topic):
         'Eléctrico': ['eléctric', 'transmisión', 'distribución'],
         'Automotriz': ['auto', 'vehículo', 'volvo', 'automotriz', 'byd'],
         'Minería': ['minería', 'cobre', 'litio', 'mina'],
+        'Cultura': ['cultura', 'arte', 'música', 'cine', 'teatro', 'literatura'],
     }
     for category, words in keywords.items():
         if any(word in topic_lower for word in words):
@@ -627,13 +604,16 @@ def get_predictions_route():
         articles, status = fetch_raw_articles(force_refresh=force_refresh)
         
         if not articles:
-            return jsonify({'predictions': [], 'source_status': status, 'category': category})
+            return jsonify({
+                'predictions': [],
+                'source_status': status,
+                'category': category,
+                'message': 'Sin artículos disponibles'
+            })
         
-        # 1. Agrupar artículos relacionados (tendencias algorítmicas)
         algo_predictions = group_related_articles(articles, top=4)
         print(f"[PREDICT] Algorítmicas: {len(algo_predictions)}")
         
-        # 2. Predicciones cruzadas con IA (tendencias emergentes)
         cross_predictions = []
         try:
             cross_predictions = cross_predictions_func(articles, category=category, top=6)
@@ -641,13 +621,11 @@ def get_predictions_route():
         except Exception as e:
             print(f"[PREDICT] IA falló: {str(e)}")
         
-        # 3. Combinar
         if not cross_predictions:
             all_predictions = algo_predictions
         else:
             all_predictions = cross_predictions + algo_predictions
         
-        # Eliminar duplicados
         seen = set()
         unique_predictions = []
         for p in all_predictions:
@@ -669,7 +647,11 @@ def get_predictions_route():
         print(f"[PREDICT] ERROR CRÍTICO: {str(e)}")
         import traceback
         traceback.print_exc()
-        return jsonify({'predictions': [], 'error': str(e)}), 500
+        return jsonify({
+            'predictions': [],
+            'error': str(e),
+            'category': category
+        }), 500
 
 @app.route('/api/status', methods=['GET'])
 def get_status():
@@ -720,8 +702,8 @@ def analyze():
             print(f"[ANALYZE] ⚠️ Qwen falló: {error}. Usando fallback.")
             analysis = {
                 'puntaje_relevancia': 6,
-                'justificacion_puntaje': f'Según {len(news)} noticias recientes sobre "{topic}".',
-                'hipotesis': f'El tema "{topic}" muestra actividad mediática {"alta" if len(news) >= 3 else "moderada"}.',
+                'justificacion_puntaje': f'Según {len(news)} noticias recientes.',
+                'hipotesis': f'El tema "{topic}" muestra actividad mediática.',
                 'senales_clave': [f'{len(news)} menciones en medios'] if news else ['Tema emergente'],
                 'angulos_periodisticos': [f'Impacto de {topic}', f'Perspectivas sobre {topic}'],
                 'fuentes_sugeridas': ['Expertos', 'Organismos oficiales'],
