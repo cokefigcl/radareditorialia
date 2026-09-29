@@ -95,6 +95,9 @@ SOURCES = {
     "latercera": {"home": "https://www.latercera.com/", "domain": "latercera.com"},
     "cooperativa": {"home": "https://www.cooperativa.cl/", "domain": "cooperativa.cl"},
     "df": {"home": "https://www.df.cl/", "domain": "df.cl"},
+    "emol": {"home": "https://www.emol.com/", "domain": "emol.com"},
+    "ciper": {"home": "https://www.ciperchile.cl/", "domain": "ciperchile.cl"},
+    "24horas": {"home": "https://www.24horas.cl/", "domain": "24horas.cl"},
 }
 
 STOPWORDS = {'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'al', 'y', 'o', 'que', 'por', 'para', 'con', 'en', 'a', 'se', 'su', 'chile', 'santiago', 'hoy', 'más', 'the', 'and', 'for', 'that', 'this', 'es', 'son', 'como', 'pero', 'también', 'sin', 'sobre', 'entre'}
@@ -151,6 +154,56 @@ def _from_gnews(name, cfg):
         pass
     return out
 
+def fetch_google_trends():
+    """Obtiene tendencias de Google Trends Chile"""
+    articles = []
+    try:
+        url = "https://trends.google.com/trending/rss?geo=CL"
+        response = cr.get(url, impersonate="chrome", timeout=10, headers={"Accept-Language": "es-CL,es;q=0.9"})
+        if response.status_code == 200:
+            root = ET.fromstring(response.text)
+            for item in root.iter("item"):
+                title = item.findtext("title", "").strip()
+                if title and len(title) > 10:
+                    articles.append({
+                        'title': f"[Google Trends] {title}",
+                        'source': 'google_trends',
+                        'url': item.findtext("link", ""),
+                        'first_seen': datetime.now(timezone.utc).isoformat(),
+                        'is_trend': True
+                    })
+            print(f"[TRENDS] ✅ Google Trends: {len(articles)} tendencias")
+    except Exception as e:
+        print(f"[TRENDS] ❌ Google Trends: {str(e)}")
+    return articles
+
+def fetch_wikipedia_trending():
+    """Obtiene artículos de Wikipedia más vistos hoy"""
+    articles = []
+    try:
+        today = datetime.now(timezone.utc)
+        url = f"https://wikimedia.org/api/rest_v1/metrics/pageviews/top/es.wikipedia/all-access/{today.year}/{today.month:02d}/{today.day:02d}"
+        response = cr.get(url, impersonate="chrome", timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            items = data.get('items', [{}])[0].get('articles', [])
+            for item in items[:15]:
+                title = item.get('article', '').replace('_', ' ')
+                views = item.get('views', 0)
+                if title and views > 1000:
+                    articles.append({
+                        'title': f"[Wiki Trending] {title} ({views:,} vistas)",
+                        'source': 'wikipedia',
+                        'url': f"https://es.wikipedia.org/wiki/{item.get('article', '')}",
+                        'first_seen': datetime.now(timezone.utc).isoformat(),
+                        'is_trend': True,
+                        'views': views
+                    })
+            print(f"[WIKI] ✅ Wikipedia: {len(articles)} artículos trending")
+    except Exception as e:
+        print(f"[WIKI] ❌ Wikipedia: {str(e)}")
+    return articles
+
 def get_cached_data(max_age_minutes=60):
     if os.path.exists(CACHE_FILE):
         try:
@@ -180,6 +233,7 @@ def fetch_raw_articles(force_refresh=False):
             return articles, status
 
     print("[FETCH] Iniciando recolección...")
+    
     def work(item):
         name, cfg = item
         arts = _from_homepage(name, cfg)
@@ -192,6 +246,21 @@ def fetch_raw_articles(force_refresh=False):
         for name, arts, st in ex.map(work, SOURCES.items()):
             articles.extend(arts)
             status[name] = st
+            print(f"[FETCH] {name}: {len(arts)} artículos - {st}")
+    
+    try:
+        trends_articles = fetch_google_trends()
+        articles.extend(trends_articles)
+        status['google_trends'] = 'ok' if trends_articles else 'empty'
+    except:
+        status['google_trends'] = 'error'
+    
+    try:
+        wiki_articles = fetch_wikipedia_trending()
+        articles.extend(wiki_articles)
+        status['wikipedia'] = 'ok' if wiki_articles else 'empty'
+    except:
+        status['wikipedia'] = 'error'
 
     seen = set()
     unique_articles = []
@@ -200,6 +269,7 @@ def fetch_raw_articles(force_refresh=False):
             seen.add(a['title'])
             unique_articles.append(a)
 
+    print(f"[FETCH] Total artículos únicos: {len(unique_articles)}")
     save_to_cache(unique_articles, status)
     return unique_articles, status
 
@@ -358,6 +428,29 @@ def guess_category(topic):
             return cat
     return 'Tendencias'
 
+def get_statistics(articles):
+    """Genera estadísticas para los gráficos"""
+    stats = {
+        'by_source': {},
+        'by_category': {},
+        'total_articles': len(articles),
+        'sources_count': 0,
+        'trends_detected': 0
+    }
+    
+    for a in articles:
+        source = a.get('source', 'desconocido')
+        stats['by_source'][source] = stats['by_source'].get(source, 0) + 1
+        
+        cat = guess_category(a['title'])
+        stats['by_category'][cat] = stats['by_category'].get(cat, 0) + 1
+        
+        if a.get('is_trend'):
+            stats['trends_detected'] += 1
+    
+    stats['sources_count'] = len(stats['by_source'])
+    return stats
+
 def analyze_with_qwen(prompt, mode='standard'):
     api_key = os.getenv('QWEN_API_KEY')
     if not api_key:
@@ -497,6 +590,33 @@ def get_status():
         'apis': {'scraping': 'ok', 'sources': status or {}},
         'timestamp': datetime.now(timezone.utc).isoformat()
     })
+
+@app.route('/api/statistics', methods=['GET'])
+def get_statistics_route():
+    """Endpoint para gráficos y estadísticas"""
+    try:
+        articles, status = fetch_raw_articles(force_refresh=False)
+        stats = get_statistics(articles)
+        
+        predictions = []
+        try:
+            predictions = group_related_articles(articles, top=8)
+        except:
+            pass
+        
+        return jsonify({
+            'stats': stats,
+            'predictions_count': len(predictions),
+            'predictions_by_score': {
+                'high': len([p for p in predictions if p.get('score', 0) >= 70]),
+                'medium': len([p for p in predictions if 40 <= p.get('score', 0) < 70]),
+                'low': len([p for p in predictions if p.get('score', 0) < 40])
+            },
+            'timestamp': datetime.now(timezone.utc).isoformat()
+        })
+    except Exception as e:
+        print(f"[STATS] Error: {str(e)}")
+        return jsonify({'error': str(e)}), 200
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
