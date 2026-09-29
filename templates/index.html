@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Radar Editorial con IA</title>
+    <title>Radar Editorial con IA v7.4.0</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; }
@@ -99,8 +99,8 @@
         <div class="topbar-title">📰 Radar <span>Editorial</span> con IA</div>
         <div class="status-bar" id="statusBar">
             <div class="status-item"><span class="label">💵</span><span class="value" id="statusDolar">--</span></div>
-            <div class="status-item"><span class="label"></span><span class="value" id="statusUF">--</span></div>
-            <div class="status-item"><span class="label">️</span><span class="value" id="statusClima">--</span></div>
+            <div class="status-item"><span class="label">📊</span><span class="value" id="statusUF">--</span></div>
+            <div class="status-item"><span class="label">🌡️</span><span class="value" id="statusClima">--</span></div>
             <div class="status-item"><span class="label">🔌</span><span class="value status-ok" id="statusGdelt">●</span></div>
             <div class="status-item"><span class="label">🤖</span><span class="value status-ok" id="statusQwen">●</span></div>
         </div>
@@ -133,7 +133,7 @@
         
         <div class="module module-analysis">
             <div class="module-header">
-                <h3> Análisis</h3>
+                <h3>🔍 Análisis</h3>
             </div>
             <div class="module-body">
                 <div class="analysis-form">
@@ -146,8 +146,8 @@
                     <div>
                         <div style="font-size: 11px; color: #666; margin-bottom: 5px;">Modo:</div>
                         <div class="mode-btns">
-                            <div class="tooltip-container"><button class="mode-btn active" onclick="selectMode('standard')">📊 Estándar</button><span class="tooltip-text"><strong>Análisis Estándar</strong>Genera una hipótesis editorial, señales clave, ángulos periodísticos, fuentes sugeridas y titulares de ejemplo.</span></div>
-                            <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('briefing')"> Briefing</button><span class="tooltip-text"><strong>Briefing Periodístico</strong>Genera un resumen ejecutivo, preguntas exactas para tu fuente, datos duros a verificar y timeline sugerido.</span></div>
+                            <div class="tooltip-container"><button class="mode-btn active" onclick="selectMode('standard')"> Estándar</button><span class="tooltip-text"><strong>Análisis Estándar</strong>Genera una hipótesis editorial, señales clave, ángulos periodísticos, fuentes sugeridas y titulares de ejemplo.</span></div>
+                            <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('briefing')">⚡ Briefing</button><span class="tooltip-text"><strong>Briefing Periodístico</strong>Genera un resumen ejecutivo, preguntas exactas para tu fuente, datos duros a verificar y timeline sugerido.</span></div>
                             <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('devil')">😈 Abogado del Diablo</button><span class="tooltip-text"><strong>Abogado del Diablo</strong>Identifica lo que todos los medios ya están diciendo, revela el ángulo ciego y plantea la pregunta incómoda.</span></div>
                             <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('compare')">⚖️ Comparar</button><span class="tooltip-text"><strong>Comparador de Temas</strong>Compara dos temas: cuál tiene más recorrido, fuentes comunes y recomendación de cuál cubrir primero.</span></div>
                         </div>
@@ -181,26 +181,51 @@
     </div>
     
     <div class="footer">
-        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | v7.3.0
+        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | v7.4.0
     </div>
 
     <script>
-        // CACHE-BUSTER: Forzar recarga del código
-        console.log("[APP] Versión 7.3.0 cargada - Cache buster activo");
+        // ============================================
+        // VERSIÓN 7.4.0 - ANTI-CACHÉ TOTAL
+        // ============================================
+        console.log("╔════════════════════════════════════════╗");
+        console.log("║  RADAR EDITORIAL v7.4.0 CARGADO       ║");
+        console.log("║  Anti-caché: ACTIVO                   ║");
+        console.log("╚════════════════════════════════════════╝");
         
         let currentCategory = 'all';
         let categories = [];
         let currentMode = 'standard';
         let currentLens = '';
 
-        const gataPhrases = [" La gata cruza datos y proyecta...", "✨ Analizando señales convergentes...", " Proyectando escenarios futuros...", " Detectando temas emergentes...", "⭐ Cruzando fuentes con IA...", "🌌 La gata anticipa tendencias...", "🔮 Maybis predice el futuro editorial...", "✨ Visionando lo que viene..."];
+        const gataPhrases = ["🔮 La gata cruza datos y proyecta...", "✨ Analizando señales convergentes...", "🌙 Proyectando escenarios futuros...", "🔮 Detectando temas emergentes...", "⭐ Cruzando fuentes con IA...", "🌌 La gata anticipa tendencias...", " Maybis predice el futuro editorial...", "✨ Visionando lo que viene..."];
         const analysisPhrases = ["🔍 Uri investiga el tema...", " Analizando pistas...", "📋 Revisando fuentes...", "🔎 Buscando ángulos...", "📰 Investigando a fondo...", " Siguiendo el rastro...", "🔍 Uri está en ello...", "📊 Cruzando datos..."];
 
         function getRandomPhrase(phrases) { return phrases[Math.floor(Math.random() * phrases.length)]; }
 
+        // ============================================
+        // FUNCIÓN CRÍTICA: Construcción de URL segura
+        // ============================================
+        function buildPredictionsUrl(force, category) {
+            // SIEMPRE empezar con ?
+            let url = '/api/predictions?';
+            const parts = [];
+            
+            if (force) parts.push('refresh=true');
+            if (category && category !== 'all') parts.push('category=' + encodeURIComponent(category));
+            
+            // Timestamp anti-caché
+            parts.push('_t=' + Date.now());
+            
+            url += parts.join('&');
+            
+            console.log('[URL BUILDER] URL generada:', url);
+            return url;
+        }
+
         async function loadFilters() {
             try {
-                const catRes = await fetch('/api/categories');
+                const catRes = await fetch('/api/categories?_t=' + Date.now());
                 categories = await catRes.json();
                 renderFilters();
                 loadStatus();
@@ -243,7 +268,7 @@
 
         async function loadStatus() {
             try {
-                const res = await fetch('/api/status');
+                const res = await fetch('/api/status?_t=' + Date.now());
                 const status = await res.json();
                 if (status.mindicador && status.mindicador.status === 'ok') {
                     document.getElementById('statusDolar').textContent = '$' + status.mindicador.dolar;
@@ -261,29 +286,41 @@
             } catch (err) { console.error('[STATUS] Error:', err); }
         }
 
+        // ============================================
+        // FUNCIÓN CRÍTICA: loadPredictions v7.4.0
+        // ============================================
         async function loadPredictions(force = false) {
             const list = document.getElementById('predictionsList');
             list.innerHTML = `<div class="gata-loader-container"><img src="https://ltv.cl/x/maybisweb.png" alt="Gata vidente" class="gata-loader"><div class="gata-loader-text">${getRandomPhrase(gataPhrases)}</div></div>`;
             
             try {
-                // FIX DEFINITIVO: URLSearchParams garantiza ? y & correctos
-                const params = new URLSearchParams();
-                if (force) params.append('refresh', 'true');
-                if (currentCategory !== 'all') params.append('category', currentCategory);
+                // CONSTRUCCIÓN DE URL A PRUEBA DE BALAS
+                const url = buildPredictionsUrl(force, currentCategory);
                 
-                const url = `/api/predictions?${params.toString()}`;
-                console.log("[FRONTEND] Llamando a:", url);
+                console.log('[PREDICTIONS] Fetching:', url);
                 
-                const res = await fetch(url);
-                if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+                const res = await fetch(url, {
+                    method: 'GET',
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache'
+                    }
+                });
+                
+                console.log('[PREDICTIONS] Response status:', res.status);
+                
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                }
                 
                 const data = await res.json();
-                console.log("[FRONTEND] Datos recibidos:", data);
+                console.log('[PREDICTIONS] Data received:', data);
                 
                 const predictions = data.predictions || [];
                 
                 if (!predictions || predictions.length === 0) {
-                    list.innerHTML = `<div class="empty-state">No se generaron predicciones para esta categoría. Intenta con "Todas".</div>`;
+                    list.innerHTML = `<div class="empty-state">No se generaron predicciones para "${currentCategory}". Intenta con "Todas".</div>`;
                     return;
                 }
                 
@@ -298,26 +335,22 @@
                             <div class="prediction-topic">${p.topic} <span style="font-size:10px; background:#667eea; color:white; padding:2px 6px; border-radius:4px; margin-left:5px;">${p.category || 'General'}</span></div>
                             <div class="prediction-score ${scoreClass}">${p.score}%</div>
                         </div>
-                        
                         ${p.reasoning ? `<div class="prediction-reasoning">💡 ${p.reasoning}</div>` : ''}
-                        
                         <div class="prediction-meta">
                             <span>⏰ ${p.timeframe || 'próximas horas'}</span>
                             <span style="color: ${getImpactColor(p.impact)}; font-weight: 600;">Impacto: ${p.impact || 'medio'}</span>
                         </div>
-                        
-                        ${p.signals && p.signals.length > 0 ? `<div class="prediction-signals">📡 Señales: ${p.signals.join(' • ')}</div>` : ''}
-                        
-                        ${p.alert_level ? `<div class="prediction-alert">${p.alert_level === 'critical' ? '🚨 ALERTA CRÍTICA' : '️ ALERTA: Crecimiento acelerado'}</div>` : ''}
+                        ${p.signals && p.signals.length > 0 ? `<div class="prediction-signals"> Señales: ${p.signals.join(' • ')}</div>` : ''}
+                        ${p.alert_level ? `<div class="prediction-alert">${p.alert_level === 'critical' ? '🚨 ALERTA CRÍTICA' : '⚠️ ALERTA'}</div>` : ''}
                     </div>`;
                 });
                 
                 list.innerHTML = html;
-                console.log("[FRONTEND] Renderizado exitoso de", predictions.length, "predicciones");
+                console.log('[PREDICTIONS] ✅ Rendered', predictions.length, 'predictions');
                 
             } catch (err) { 
-                console.error('[FRONTEND] Error fatal:', err);
-                list.innerHTML = `<div class="empty-state" style="color:red;">Error de conexión: ${err.message}</div>`; 
+                console.error('[PREDICTIONS] ❌ Error:', err);
+                list.innerHTML = `<div class="empty-state" style="color:red;">Error: ${err.message}<br><small>Revisa la consola (F12)</small></div>`; 
             }
         }
 
@@ -375,7 +408,7 @@
             `;
 
             try {
-                const res = await fetch('/api/analyze', {
+                const res = await fetch('/api/analyze?_t=' + Date.now(), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ topic, topic2, category, region, mode: currentMode, lens: currentLens })
@@ -399,7 +432,7 @@
             
             if (data.mode === 'standard' && score > 0) {
                 const scoreClass = score >= 7 ? 'score-high' : (score >= 4 ? 'score-medium' : 'score-low');
-                const scoreLabel = score >= 9 ? ' CRÍTICA' : (score >= 7 ? '✅ ALTA' : (score >= 4 ? '⚠️ MEDIA' : '🔵 BAJA'));
+                const scoreLabel = score >= 9 ? '🔴 CRÍTICA' : (score >= 7 ? '✅ ALTA' : (score >= 4 ? '⚠️ MEDIA' : ' BAJA'));
                 html += `<div style="margin-bottom: 10px;"><span class="score-badge ${scoreClass}">${score}/10 - ${scoreLabel}</span></div>`;
             }
             if (a.resumen_ejecutivo) html += `<h4>📝 Resumen</h4><p>${a.resumen_ejecutivo}</p>`;
@@ -410,10 +443,10 @@
             if (a.mas_recorrido) html += `<h4> Más recorrido</h4><p>${a.mas_recorrido}</p>`;
             if (a.recomendacion) html += `<h4>✅ Recomendación</h4><p style="font-weight: 600;">${a.recomendacion}</p>`;
             if (a.preguntas_fuente && a.preguntas_fuente.length) { html += '<h4>❓ Preguntas para fuente</h4><ul>'; a.preguntas_fuente.forEach(q => { html += `<li>${q}</li>`; }); html += '</ul>'; }
-            if (a.senales_clave && a.senales_clave.length) { html += '<h4> Señales clave</h4><div>'; a.senales_clave.forEach(s => { html += `<span class="tag">${s}</span>`; }); html += '</div>'; }
+            if (a.senales_clave && a.senales_clave.length) { html += '<h4>🔍 Señales clave</h4><div>'; a.senales_clave.forEach(s => { html += `<span class="tag">${s}</span>`; }); html += '</div>'; }
             if (a.angulos_periodisticos && a.angulos_periodisticos.length) { html += '<h4>📝 Ángulos</h4><ul>'; a.angulos_periodisticos.forEach(ang => { html += `<li>${ang}</li>`; }); html += '</ul>'; }
             if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) { html += '<h4>📚 Fuentes</h4><ul>'; a.fuentes_sugeridas.forEach(f => { html += `<li>${f}</li>`; }); html += '</ul>'; }
-            if (a.titulares_ejemplo && a.titulares_ejemplo.length) { html += '<h4>📝 Titulares sugeridos</h4><ul>'; a.titulares_ejemplo.forEach(t => { html += `<li>📌 ${t}</li>`; }); html += '</ul>'; }
+            if (a.titulares_ejemplo && a.titulares_ejemplo.length) { html += '<h4>📝 Titulares sugeridos</h4><ul>'; a.titulares_ejemplo.forEach(t => { html += `<li> ${t}</li>`; }); html += '</ul>'; }
             if (a.datos_duros && a.datos_duros.length) { html += '<h4>📊 Datos a verificar</h4><div>'; a.datos_duros.forEach(d => { html += `<span class="tag">${d}</span>`; }); html += '</div>'; }
             if (a.timeline_sugerido) html += `<h4>⏰ Timeline</h4><p>${a.timeline_sugerido}</p>`;
             if (a.angulo_conector) html += `<h4>💡 Ángulo conector</h4><p>${a.angulo_conector}</p>`;
@@ -421,10 +454,10 @@
             if (a.riesgos_sesgos && a.riesgos_sesgos.length) { html += '<h4>⚠️ Riesgos</h4><div>'; a.riesgos_sesgos.forEach(r => { html += `<span class="tag">${r}</span>`; }); html += '</div>'; }
             
             if (a.noticias_reales && a.noticias_reales.length > 0) {
-                html += '<h4>📰 Noticias</h4>';
+                html += '<h4> Noticias</h4>';
                 a.noticias_reales.forEach(n => {
                     if (n.url) html += `<div style="font-size: 12px; margin: 4px 0;"><a href="${n.url}" target="_blank" style="color: #007bff;">📰 ${n.titulo}</a> <span style="color: #666;">- ${n.fuente}</span></div>`;
-                    else html += `<div style="font-size: 12px; margin: 4px 0;"> ${n.titulo} <span style="color: #666;">- ${n.fuente}</span></div>`;
+                    else html += `<div style="font-size: 12px; margin: 4px 0;">📰 ${n.titulo} <span style="color: #666;">- ${n.fuente}</span></div>`;
                 });
             }
             html += '</div>';
@@ -435,7 +468,7 @@
             const list = document.getElementById('historyList');
             list.innerHTML = '<div class="empty-state">Cargando...</div>';
             try {
-                const res = await fetch('/api/history?limit=10');
+                const res = await fetch('/api/history?limit=10&_t=' + Date.now());
                 const history = await res.json();
                 if (history.length === 0) { list.innerHTML = '<div class="empty-state">Sin análisis previos</div>'; return; }
                 let html = '';
@@ -445,10 +478,10 @@
                     const modeLabels = {'standard': '📊', 'briefing': '⚡', 'devil': '😈', 'compare': '⚖️'};
                     html += `<div class="trend-item" style="border-left-color: #4facfe;">
                         <div class="topic">${modeLabels[item.mode] || ''} ${item.topic}${item.topic2 ? ' vs ' + item.topic2 : ''}</div>
-                        <div class="meta">📂 ${item.category || 'General'} |  ${date} ${score > 0 ? '| Score: ' + score + '/10' : ''}</div>
+                        <div class="meta">📂 ${item.category || 'General'} | 📅 ${date} ${score > 0 ? '| Score: ' + score + '/10' : ''}</div>
                         <div style="margin-top: 6px;">
-                            <button class="cat-btn" style="font-size: 10px; padding: 3px 8px;" onclick="reAnalyze('${item.topic.replace(/'/g, "\\'")}', '${item.category || ''}', '${item.mode}')">🔄 Re-analizar</button>
-                            <button class="cat-btn" style="font-size: 10px; padding: 3px 8px; background: #dc3545; color: white; border-color: #dc3545;" onclick="deleteAnalysis(${item.id})">🗑️</button>
+                            <button class="cat-btn" style="font-size: 10px; padding: 3px 8px;" onclick="reAnalyze('${item.topic.replace(/'/g, "\\'")}', '${item.category || ''}', '${item.mode}')"> Re-analizar</button>
+                            <button class="cat-btn" style="font-size: 10px; padding: 3px 8px; background: #dc3545; color: white; border-color: #dc3545;" onclick="deleteAnalysis(${item.id})">️</button>
                         </div>
                     </div>`;
                 });
@@ -466,7 +499,7 @@
         async function deleteAnalysis(id) {
             if (!confirm('¿Eliminar este análisis?')) return;
             try {
-                const res = await fetch('/api/history/' + id, { method: 'DELETE' });
+                const res = await fetch('/api/history/' + id + '?_t=' + Date.now(), { method: 'DELETE' });
                 if (res.ok) loadHistory();
             } catch (err) { alert('Error al eliminar'); }
         }
