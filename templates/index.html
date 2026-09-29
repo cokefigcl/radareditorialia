@@ -115,10 +115,9 @@
     </div>
     
     <div class="main-grid">
-        <!-- MÓDULO PREDICCIONES (Gata Maybis) -->
         <div class="module">
             <div class="module-header">
-                <h3>🔮 Predicciones Cruzadas</h3>
+                <h3>🔮 Predicciones</h3>
                 <button onclick="loadPredictions(true)">🔄</button>
             </div>
             <div class="module-body" id="predictionsList">
@@ -129,7 +128,6 @@
             </div>
         </div>
         
-        <!-- MÓDULO ANÁLISIS (Perro Uri) -->
         <div class="module module-analysis">
             <div class="module-header">
                 <h3>🔍 Análisis</h3>
@@ -180,7 +178,7 @@
     </div>
     
     <div class="footer">
-        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | v7.1.0
+        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | v7.2.0
     </div>
 
     <script>
@@ -260,57 +258,60 @@
         async function loadPredictions(force = false) {
             const list = document.getElementById('predictionsList');
             list.innerHTML = `<div class="gata-loader-container"><img src="https://ltv.cl/x/maybisweb.png" alt="Gata vidente" class="gata-loader"><div class="gata-loader-text">${getRandomPhrase(gataPhrases)}</div></div>`;
+            
             try {
-                const refreshParam = force ? '?refresh=true' : '';
-                const url = '/api/predictions' + refreshParam + (currentCategory !== 'all' ? '&category=' + encodeURIComponent(currentCategory) : '');
+                // FIX CRUCIAL: Construcción segura de la URL con URLSearchParams
+                const params = new URLSearchParams();
+                if (force) params.append('refresh', 'true');
+                if (currentCategory !== 'all') params.append('category', currentCategory);
+                
+                const url = `/api/predictions?${params.toString()}`;
+                console.log("[FRONTEND] Llamando a:", url);
+                
                 const res = await fetch(url);
+                if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+                
                 const data = await res.json();
+                console.log("[FRONTEND] Datos recibidos:", data);
+                
                 const predictions = data.predictions || [];
-                const status = data.source_status || {};
                 
                 if (!predictions || predictions.length === 0) {
-                    const blocked = Object.values(status).some(s => s === 'blocked_or_empty');
-                    const msg = blocked ? '⚠️ Fuentes bloqueadas. Intenta actualizar.' : 'Sin predicciones disponibles';
-                    list.innerHTML = `<div class="empty-state">${msg}</div>`;
+                    list.innerHTML = `<div class="empty-state">No se generaron predicciones para esta categoría. Intenta con "Todas".</div>`;
                     return;
                 }
                 
                 let html = '';
                 predictions.forEach(p => {
                     const scoreClass = p.score >= 70 ? 'score-high' : (p.score >= 40 ? 'score-medium' : 'score-low');
-                    const impactClass = p.impact ? p.impact.toLowerCase() : 'medium';
-                    const cardClass = p.alert_level === 'critical' ? 'critical' : (p.alert_level === 'high' ? 'high' : (impactClass === 'medio' ? 'medium' : 'low'));
+                    const impactClass = p.impact ? p.impact.toLowerCase() : 'medio';
+                    const cardClass = p.alert_level === 'critical' ? 'critical' : (p.alert_level === 'high' ? 'high' : (impactClass === 'alto' ? 'high' : 'medium'));
                     
                     html += `<div class="prediction-item ${cardClass}">
                         <div class="prediction-top">
-                            <div class="prediction-topic">${p.topic}${p.is_realtime ? '<span class="realtime-badge">IA</span>' : ''}</div>
+                            <div class="prediction-topic">${p.topic} <span style="font-size:10px; background:#667eea; color:white; padding:2px 6px; border-radius:4px; margin-left:5px;">${p.category || 'General'}</span></div>
                             <div class="prediction-score ${scoreClass}">${p.score}%</div>
                         </div>
+                        
+                        ${p.reasoning ? `<div class="prediction-reasoning">💡 ${p.reasoning}</div>` : ''}
+                        
                         <div class="prediction-meta">
-                            <span>📂 ${p.category || 'General'}</span>
                             <span>⏰ ${p.timeframe || 'próximas horas'}</span>
                             <span style="color: ${getImpactColor(p.impact)}; font-weight: 600;">Impacto: ${p.impact || 'medio'}</span>
-                        </div>`;
-                    
-                    if (p.reasoning) {
-                        html += `<div class="prediction-reasoning">💡 ${p.reasoning}</div>`;
-                    }
-                    
-                    if (p.signals && p.signals.length > 0) {
-                        html += `<div class="prediction-signals">📡 Señales: ${p.signals.join(' • ')}</div>`;
-                    }
-                    
-                    if (p.alert_level) {
-                        const alertText = p.alert_level === 'critical' ? '🚨 ALERTA CRÍTICA' : '⚠️ ALERTA: Crecimiento acelerado';
-                        html += `<div class="prediction-alert">${alertText}</div>`;
-                    }
-                    
-                    html += '</div>';
+                        </div>
+                        
+                        ${p.signals && p.signals.length > 0 ? `<div class="prediction-signals">📡 Señales: ${p.signals.join(' • ')}</div>` : ''}
+                        
+                        ${p.alert_level ? `<div class="prediction-alert">${p.alert_level === 'critical' ? '🚨 ALERTA CRÍTICA' : '⚠️ ALERTA: Crecimiento acelerado'}</div>` : ''}
+                    </div>`;
                 });
+                
                 list.innerHTML = html;
+                console.log("[FRONTEND] Renderizado exitoso de", predictions.length, "predicciones");
+                
             } catch (err) { 
-                console.error('[PREDICTIONS] Error:', err);
-                list.innerHTML = '<div class="empty-state">Error cargando</div>'; 
+                console.error('[FRONTEND] Error fatal:', err);
+                list.innerHTML = `<div class="empty-state" style="color:red;">Error de conexión: ${err.message}</div>`; 
             }
         }
 
