@@ -69,10 +69,10 @@ CATEGORIES = [
     {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    {'name': 'Chile', 'icon': '🇨🇱', 'type': 'region'},
-    {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
+    {'name': 'Chile', 'icon': '🇨', 'type': 'region'},
+    {'name': 'Internacional', 'icon': '', 'type': 'region'},
     {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
-    {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
+    {'name': 'Ciencia y Tecnología', 'icon': '', 'type': 'otros'},
     {'name': 'Cultura', 'icon': '🎭', 'type': 'otros'},
     {'name': 'Ocio', 'icon': '🎮', 'type': 'otros'},
     {'name': 'Salud', 'icon': '🏥', 'type': 'otros'},
@@ -131,7 +131,7 @@ STOPWORDS = {'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'al', 'y', 'o',
 def _norm(s):
     return "".join(c for c in unicodedata.normalize("NFKD", str(s).lower()) if not unicodedata.combining(c))
 
-def _get_fast(url, timeout=5):
+def _get_fast(url, timeout=10):
     try:
         r = cr.get(url, impersonate="chrome", timeout=timeout, headers={"User-Agent": "CoraRadar/1.0"})
         if r.status_code == 200:
@@ -144,7 +144,7 @@ def fetch_chilean_sources():
     articles = []
     for name, cfg in SOURCES_CL.items():
         try:
-            html = _get_fast(cfg["home"], timeout=5)
+            html = _get_fast(cfg["home"], timeout=10)
             if html:
                 soup = BeautifulSoup(html, "html.parser")
                 for tag in soup.select("h1, h2, h3")[:20]:
@@ -166,7 +166,7 @@ def fetch_rss_sources():
     all_sources = {**SOURCES_ES, **SOURCES_EN}
     for name, cfg in all_sources.items():
         try:
-            xml = _get_fast(cfg["rss"], timeout=5)
+            xml = _get_fast(cfg["rss"], timeout=10)
             if xml:
                 root = ET.fromstring(xml)
                 count = 0
@@ -193,7 +193,7 @@ def fetch_reddit_fast():
     def get_reddit_posts(subreddit):
         try:
             url = f"https://www.reddit.com/r/{subreddit}/hot/.rss"
-            xml = _get_fast(url, timeout=3)
+            xml = _get_fast(url, timeout=10)
             if xml:
                 root = ET.fromstring(xml)
                 count = 0
@@ -215,7 +215,7 @@ def fetch_reddit_fast():
         futures = [executor.submit(get_reddit_posts, sub) for sub in subreddits]
         for future in futures:
             try:
-                future.result(timeout=5)
+                future.result(timeout=10)
             except FuturesTimeoutError:
                 pass
     return articles
@@ -227,7 +227,7 @@ def fetch_youtube_fast():
         return []
     try:
         url = f"https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&regionCode=CL&categoryId=25&maxResults=10&key={api_key}"
-        response = cr.get(url, timeout=5)
+        response = cr.get(url, timeout=10)
         if response.status_code == 200:
             data = response.json()
             for item in data.get('items', [])[:10]:
@@ -247,7 +247,7 @@ def fetch_youtube_fast():
 def fetch_trends_sources():
     articles = []
     try:
-        xml = _get_fast("https://trends.google.com/trending/rss?geo=CL", timeout=5)
+        xml = _get_fast("https://trends.google.com/trending/rss?geo=CL", timeout=10)
         if xml:
             root = ET.fromstring(xml)
             for item in root.iter("item")[:10]:
@@ -307,48 +307,42 @@ def fetch_raw_articles(force_refresh=False):
         if articles:
             return articles, status
 
-    print("[FETCH] Iniciando recolección rápida...")
+    print("[FETCH] Iniciando recolección...")
     start_time = time.time()
     articles = []
     status = {}
     
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        future_cl = executor.submit(fetch_chilean_sources)
-        future_rss = executor.submit(fetch_rss_sources)
-        future_reddit = executor.submit(fetch_reddit_fast)
-        future_youtube = executor.submit(fetch_youtube_fast)
-        future_trends = executor.submit(fetch_trends_sources)
-        
-        try:
-            articles.extend(future_cl.result(timeout=15))
-            status['chilean'] = 'ok'
-        except:
-            status['chilean'] = 'error'
-        
-        try:
-            articles.extend(future_rss.result(timeout=15))
-            status['rss'] = 'ok'
-        except:
-            status['rss'] = 'error'
-        
-        try:
-            articles.extend(future_reddit.result(timeout=10))
-            status['reddit'] = 'ok'
-        except:
-            status['reddit'] = 'error'
-        
-        try:
-            articles.extend(future_youtube.result(timeout=8))
-            status['youtube'] = 'ok'
-        except:
-            status['youtube'] = 'error'
-        
-        try:
-            articles.extend(future_trends.result(timeout=10))
-            status['trends'] = 'ok'
-        except:
-            status['trends'] = 'error'
+    # Recolectar fuentes chilenas
+    cl_articles = fetch_chilean_sources()
+    articles.extend(cl_articles)
+    status['chilean'] = 'ok' if len(cl_articles) > 0 else 'error'
+    print(f"[FETCH] Chile: {len(cl_articles)} artículos")
     
+    # Recolectar RSS
+    rss_articles = fetch_rss_sources()
+    articles.extend(rss_articles)
+    status['rss'] = 'ok' if len(rss_articles) > 0 else 'error'
+    print(f"[FETCH] RSS: {len(rss_articles)} artículos")
+    
+    # Recolectar Reddit
+    reddit_articles = fetch_reddit_fast()
+    articles.extend(reddit_articles)
+    status['reddit'] = 'ok' if len(reddit_articles) > 0 else 'error'
+    print(f"[FETCH] Reddit: {len(reddit_articles)} artículos")
+    
+    # Recolectar YouTube
+    youtube_articles = fetch_youtube_fast()
+    articles.extend(youtube_articles)
+    status['youtube'] = 'ok' if len(youtube_articles) > 0 else 'error'
+    print(f"[FETCH] YouTube: {len(youtube_articles)} artículos")
+    
+    # Recolectar Trends
+    trends_articles = fetch_trends_sources()
+    articles.extend(trends_articles)
+    status['trends'] = 'ok' if len(trends_articles) > 0 else 'error'
+    print(f"[FETCH] Trends: {len(trends_articles)} artículos")
+    
+    # Eliminar duplicados
     seen = set()
     unique = []
     for a in articles:
