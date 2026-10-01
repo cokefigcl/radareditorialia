@@ -435,7 +435,7 @@ Responde SOLO JSON con {top} tendencias:
             'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
             headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
             json={'model': 'qwen-plus', 'input': {'messages': [{'role': 'user', 'content': prompt}]}, 'parameters': {'temperature': 0.4, 'max_tokens': 1500}},
-            timeout=30,
+            timeout=45,
             impersonate="chrome"
         )
         
@@ -445,25 +445,29 @@ Responde SOLO JSON con {top} tendencias:
             
             match = re.search(r'\[.*\]', text, re.DOTALL)
             if match:
-                predictions = json.loads(match.group(0))
-                now = datetime.now(timezone.utc)
-                return [{
-                    'topic': p.get('topic', ''),
-                    'score': max(40, min(85, int(p.get('score', 50)))),
-                    'reasoning': p.get('reasoning', ''),
-                    'signals': p.get('signals', []),
-                    'impact': p.get('impact', 'medio'),
-                    'timeframe': p.get('timeframe', 'próximas horas'),
-                    'category': p.get('category', guess_category(p.get('topic', ''))),
-                    'news_count': len(p.get('signals', [])),
-                    'news': [{'titulo': p.get('reasoning', ''), 'fuente': 'IA', 'url': '', 'fecha': now.strftime('%Y-%m-%d')}],
-                    'alert_level': 'critical' if p.get('score', 50) >= 80 else None,
-                    'source': 'IA',
-                    'is_realtime': True,
-                    'timestamp': now.isoformat()
-                } for p in predictions[:top]]
+                try:
+                    predictions = json.loads(match.group(0))
+                    now = datetime.now(timezone.utc)
+                    return [{
+                        'topic': p.get('topic', ''),
+                        'score': max(40, min(85, int(p.get('score', 50)))),
+                        'reasoning': p.get('reasoning', ''),
+                        'signals': p.get('signals', []),
+                        'impact': p.get('impact', 'medio'),
+                        'timeframe': p.get('timeframe', 'próximas horas'),
+                        'category': p.get('category', guess_category(p.get('topic', ''))),
+                        'news_count': len(p.get('signals', [])),
+                        'news': [{'titulo': p.get('reasoning', ''), 'fuente': 'IA', 'url': '', 'fecha': now.strftime('%Y-%m-%d')}],
+                        'alert_level': 'critical' if p.get('score', 50) >= 80 else None,
+                        'source': 'IA',
+                        'is_realtime': True,
+                        'timestamp': now.isoformat()
+                    } for p in predictions[:top]]
+                except json.JSONDecodeError:
+                    print(f"[IA] ⚠️ La IA no devolvió JSON válido. Respuesta: {text[:200]}")
+                    return []
     except Exception as e:
-        print(f"[IA] Error: {e}")
+        print(f"[IA] ❌ Error en llamada a IA: {str(e)}")
     return []
 
 def guess_category(topic):
@@ -528,8 +532,14 @@ def analyze_with_qwen(prompt, mode='standard'):
             track_api_usage('analyze', tokens_input, tokens_output, success=True)
             
             match = re.search(r'\{.*\}', text, re.DOTALL)
-            json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
-            return json.loads(json_str), None
+            if match:
+                try:
+                    json_str = match.group(0).replace('```json', '').replace('```', '').strip()
+                    return json.loads(json_str), None
+                except json.JSONDecodeError:
+                    print(f"[ANALYZE] ⚠️ JSON inválido de IA: {text[:200]}")
+                    return None, "JSON inválido"
+            return None, "No se encontró JSON"
         else:
             track_api_usage('analyze', tokens_input, 0, success=False)
             return None, f"Error HTTP {response.status_code}"
