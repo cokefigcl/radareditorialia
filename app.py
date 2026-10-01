@@ -134,9 +134,10 @@ def _norm(s):
     return "".join(c for c in unicodedata.normalize("NFKD", str(s).lower()) if not unicodedata.combining(c))
 
 def _get(url, retries=3, timeout=10):
+    user_agent = os.getenv('USER_AGENT', 'CoraRadar/1.0')
     for i in range(retries):
         try:
-            r = cr.get(url, impersonate="chrome", timeout=timeout, headers={"Accept-Language": "es-CL,es;q=0.9,en;q=0.8"})
+            r = cr.get(url, impersonate="chrome", timeout=timeout, headers={"Accept-Language": "es-CL,es;q=0.9,en;q=0.8", "User-Agent": user_agent})
             if r.status_code == 200:
                 return r.text
             if r.status_code in (403, 429, 503):
@@ -209,6 +210,98 @@ def _from_rss(name, cfg):
         print(f"[RSS] ❌ {cfg.get('name', name)}: {str(e)}")
     return articles[:20]
 
+def fetch_reddit_trending():
+    """Obtiene posts trending de Reddit usando RSS públicos (sin necesidad de API key)"""
+    articles = []
+    subreddits = ['chile', 'worldnews', 'technology', 'politics', 'economy']
+    user_agent = os.getenv('USER_AGENT', 'CoraRadar/1.0')
+    
+    for subreddit in subreddits:
+        try:
+            url = f"https://www.reddit.com/r/{subreddit}/hot/.rss"
+            headers = {"User-Agent": user_agent}
+            
+            xml = _get(url, timeout=10)
+            if not xml:
+                response = cr.get(url, impersonate="chrome", timeout=10, headers=headers)
+                if response.status_code == 200:
+                    xml = response.text
+            
+            if not xml:
+                continue
+                
+            root = ET.fromstring(xml)
+            count = 0
+            
+            for item in root.iter("item"):
+                title = item.findtext("title", "").strip()
+                link = item.findtext("link", "")
+                
+                if title and len(title) > 30 and not title.startswith('[D]') and not title.startswith('[M]'):
+                    articles.append({
+                        'title': f"[Reddit r/{subreddit}] {title}",
+                        'source': f'reddit_{subreddit}',
+                        'url': link,
+                        'first_seen': datetime.now(timezone.utc).isoformat(),
+                        'is_trend': True
+                    })
+                    count += 1
+                    if count >= 10:
+                        break
+            
+            print(f"[REDDIT RSS] ✅ r/{subreddit}: {count} posts")
+        except Exception as e:
+            print(f"[REDDIT RSS] ❌ Error en r/{subreddit}: {str(e)}")
+    
+    print(f"[REDDIT RSS] ✅ Total: {len(articles)} posts trending")
+    return articles
+
+def fetch_youtube_trending():
+    """Obtiene videos trending de YouTube en Chile (categoría noticias)"""
+    articles = []
+    youtube_api_key = os.getenv('YOUTUBE_API_KEY')
+    
+    if not youtube_api_key:
+        print("[YOUTUBE] ⚠️ API Key no configurada")
+        return []
+    
+    try:
+        url = f"https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&chart=mostPopular&regionCode=CL&categoryId=25&maxResults=15&key={youtube_api_key}"
+        response = cr.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            items = data.get('items', [])
+            
+            for item in items:
+                snippet = item.get('snippet', {})
+                statistics = item.get('statistics', {})
+                
+                title = snippet.get('title', '').strip()
+                channel = snippet.get('channelTitle', '')
+                video_id = item.get('id', '')
+                views = int(statistics.get('viewCount', 0))
+                
+                if title and views > 10000:
+                    articles.append({
+                        'title': f"[YouTube Trending 👁️{views:,}] {title}",
+                        'source': 'youtube_trending',
+                        'url': f"https://youtube.com/watch?v={video_id}",
+                        'first_seen': datetime.now(timezone.utc).isoformat(),
+                        'is_trend': True,
+                        'youtube_views': views,
+                        'channel': channel
+                    })
+            
+            print(f"[YOUTUBE] ✅ {len(articles)} videos trending en Chile")
+        else:
+            print(f"[YOUTUBE] ❌ Error HTTP: {response.status_code}")
+            
+    except Exception as e:
+        print(f"[YOUTUBE] ❌ Error: {str(e)}")
+    
+    return articles
+
 def fetch_google_trends():
     articles = []
     try:
@@ -257,7 +350,7 @@ def fetch_wikipedia_trending():
         print(f"[WIKI] ❌ Wikipedia: {str(e)}")
     return articles
 
-def get_cached_data(max_age_minutes=60):
+def get_cached_data(max_age_minutes=120):
     if os.path.exists(CACHE_FILE):
         try:
             with open(CACHE_FILE, 'r', encoding='utf-8') as f:
@@ -280,7 +373,6 @@ def save_to_cache(articles, status):
         pass
 
 def track_api_usage(endpoint, tokens_input=0, tokens_output=0, success=True, error_msg=None):
-    """Registra el uso de una API"""
     try:
         COST_PER_1M_INPUT = 0.40
         COST_PER_1M_OUTPUT = 1.20
@@ -298,7 +390,7 @@ def track_api_usage(endpoint, tokens_input=0, tokens_output=0, success=True, err
 
 def fetch_raw_articles(force_refresh=False):
     if not force_refresh:
-        articles, status = get_cached_data(max_age_minutes=60)
+        articles, status = get_cached_data(max_age_minutes=120)
         if articles:
             return articles, status
 
@@ -337,6 +429,20 @@ def fetch_raw_articles(force_refresh=False):
         for name, arts, st in ex.map(work_en, SOURCES_EN.items()):
             articles.extend(arts)
             status[name] = st
+    
+    try:
+        reddit_articles = fetch_reddit_trending()
+        articles.extend(reddit_articles)
+        status['reddit'] = 'ok' if reddit_articles else 'empty'
+    except:
+        status['reddit'] = 'error'
+    
+    try:
+        youtube_articles = fetch_youtube_trending()
+        articles.extend(youtube_articles)
+        status['youtube'] = 'ok' if youtube_articles else 'empty'
+    except:
+        status['youtube'] = 'error'
     
     try:
         trends_articles = fetch_google_trends()
@@ -606,8 +712,6 @@ Responde SOLO JSON: {{"tema_a": "{topic}", "tema_b": "{topic2}", "mas_recorrido"
         return f"""Analiza tendencia: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}{lens_instruction}
 Responde SOLO JSON: {{"puntaje_relevancia": 7, "justificacion_puntaje": "Explicación del puntaje", "hipotesis": "Hipótesis editorial", "senales_clave": ["Señal 1", "Señal 2"], "angulos_periodisticos": ["Ángulo 1", "Ángulo 2"], "fuentes_sugeridas": ["Fuente 1", "Fuente 2"], "titulares_ejemplo": ["Titular 1", "Titular 2"], "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
 
-# ==================== RUTAS ====================
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -731,7 +835,6 @@ def get_statistics_route():
 
 @app.route('/api/usage', methods=['GET'])
 def get_usage_stats():
-    """Obtiene estadísticas de uso de APIs"""
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
