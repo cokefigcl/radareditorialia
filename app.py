@@ -9,7 +9,6 @@ import unicodedata
 import sqlite3
 from datetime import datetime, timezone, timedelta
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
 from email.utils import parsedate_to_datetime
 import xml.etree.ElementTree as ET
 import traceback
@@ -133,8 +132,8 @@ STOPWORDS = {'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'al', 'y', 'o',
 def _norm(s):
     return "".join(c for c in unicodedata.normalize("NFKD", str(s).lower()) if not unicodedata.combining(c))
 
-def _get(url, retries=3, timeout=10):
-    user_agent = os.getenv('USER_AGENT', 'CoraRadar/1.0')
+def _get(url, retries=3, timeout=15):
+    user_agent = os.getenv('USER_AGENT', 'CoraRadar/1.0 (by /u/coraradar_bot)')
     for i in range(retries):
         try:
             r = cr.get(url, impersonate="chrome", timeout=timeout, headers={"Accept-Language": "es-CL,es;q=0.9,en;q=0.8", "User-Agent": user_agent})
@@ -211,33 +210,31 @@ def _from_rss(name, cfg):
     return articles[:20]
 
 def fetch_reddit_trending():
-    """Obtiene posts trending de Reddit usando RSS públicos (sin necesidad de API key)"""
+    """Obtiene posts trending de Reddit usando RSS públicos (robusto y con pausas)"""
     articles = []
     subreddits = ['chile', 'worldnews', 'technology', 'politics', 'economy']
-    user_agent = os.getenv('USER_AGENT', 'CoraRadar/1.0')
+    user_agent = os.getenv('USER_AGENT', 'CoraRadar/1.0 (by /u/coraradar_bot)')
     
     for subreddit in subreddits:
         try:
             url = f"https://www.reddit.com/r/{subreddit}/hot/.rss"
             headers = {"User-Agent": user_agent}
             
-            xml = _get(url, timeout=10)
-            if not xml:
-                response = cr.get(url, impersonate="chrome", timeout=10, headers=headers)
-                if response.status_code == 200:
-                    xml = response.text
+            response = cr.get(url, impersonate="chrome", timeout=15, headers=headers)
             
-            if not xml:
+            if response.status_code != 200:
+                print(f"[REDDIT RSS] ⚠️ r/{subreddit}: HTTP {response.status_code}")
+                time.sleep(1)
                 continue
-                
-            root = ET.fromstring(xml)
+            
+            root = ET.fromstring(response.text)
             count = 0
             
             for item in root.iter("item"):
                 title = item.findtext("title", "").strip()
                 link = item.findtext("link", "")
                 
-                if title and len(title) > 30 and not title.startswith('[D]') and not title.startswith('[M]'):
+                if title and len(title) > 30 and not title.startswith('[D]') and not title.startswith('[M]') and 'mod' not in title.lower():
                     articles.append({
                         'title': f"[Reddit r/{subreddit}] {title}",
                         'source': f'reddit_{subreddit}',
@@ -246,12 +243,18 @@ def fetch_reddit_trending():
                         'is_trend': True
                     })
                     count += 1
-                    if count >= 10:
+                    if count >= 8:
                         break
             
             print(f"[REDDIT RSS] ✅ r/{subreddit}: {count} posts")
+            time.sleep(1.5)  # Pausa para ser amable con los servidores de Reddit
+            
+        except ET.ParseError as e:
+            print(f"[REDDIT RSS] ⚠️ Error XML en r/{subreddit}")
+            time.sleep(1)
         except Exception as e:
-            print(f"[REDDIT RSS] ❌ Error en r/{subreddit}: {str(e)}")
+            print(f"[REDDIT RSS] ❌ Error en r/{subreddit}: {str(e)[:100]}")
+            time.sleep(2)
     
     print(f"[REDDIT RSS] ✅ Total: {len(articles)} posts trending")
     return articles
@@ -267,7 +270,7 @@ def fetch_youtube_trending():
     
     try:
         url = f"https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&chart=mostPopular&regionCode=CL&categoryId=25&maxResults=15&key={youtube_api_key}"
-        response = cr.get(url, timeout=10)
+        response = cr.get(url, timeout=15)
         
         if response.status_code == 200:
             data = response.json()
@@ -295,7 +298,7 @@ def fetch_youtube_trending():
             
             print(f"[YOUTUBE] ✅ {len(articles)} videos trending en Chile")
         else:
-            print(f"[YOUTUBE] ❌ Error HTTP: {response.status_code}")
+            print(f"[YOUTUBE] ❌ Error HTTP: {response.status_code} - {response.text[:100]}")
             
     except Exception as e:
         print(f"[YOUTUBE] ❌ Error: {str(e)}")
@@ -306,7 +309,7 @@ def fetch_google_trends():
     articles = []
     try:
         url = "https://trends.google.com/trending/rss?geo=CL"
-        response = cr.get(url, impersonate="chrome", timeout=10, headers={"Accept-Language": "es-CL,es;q=0.9"})
+        response = cr.get(url, impersonate="chrome", timeout=15, headers={"Accept-Language": "es-CL,es;q=0.9"})
         if response.status_code == 200:
             root = ET.fromstring(response.text)
             for item in root.iter("item"):
@@ -329,7 +332,7 @@ def fetch_wikipedia_trending():
     try:
         today = datetime.now(timezone.utc)
         url = f"https://wikimedia.org/api/rest_v1/metrics/pageviews/top/es.wikipedia/all-access/{today.year}/{today.month:02d}/{today.day:02d}"
-        response = cr.get(url, impersonate="chrome", timeout=10)
+        response = cr.get(url, impersonate="chrome", timeout=15)
         if response.status_code == 200:
             data = response.json()
             items = data.get('items', [{}])[0].get('articles', [])
@@ -389,61 +392,60 @@ def track_api_usage(endpoint, tokens_input=0, tokens_output=0, success=True, err
         print(f"[TRACK] Error: {str(e)}")
 
 def fetch_raw_articles(force_refresh=False):
+    """Recolección secuencial optimizada para evitar picos de memoria (SIGKILL)"""
     if not force_refresh:
         articles, status = get_cached_data(max_age_minutes=120)
         if articles:
             return articles, status
 
-    print("[FETCH] Iniciando recolección...")
-    
-    def work_cl(item):
-        name, cfg = item
-        arts = _from_homepage(name, cfg)
-        if arts: return name, arts, "ok"
-        arts = _from_gnews(name, cfg)
-        return name, arts, "ok_fallback" if arts else "blocked_or_empty"
-
+    print("[FETCH] Iniciando recolección (modo estable)...")
     articles, status = [], {}
-    with ThreadPoolExecutor(max_workers=4) as ex:
-        for name, arts, st in ex.map(work_cl, SOURCES_CL.items()):
-            articles.extend(arts)
-            status[name] = st
-            print(f"[FETCH] {name}: {len(arts)} artículos - {st}")
     
-    def work_es(item):
-        name, cfg = item
+    # 1. Medios chilenos (secuencial con pausas)
+    for name, cfg in SOURCES_CL.items():
+        html = _get(cfg["home"])
+        if html:
+            arts = _from_homepage(name, cfg)
+            if arts:
+                articles.extend(arts)
+                status[name] = "ok"
+                print(f"[FETCH] {name}: {len(arts)} artículos - ok")
+                time.sleep(0.5)
+                continue
+        
+        arts = _from_gnews(name, cfg)
+        articles.extend(arts)
+        status[name] = "ok_fallback" if arts else "blocked_or_empty"
+        print(f"[FETCH] {name}: {len(arts)} artículos - {status[name]}")
+        time.sleep(0.5)
+    
+    # 2. Fuentes RSS en español e inglés (secuencial)
+    all_rss_sources = {**SOURCES_ES, **SOURCES_EN}
+    for name, cfg in all_rss_sources.items():
         arts = _from_rss(name, cfg)
-        return name, arts, "ok" if arts else "empty"
+        articles.extend(arts)
+        status[name] = "ok" if arts else "empty"
+        time.sleep(0.3)
     
-    with ThreadPoolExecutor(max_workers=3) as ex:
-        for name, arts, st in ex.map(work_es, SOURCES_ES.items()):
-            articles.extend(arts)
-            status[name] = st
-    
-    def work_en(item):
-        name, cfg = item
-        arts = _from_rss(name, cfg)
-        return name, arts, "ok" if arts else "empty"
-    
-    with ThreadPoolExecutor(max_workers=3) as ex:
-        for name, arts, st in ex.map(work_en, SOURCES_EN.items()):
-            articles.extend(arts)
-            status[name] = st
-    
+    # 3. Reddit
     try:
         reddit_articles = fetch_reddit_trending()
         articles.extend(reddit_articles)
         status['reddit'] = 'ok' if reddit_articles else 'empty'
-    except:
+    except Exception as e:
         status['reddit'] = 'error'
+        print(f"[FETCH] Reddit error: {str(e)}")
     
+    # 4. YouTube
     try:
         youtube_articles = fetch_youtube_trending()
         articles.extend(youtube_articles)
         status['youtube'] = 'ok' if youtube_articles else 'empty'
-    except:
+    except Exception as e:
         status['youtube'] = 'error'
+        print(f"[FETCH] YouTube error: {str(e)}")
     
+    # 5. Google Trends
     try:
         trends_articles = fetch_google_trends()
         articles.extend(trends_articles)
@@ -451,6 +453,7 @@ def fetch_raw_articles(force_refresh=False):
     except:
         status['google_trends'] = 'error'
     
+    # 6. Wikipedia
     try:
         wiki_articles = fetch_wikipedia_trending()
         articles.extend(wiki_articles)
@@ -458,6 +461,7 @@ def fetch_raw_articles(force_refresh=False):
     except:
         status['wikipedia'] = 'error'
 
+    # Eliminar duplicados
     seen = set()
     unique_articles = []
     for a in articles:
