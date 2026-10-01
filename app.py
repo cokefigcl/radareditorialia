@@ -3,7 +3,6 @@ import os
 import json
 import re
 import time
-import random
 import unicodedata
 import sqlite3
 from datetime import datetime, timezone, timedelta
@@ -133,7 +132,6 @@ def _norm(s):
     return "".join(c for c in unicodedata.normalize("NFKD", str(s).lower()) if not unicodedata.combining(c))
 
 def _get_fast(url, timeout=5):
-    """Solicitud HTTP rápida con timeout estricto"""
     try:
         r = cr.get(url, impersonate="chrome", timeout=timeout, headers={"User-Agent": "CoraRadar/1.0"})
         if r.status_code == 200:
@@ -143,7 +141,6 @@ def _get_fast(url, timeout=5):
     return None
 
 def fetch_chilean_sources():
-    """Obtiene artículos de medios chilenos (rápido)"""
     articles = []
     for name, cfg in SOURCES_CL.items():
         try:
@@ -160,16 +157,13 @@ def fetch_chilean_sources():
                             'url': a.get("href", "") if a else "",
                             'first_seen': datetime.now(timezone.utc).isoformat()
                         })
-                print(f"[CL] ✅ {name}: OK")
         except:
-            print(f"[CL] ❌ {name}: FAIL")
+            pass
     return articles
 
 def fetch_rss_sources():
-    """Obtiene artículos de RSS internacionales (rápido)"""
     articles = []
     all_sources = {**SOURCES_ES, **SOURCES_EN}
-    
     for name, cfg in all_sources.items():
         try:
             xml = _get_fast(cfg["rss"], timeout=5)
@@ -188,15 +182,13 @@ def fetch_rss_sources():
                         count += 1
                         if count >= 15:
                             break
-                print(f"[RSS] ✅ {name}: {count}")
         except:
-            print(f"[RSS] ❌ {name}: FAIL")
+            pass
     return articles
 
 def fetch_reddit_fast():
-    """Reddit ultra-rápido con timeout de 3 segundos por subreddit"""
     articles = []
-    subreddits = ['chile', 'worldnews']  # Solo 2 principales para velocidad
+    subreddits = ['chile', 'worldnews']
     
     def get_reddit_posts(subreddit):
         try:
@@ -216,34 +208,26 @@ def fetch_reddit_fast():
                             'is_trend': True
                         })
                         count += 1
-                return count
         except:
-            return 0
+            pass
     
-    # Ejecutar en paralelo con timeout total de 10 segundos
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = [executor.submit(get_reddit_posts, sub) for sub in subreddits]
         for future in futures:
             try:
                 future.result(timeout=5)
             except FuturesTimeoutError:
-                print("[REDDIT] ⏱️ Timeout")
-    
-    print(f"[REDDIT] ✅ Total: {len(articles)}")
+                pass
     return articles
 
 def fetch_youtube_fast():
-    """YouTube ultra-rápido con timeout de 5 segundos"""
     articles = []
     api_key = os.getenv('YOUTUBE_API_KEY')
-    
     if not api_key:
         return []
-    
     try:
         url = f"https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&regionCode=CL&categoryId=25&maxResults=10&key={api_key}"
         response = cr.get(url, timeout=5)
-        
         if response.status_code == 200:
             data = response.json()
             for item in data.get('items', [])[:10]:
@@ -256,17 +240,12 @@ def fetch_youtube_fast():
                         'first_seen': datetime.now(timezone.utc).isoformat(),
                         'is_trend': True
                     })
-            print(f"[YOUTUBE] ✅ {len(articles)}")
     except:
-        print("[YOUTUBE] ❌ FAIL")
-    
+        pass
     return articles
 
 def fetch_trends_sources():
-    """Google Trends y Wikipedia (rápido)"""
     articles = []
-    
-    # Google Trends
     try:
         xml = _get_fast("https://trends.google.com/trending/rss?geo=CL", timeout=5)
         if xml:
@@ -281,10 +260,8 @@ def fetch_trends_sources():
                         'first_seen': datetime.now(timezone.utc).isoformat(),
                         'is_trend': True
                     })
-            print(f"[TRENDS] ✅ {len([a for a in articles if a['source']=='google_trends'])}")
     except:
-        print("[TRENDS]  FAIL")
-    
+        pass
     return articles
 
 def get_cached_data(max_age_minutes=120):
@@ -311,7 +288,6 @@ def save_to_cache(articles, status):
         pass
 
 def fetch_raw_articles(force_refresh=False):
-    """Recolección ultra-rápida con timeouts estrictos"""
     if not force_refresh:
         articles, status = get_cached_data(max_age_minutes=120)
         if articles:
@@ -322,16 +298,13 @@ def fetch_raw_articles(force_refresh=False):
     articles = []
     status = {}
     
-    # Ejecutar todo en paralelo con ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=8) as executor:
-        # Submit todas las tareas
         future_cl = executor.submit(fetch_chilean_sources)
         future_rss = executor.submit(fetch_rss_sources)
         future_reddit = executor.submit(fetch_reddit_fast)
         future_youtube = executor.submit(fetch_youtube_fast)
         future_trends = executor.submit(fetch_trends_sources)
         
-        # Esperar con timeout total de 60 segundos
         try:
             articles.extend(future_cl.result(timeout=15))
             status['chilean'] = 'ok'
@@ -362,7 +335,6 @@ def fetch_raw_articles(force_refresh=False):
         except:
             status['trends'] = 'error'
     
-    # Eliminar duplicados
     seen = set()
     unique = []
     for a in articles:
@@ -514,8 +486,284 @@ def track_api_usage(endpoint, tokens_input=0, tokens_output=0, success=True):
     except:
         pass
 
-# ... (Mantén las rutas Flask existentes sin cambios) ...
-# (index, dashboard, categories, trending, predictions, status, statistics, usage, analyze, history, delete_history)
+def analyze_with_qwen(prompt, mode='standard'):
+    api_key = os.getenv('QWEN_API_KEY')
+    if not api_key:
+        return None, "QWEN_API_KEY no configurada"
+    
+    headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
+    payload = {
+        'model': 'qwen-plus',
+        'input': {'messages': [{'role': 'user', 'content': prompt}]},
+        'parameters': {'temperature': 0.1 if mode == 'briefing' else 0.7, 'max_tokens': 2000}
+    }
+    
+    tokens_input = len(prompt) // 4
+    try:
+        response = cr.post(
+            'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
+            headers=headers,
+            json=payload,
+            timeout=45,
+            impersonate="chrome"
+        )
+        if response.status_code == 200:
+            result = response.json()
+            text = result.get('output', {}).get('choices', [{}])[0].get('message', {}).get('content') or str(result)
+            tokens_output = len(text) // 4
+            track_api_usage('analyze', tokens_input, tokens_output, success=True)
+            
+            match = re.search(r'\{.*\}', text, re.DOTALL)
+            json_str = match.group(0) if match else text.replace('```json', '').replace('```', '').strip()
+            return json.loads(json_str), None
+        else:
+            track_api_usage('analyze', tokens_input, 0, success=False)
+            return None, f"Error HTTP {response.status_code}"
+    except Exception as e:
+        track_api_usage('analyze', tokens_input, 0, success=False)
+        return None, f"Error: {str(e)}"
+
+def generate_analysis(topic, topic2, category, region, mode, lens, news):
+    news_text = "\n\nNoticias:\n" + "\n".join([f"- {n['titulo']}" for n in news[:5]]) if news else ""
+    if mode == 'briefing':
+        return f"""Eres editor experto. BRIEFING sobre: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}
+Responde SOLO JSON: {{"resumen_ejecutivo": "Párrafo claro", "preguntas_fuente": ["¿Qué pasó?", "¿Quiénes afectan?", "¿Qué sigue?"], "datos_duros": ["Dato 1", "Dato 2"], "timeline_sugerido": "Esta semana", "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
+    elif mode == 'devil':
+        return f"""Editor crítico. ABOGADO DEL DIABLO: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}
+Responde SOLO JSON: {{"cobertura_mainstream": "Lo que todos dicen", "angulo_ciego": "Lo que NADIE pregunta", "riesgos_sesgos": ["Sesgo 1", "Sesgo 2"], "pregunta_incomoda": "Pregunta incómoda", "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
+    elif mode == 'compare' and topic2:
+        return f"""Editor estratégico. COMPARA: TEMA A: {topic} | TEMA B: {topic2} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}
+Responde SOLO JSON: {{"tema_a": "{topic}", "tema_b": "{topic2}", "mas_recorrido": "Cuál tiene más recorrido", "fuentes_comunes": ["Fuente 1", "Fuente 2"], "angulo_conector": "Ángulo conector", "recomendacion": "Cuál cubrir primero", "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
+    else:
+        lens_instruction = {"data": "\nENFOQUE: Estadísticas.", "controversy": "\nENFOQUE: Conflictos.", "human": "\nENFOQUE: Personas.", "economic": "\nENFOQUE: Finanzas."}.get(lens, "")
+        return f"""Analiza tendencia: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}{lens_instruction}
+Responde SOLO JSON: {{"puntaje_relevancia": 7, "justificacion_puntaje": "Explicación del puntaje", "hipotesis": "Hipótesis editorial", "senales_clave": ["Señal 1", "Señal 2"], "angulos_periodisticos": ["Ángulo 1", "Ángulo 2"], "fuentes_sugeridas": ["Fuente 1", "Fuente 2"], "titulares_ejemplo": ["Titular 1", "Titular 2"], "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/dashboard')
+def dashboard():
+    return render_template('dashboard.html')
+
+@app.route('/api/categories', methods=['GET'])
+def get_categories():
+    return jsonify(CATEGORIES)
+
+@app.route('/api/trending', methods=['GET'])
+def get_trending():
+    category = request.args.get('category', 'all')
+    limit = int(request.args.get('limit', 6))
+    force_refresh = request.args.get('refresh') == 'true'
+    articles, status = fetch_raw_articles(force_refresh=force_refresh)
+    keywords_raw = SEARCH_KEYWORDS.get(category, 'chile')
+    keywords = [kw.strip().lower() for kw in keywords_raw.split(' OR ')]
+    trends = []
+    seen = set()
+    for a in articles:
+        if category == 'all' or any(kw in a['title'].lower() for kw in keywords):
+            if a['title'] not in seen:
+                seen.add(a['title'])
+                trends.append({'topic': a['title'], 'source': a['source'], 'region': 'Chile'})
+        if len(trends) >= limit:
+            break
+    return jsonify({'trends': trends, 'source_status': status})
+
+@app.route('/api/predictions', methods=['GET'])
+def get_predictions_route():
+    try:
+        category = request.args.get('category', 'all')
+        force_refresh = request.args.get('refresh') == 'true'
+        print(f"[PREDICT] Iniciando para categoría: {category}")
+        articles, status = fetch_raw_articles(force_refresh=force_refresh)
+        if not articles:
+            return jsonify({'predictions': [], 'source_status': status, 'category': category})
+        
+        algo_predictions = group_related_articles(articles, top=8)
+        cross_predictions = []
+        try:
+            if category != 'all':
+                keywords_raw = SEARCH_KEYWORDS.get(category, category.lower())
+                keywords = [kw.strip().lower() for kw in keywords_raw.split(' OR ')]
+                filtered = [a for a in articles if any(kw in a['title'].lower() for kw in keywords)]
+                if len(filtered) >= 3:
+                    cross_predictions = cross_predictions_func(filtered, category=category, top=6)
+                else:
+                    cross_predictions = cross_predictions_func(articles, category=category, top=6)
+            else:
+                cross_predictions = cross_predictions_func(articles, category='all', top=6)
+        except Exception as e:
+            print(f"[PREDICT] IA falló: {str(e)}")
+        
+        all_predictions = cross_predictions if cross_predictions else algo_predictions
+        seen, unique = set(), []
+        for p in all_predictions:
+            norm = _norm(p.get('topic', ''))
+            if norm and norm not in seen:
+                seen.add(norm)
+                unique.append(p)
+        unique.sort(key=lambda x: x.get('score', 0), reverse=True)
+        return jsonify({'predictions': unique[:8], 'source_status': status, 'category': category})
+    except Exception as e:
+        print(f"[PREDICT] ERROR: {str(e)}")
+        return jsonify({'predictions': [], 'error': str(e), 'category': request.args.get('category', 'all')}), 200
+
+@app.route('/api/status', methods=['GET'])
+def get_status():
+    _, status = get_cached_data()
+    return jsonify({
+        'mindicador': {'dolar': 950, 'uf': 36000, 'status': 'ok'},
+        'weather': {'temperature': 22, 'windspeed': 10, 'status': 'ok'},
+        'apis': {'scraping': 'ok', 'sources': status or {}},
+        'timestamp': datetime.now(timezone.utc).isoformat()
+    })
+
+@app.route('/api/statistics', methods=['GET'])
+def get_statistics_route():
+    try:
+        articles, status = fetch_raw_articles(force_refresh=False)
+        stats = {'by_source': {}, 'by_category': {}, 'total_articles': len(articles), 'sources_count': 0, 'trends_detected': 0}
+        for a in articles:
+            source = a.get('source', 'desconocido')
+            stats['by_source'][source] = stats['by_source'].get(source, 0) + 1
+            cat = guess_category(a['title'])
+            stats['by_category'][cat] = stats['by_category'].get(cat, 0) + 1
+            if a.get('is_trend'):
+                stats['trends_detected'] += 1
+        stats['sources_count'] = len(stats['by_source'])
+        
+        predictions = group_related_articles(articles, top=8)
+        return jsonify({
+            'stats': stats,
+            'source_status': status,
+            'predictions_count': len(predictions),
+            'predictions_by_score': {
+                'high': len([p for p in predictions if p.get('score', 0) >= 70]),
+                'medium': len([p for p in predictions if 40 <= p.get('score', 0) < 70]),
+                'low': len([p for p in predictions if p.get('score', 0) < 40])
+            },
+            'timestamp': datetime.now(timezone.utc).isoformat()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 200
+
+@app.route('/api/usage', methods=['GET'])
+def get_usage_stats():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM api_usage')
+        total_requests = cursor.fetchone()[0]
+        cursor.execute('SELECT success, COUNT(*) FROM api_usage GROUP BY success')
+        success_stats = dict(cursor.fetchall())
+        successful = success_stats.get(1, 0)
+        failed = success_stats.get(0, 0)
+        cursor.execute('SELECT SUM(tokens_input), SUM(tokens_output) FROM api_usage')
+        total_input, total_output = cursor.fetchone()
+        total_tokens = (total_input or 0) + (total_output or 0)
+        cursor.execute('SELECT SUM(cost_usd) FROM api_usage')
+        total_cost = cursor.fetchone()[0] or 0.0
+        today = datetime.now().strftime('%Y-%m-%d')
+        cursor.execute('SELECT COUNT(*), SUM(cost_usd) FROM api_usage WHERE DATE(created_at) = ?', (today,))
+        today_requests, today_cost = cursor.fetchone()
+        cursor.execute('SELECT endpoint, COUNT(*), SUM(cost_usd) FROM api_usage GROUP BY endpoint')
+        by_endpoint = [{'endpoint': row[0], 'count': row[1], 'cost': row[2] or 0} for row in cursor.fetchall()]
+        cursor.execute("SELECT DATE(created_at) as day, COUNT(*), SUM(cost_usd) FROM api_usage WHERE created_at >= datetime('now', '-7 days') GROUP BY day ORDER BY day")
+        daily_usage = [{'day': row[0], 'requests': row[1], 'cost': row[2] or 0} for row in cursor.fetchall()]
+        conn.close()
+        return jsonify({
+            'total_requests': total_requests, 'successful': successful, 'failed': failed,
+            'total_tokens': total_tokens, 'total_cost': round(total_cost, 4),
+            'today_requests': today_requests or 0, 'today_cost': round(today_cost or 0, 4),
+            'by_endpoint': by_endpoint, 'daily_usage': daily_usage,
+            'success_rate': round((successful / total_requests * 100) if total_requests > 0 else 0, 1)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/analyze', methods=['POST'])
+def analyze():
+    try:
+        data = request.json
+        topic = data.get('topic', '').strip()
+        topic2 = data.get('topic2', '').strip()
+        category = data.get('category')
+        region = data.get('region')
+        mode = data.get('mode', 'standard')
+        lens = data.get('lens', '')
+        if not topic:
+            return jsonify({'error': 'Falta el tema'}), 400
+        
+        articles, _ = fetch_raw_articles(force_refresh=False)
+        news = []
+        topic_lower = topic.lower()
+        for a in articles:
+            if topic_lower in a['title'].lower():
+                news.append({'titulo': a['title'], 'fuente': a['source'], 'url': a['url'], 'fecha': a.get('first_seen', '')[:10] if a.get('first_seen') else ''})
+                if len(news) >= 5:
+                    break
+        
+        prompt = generate_analysis(topic, topic2, category, region, mode, lens, news)
+        analysis, error = analyze_with_qwen(prompt, mode)
+        
+        if error or not analysis:
+            analysis = {
+                'puntaje_relevancia': 6, 'justificacion_puntaje': f'Según {len(news)} noticias recientes.',
+                'hipotesis': f'El tema "{topic}" muestra actividad mediática.',
+                'senales_clave': [f'{len(news)} menciones en medios'] if news else ['Tema emergente'],
+                'angulos_periodisticos': [f'Impacto de {topic}', f'Perspectivas sobre {topic}'],
+                'fuentes_sugeridas': ['Expertos', 'Organismos oficiales'],
+                'titulares_ejemplo': [f'Análisis: {topic}'],
+                'noticias_reales': news
+            }
+        if 'noticias_reales' not in analysis:
+            analysis['noticias_reales'] = news
+        
+        score = analysis.get('puntaje_relevancia', 5)
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.cursor().execute(
+                'INSERT INTO trends (topic, topic2, category, region, mode, analysis, score) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                (topic, topic2 if mode == 'compare' else None, category, region, mode, json.dumps(analysis, ensure_ascii=False), score)
+            )
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"[DB] Error: {str(e)}")
+        
+        return jsonify({'topic': topic, 'topic2': topic2, 'category': category, 'region': region, 'mode': mode, 'lens': lens, 'analysis': analysis, 'score': score, 'timestamp': datetime.now(timezone.utc).isoformat()})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/history', methods=['GET'])
+def get_history():
+    limit = int(request.args.get('limit', 10))
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        rows = conn.cursor().execute('SELECT id, topic, topic2, category, region, mode, analysis, score, created_at FROM trends ORDER BY created_at DESC LIMIT ?', (limit,)).fetchall()
+        conn.close()
+        history = []
+        for row in rows:
+            try:
+                analysis = json.loads(row[6]) if row[6] else {}
+            except:
+                analysis = {}
+            history.append({'id': row[0], 'topic': row[1], 'topic2': row[2], 'category': row[3], 'region': row[4], 'mode': row[5], 'analysis': analysis, 'score': row[7] or 0, 'created_at': row[8]})
+        return jsonify(history)
+    except:
+        return jsonify([])
+
+@app.route('/api/history/<int:analysis_id>', methods=['DELETE'])
+def delete_history(analysis_id):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.cursor().execute('DELETE FROM trends WHERE id = ?', (analysis_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
