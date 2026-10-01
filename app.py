@@ -10,7 +10,6 @@ from collections import defaultdict
 from email.utils import parsedate_to_datetime
 import xml.etree.ElementTree as ET
 import traceback
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
@@ -131,20 +130,20 @@ STOPWORDS = {'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'al', 'y', 'o',
 def _norm(s):
     return "".join(c for c in unicodedata.normalize("NFKD", str(s).lower()) if not unicodedata.combining(c))
 
-def _get_fast(url, timeout=10):
+def _get_fast(url, timeout=15):
     try:
         r = cr.get(url, impersonate="chrome", timeout=timeout, headers={"User-Agent": "CoraRadar/1.0"})
         if r.status_code == 200:
             return r.text
-    except:
-        pass
+    except Exception as e:
+        print(f"[HTTP] Error en {url}: {str(e)}")
     return None
 
 def fetch_chilean_sources():
     articles = []
     for name, cfg in SOURCES_CL.items():
         try:
-            html = _get_fast(cfg["home"], timeout=10)
+            html = _get_fast(cfg["home"], timeout=15)
             if html:
                 soup = BeautifulSoup(html, "html.parser")
                 for tag in soup.select("h1, h2, h3")[:20]:
@@ -157,8 +156,8 @@ def fetch_chilean_sources():
                             'url': a.get("href", "") if a else "",
                             'first_seen': datetime.now(timezone.utc).isoformat()
                         })
-        except:
-            pass
+        except Exception as e:
+            print(f"[FETCH] Error en {name}: {str(e)}")
     return articles
 
 def fetch_rss_sources():
@@ -166,7 +165,7 @@ def fetch_rss_sources():
     all_sources = {**SOURCES_ES, **SOURCES_EN}
     for name, cfg in all_sources.items():
         try:
-            xml = _get_fast(cfg["rss"], timeout=10)
+            xml = _get_fast(cfg["rss"], timeout=15)
             if xml:
                 root = ET.fromstring(xml)
                 count = 0
@@ -182,52 +181,43 @@ def fetch_rss_sources():
                         count += 1
                         if count >= 15:
                             break
-        except:
-            pass
+        except Exception as e:
+            print(f"[FETCH] Error en RSS {name}: {str(e)}")
     return articles
 
 def fetch_reddit_fast():
     articles = []
-    subreddits = ['chile', 'worldnews']
-    
-    def get_reddit_posts(subreddit):
-        try:
-            url = f"https://www.reddit.com/r/{subreddit}/hot/.rss"
-            xml = _get_fast(url, timeout=10)
-            if xml:
-                root = ET.fromstring(xml)
-                count = 0
-                for item in root.iter("item"):
-                    title = item.findtext("title", "").strip()
-                    if title and len(title) > 30 and count < 5:
-                        articles.append({
-                            'title': f"[Reddit r/{subreddit}] {title}",
-                            'source': f'reddit_{subreddit}',
-                            'url': item.findtext("link", ""),
-                            'first_seen': datetime.now(timezone.utc).isoformat(),
-                            'is_trend': True
-                        })
-                        count += 1
-        except:
-            pass
-    
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = [executor.submit(get_reddit_posts, sub) for sub in subreddits]
-        for future in futures:
-            try:
-                future.result(timeout=10)
-            except FuturesTimeoutError:
-                pass
+    try:
+        url = "https://www.reddit.com/r/chile/hot/.rss"
+        response = cr.get(url, impersonate="chrome", timeout=15, headers={"User-Agent": "CoraRadar/1.0"})
+        if response.status_code == 200:
+            root = ET.fromstring(response.text)
+            count = 0
+            for item in root.iter("item"):
+                title = item.findtext("title", "").strip()
+                if title and len(title) > 30 and count < 5:
+                    articles.append({
+                        'title': f"[Reddit] {title}",
+                        'source': 'reddit_chile',
+                        'url': item.findtext("link", ""),
+                        'first_seen': datetime.now(timezone.utc).isoformat(),
+                        'is_trend': True
+                    })
+                    count += 1
+        print(f"[FETCH] Reddit: {len(articles)} artículos")
+    except Exception as e:
+        print(f"[FETCH] Reddit ❌ ERROR REAL: {str(e)}")
     return articles
 
 def fetch_youtube_fast():
     articles = []
     api_key = os.getenv('YOUTUBE_API_KEY')
     if not api_key:
+        print("[FETCH] YouTube ⚠️ No hay YOUTUBE_API_KEY configurada")
         return []
     try:
         url = f"https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&regionCode=CL&categoryId=25&maxResults=10&key={api_key}"
-        response = cr.get(url, timeout=10)
+        response = cr.get(url, timeout=15)
         if response.status_code == 200:
             data = response.json()
             for item in data.get('items', [])[:10]:
@@ -240,16 +230,19 @@ def fetch_youtube_fast():
                         'first_seen': datetime.now(timezone.utc).isoformat(),
                         'is_trend': True
                     })
-    except:
-        pass
+            print(f"[FETCH] YouTube: {len(articles)} artículos")
+        else:
+            print(f"[FETCH] YouTube ❌ ERROR REAL: HTTP {response.status_code} - {response.text[:200]}")
+    except Exception as e:
+        print(f"[FETCH] YouTube ❌ ERROR REAL: {str(e)}")
     return articles
 
 def fetch_trends_sources():
     articles = []
     try:
-        xml = _get_fast("https://trends.google.com/trending/rss?geo=CL", timeout=10)
-        if xml:
-            root = ET.fromstring(xml)
+        response = cr.get("https://trends.google.com/trending/rss?geo=CL", impersonate="chrome", timeout=15)
+        if response.status_code == 200:
+            root = ET.fromstring(response.text)
             for item in root.iter("item")[:10]:
                 title = item.findtext("title", "").strip()
                 if title:
@@ -260,8 +253,9 @@ def fetch_trends_sources():
                         'first_seen': datetime.now(timezone.utc).isoformat(),
                         'is_trend': True
                     })
-    except:
-        pass
+        print(f"[FETCH] Trends: {len(articles)} artículos")
+    except Exception as e:
+        print(f"[FETCH] Trends ❌ ERROR REAL: {str(e)}")
     return articles
 
 def get_cached_data(max_age_minutes=120):
@@ -298,8 +292,8 @@ def save_to_cache(articles, status):
         with open(temp_path, 'w', encoding='utf-8') as f:
             json.dump({'articles': articles, 'status': status, 'timestamp': datetime.now(timezone.utc).isoformat()}, f, ensure_ascii=False)
         os.replace(temp_path, CACHE_FILE)
-    except:
-        pass
+    except Exception as e:
+        print(f"[CACHE] Error al guardar: {str(e)}")
 
 def fetch_raw_articles(force_refresh=False):
     if not force_refresh:
@@ -325,17 +319,14 @@ def fetch_raw_articles(force_refresh=False):
     reddit_articles = fetch_reddit_fast()
     articles.extend(reddit_articles)
     status['reddit'] = 'ok' if len(reddit_articles) > 0 else 'error'
-    print(f"[FETCH] Reddit: {len(reddit_articles)} artículos")
     
     youtube_articles = fetch_youtube_fast()
     articles.extend(youtube_articles)
     status['youtube'] = 'ok' if len(youtube_articles) > 0 else 'error'
-    print(f"[FETCH] YouTube: {len(youtube_articles)} artículos")
     
     trends_articles = fetch_trends_sources()
     articles.extend(trends_articles)
     status['trends'] = 'ok' if len(trends_articles) > 0 else 'error'
-    print(f"[FETCH] Trends: {len(trends_articles)} artículos")
     
     seen = set()
     unique = []
@@ -430,14 +421,13 @@ Responde SOLO con un array JSON con {top} tendencias, sin markdown ni texto adic
         if response.status_code == 200:
             result = response.json()
             
-            # Extracción robusta del texto
+            # EXTRACCIÓN ROBUSTA DEL TEXTO (Maneja ambos formatos de Qwen)
             text = ""
-            if isinstance(result, dict):
-                if 'output' in result:
-                    if 'choices' in result['output']:
-                        text = result['output']['choices'][0]['message']['content']
-                    elif 'text' in result['output']:
-                        text = result['output']['text']
+            if isinstance(result, dict) and 'output' in result:
+                if 'choices' in result['output'] and len(result['output']['choices']) > 0:
+                    text = result['output']['choices'][0].get('message', {}).get('content', '')
+                elif 'text' in result['output']:
+                    text = result['output']['text']
             
             if not text:
                 text = str(result)
@@ -464,7 +454,7 @@ Responde SOLO con un array JSON con {top} tendencias, sin markdown ni texto adic
                         'timestamp': now.isoformat()
                     } for p in predictions[:top] if isinstance(p, dict)]
                 except json.JSONDecodeError as e:
-                    print(f"[IA] ⚠️ JSONDecodeError: {e}. Texto: {json_str[:300]}")
+                    print(f"[IA] ⚠️ JSONDecodeError: {e}. Texto crudo: {json_str[:300]}")
                     return []
             else:
                 print(f"[IA] ⚠️ No se encontró array JSON. Texto: {text[:300]}")
@@ -531,13 +521,13 @@ def analyze_with_qwen(prompt, mode='standard'):
         if response.status_code == 200:
             result = response.json()
             
+            # EXTRACCIÓN ROBUSTA DEL TEXTO
             text = ""
-            if isinstance(result, dict):
-                if 'output' in result:
-                    if 'choices' in result['output']:
-                        text = result['output']['choices'][0]['message']['content']
-                    elif 'text' in result['output']:
-                        text = result['output']['text']
+            if isinstance(result, dict) and 'output' in result:
+                if 'choices' in result['output'] and len(result['output']['choices']) > 0:
+                    text = result['output']['choices'][0].get('message', {}).get('content', '')
+                elif 'text' in result['output']:
+                    text = result['output']['text']
             
             if not text:
                 text = str(result)
@@ -576,6 +566,8 @@ Responde SOLO JSON: {{"tema_a": "{topic}", "tema_b": "{topic2}", "mas_recorrido"
         lens_instruction = {"data": "\nENFOQUE: Estadísticas.", "controversy": "\nENFOQUE: Conflictos.", "human": "\nENFOQUE: Personas.", "economic": "\nENFOQUE: Finanzas."}.get(lens, "")
         return f"""Analiza tendencia: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}{lens_instruction}
 Responde SOLO JSON: {{"puntaje_relevancia": 7, "justificacion_puntaje": "Explicación del puntaje", "hipotesis": "Hipótesis editorial", "senales_clave": ["Señal 1", "Señal 2"], "angulos_periodisticos": ["Ángulo 1", "Ángulo 2"], "fuentes_sugeridas": ["Fuente 1", "Fuente 2"], "titulares_ejemplo": ["Titular 1", "Titular 2"], "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
+
+# ==================== RUTAS FLASK ====================
 
 @app.route('/')
 def index():
@@ -634,7 +626,7 @@ def get_predictions_route():
         except Exception as e:
             print(f"[PREDICT] IA falló: {str(e)}")
         
-        # Si la IA falla (devuelve []), usa las algorítmicas como respaldo
+        # Fallback: Si la IA falla, usa las algorítmicas
         all_predictions = cross_predictions if cross_predictions else algo_predictions
         seen, unique = set(), []
         for p in all_predictions:
