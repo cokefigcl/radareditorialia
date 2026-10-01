@@ -69,10 +69,10 @@ CATEGORIES = [
     {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    {'name': 'Chile', 'icon': '🇨', 'type': 'region'},
-    {'name': 'Internacional', 'icon': '', 'type': 'region'},
+    {'name': 'Chile', 'icon': '🇨🇱', 'type': 'region'},
+    {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
     {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
-    {'name': 'Ciencia y Tecnología', 'icon': '', 'type': 'otros'},
+    {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
     {'name': 'Cultura', 'icon': '🎭', 'type': 'otros'},
     {'name': 'Ocio', 'icon': '🎮', 'type': 'otros'},
     {'name': 'Salud', 'icon': '🏥', 'type': 'otros'},
@@ -312,37 +312,31 @@ def fetch_raw_articles(force_refresh=False):
     articles = []
     status = {}
     
-    # Recolectar fuentes chilenas
     cl_articles = fetch_chilean_sources()
     articles.extend(cl_articles)
     status['chilean'] = 'ok' if len(cl_articles) > 0 else 'error'
     print(f"[FETCH] Chile: {len(cl_articles)} artículos")
     
-    # Recolectar RSS
     rss_articles = fetch_rss_sources()
     articles.extend(rss_articles)
     status['rss'] = 'ok' if len(rss_articles) > 0 else 'error'
     print(f"[FETCH] RSS: {len(rss_articles)} artículos")
     
-    # Recolectar Reddit
     reddit_articles = fetch_reddit_fast()
     articles.extend(reddit_articles)
     status['reddit'] = 'ok' if len(reddit_articles) > 0 else 'error'
     print(f"[FETCH] Reddit: {len(reddit_articles)} artículos")
     
-    # Recolectar YouTube
     youtube_articles = fetch_youtube_fast()
     articles.extend(youtube_articles)
     status['youtube'] = 'ok' if len(youtube_articles) > 0 else 'error'
     print(f"[FETCH] YouTube: {len(youtube_articles)} artículos")
     
-    # Recolectar Trends
     trends_articles = fetch_trends_sources()
     articles.extend(trends_articles)
     status['trends'] = 'ok' if len(trends_articles) > 0 else 'error'
     print(f"[FETCH] Trends: {len(trends_articles)} artículos")
     
-    # Eliminar duplicados
     seen = set()
     unique = []
     for a in articles:
@@ -417,7 +411,7 @@ def cross_predictions_func(articles, category='all', top=6):
     prompt = f"""Analiza estos titulares y detecta tendencias emergentes:
 {headlines}
 
-Responde SOLO JSON con {top} tendencias:
+Responde SOLO con un array JSON con {top} tendencias, sin markdown ni texto adicional. Formato:
 [{{"topic": "Tema", "score": 72, "reasoning": "Por qué", "signals": ["Señal 1"], "impact": "alto", "timeframe": "próximas horas", "category": "Categoría"}}]"""
 
     api_key = os.getenv('QWEN_API_KEY')
@@ -435,12 +429,24 @@ Responde SOLO JSON con {top} tendencias:
         
         if response.status_code == 200:
             result = response.json()
-            text = result.get('output', {}).get('choices', [{}])[0].get('message', {}).get('content') or str(result)
+            
+            # Extracción robusta del texto
+            text = ""
+            if isinstance(result, dict):
+                if 'output' in result:
+                    if 'choices' in result['output']:
+                        text = result['output']['choices'][0]['message']['content']
+                    elif 'text' in result['output']:
+                        text = result['output']['text']
+            
+            if not text:
+                text = str(result)
             
             match = re.search(r'\[.*\]', text, re.DOTALL)
             if match:
+                json_str = match.group(0)
                 try:
-                    predictions = json.loads(match.group(0))
+                    predictions = json.loads(json_str)
                     now = datetime.now(timezone.utc)
                     return [{
                         'topic': p.get('topic', ''),
@@ -456,10 +462,13 @@ Responde SOLO JSON con {top} tendencias:
                         'source': 'IA',
                         'is_realtime': True,
                         'timestamp': now.isoformat()
-                    } for p in predictions[:top]]
-                except json.JSONDecodeError:
-                    print(f"[IA] ⚠️ La IA no devolvió JSON válido. Respuesta: {text[:200]}")
+                    } for p in predictions[:top] if isinstance(p, dict)]
+                except json.JSONDecodeError as e:
+                    print(f"[IA] ⚠️ JSONDecodeError: {e}. Texto: {json_str[:300]}")
                     return []
+            else:
+                print(f"[IA] ⚠️ No se encontró array JSON. Texto: {text[:300]}")
+                return []
     except Exception as e:
         print(f"[IA] ❌ Error en llamada a IA: {str(e)}")
     return []
@@ -521,7 +530,18 @@ def analyze_with_qwen(prompt, mode='standard'):
         )
         if response.status_code == 200:
             result = response.json()
-            text = result.get('output', {}).get('choices', [{}])[0].get('message', {}).get('content') or str(result)
+            
+            text = ""
+            if isinstance(result, dict):
+                if 'output' in result:
+                    if 'choices' in result['output']:
+                        text = result['output']['choices'][0]['message']['content']
+                    elif 'text' in result['output']:
+                        text = result['output']['text']
+            
+            if not text:
+                text = str(result)
+                
             tokens_output = len(text) // 4
             track_api_usage('analyze', tokens_input, tokens_output, success=True)
             
@@ -530,8 +550,8 @@ def analyze_with_qwen(prompt, mode='standard'):
                 try:
                     json_str = match.group(0).replace('```json', '').replace('```', '').strip()
                     return json.loads(json_str), None
-                except json.JSONDecodeError:
-                    print(f"[ANALYZE] ⚠️ JSON inválido de IA: {text[:200]}")
+                except json.JSONDecodeError as e:
+                    print(f"[ANALYZE] ⚠️ JSONDecodeError: {e}. Texto: {json_str[:300]}")
                     return None, "JSON inválido"
             return None, "No se encontró JSON"
         else:
@@ -556,8 +576,6 @@ Responde SOLO JSON: {{"tema_a": "{topic}", "tema_b": "{topic2}", "mas_recorrido"
         lens_instruction = {"data": "\nENFOQUE: Estadísticas.", "controversy": "\nENFOQUE: Conflictos.", "human": "\nENFOQUE: Personas.", "economic": "\nENFOQUE: Finanzas."}.get(lens, "")
         return f"""Analiza tendencia: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}{lens_instruction}
 Responde SOLO JSON: {{"puntaje_relevancia": 7, "justificacion_puntaje": "Explicación del puntaje", "hipotesis": "Hipótesis editorial", "senales_clave": ["Señal 1", "Señal 2"], "angulos_periodisticos": ["Ángulo 1", "Ángulo 2"], "fuentes_sugeridas": ["Fuente 1", "Fuente 2"], "titulares_ejemplo": ["Titular 1", "Titular 2"], "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
-
-# ==================== RUTAS FLASK ====================
 
 @app.route('/')
 def index():
@@ -616,6 +634,7 @@ def get_predictions_route():
         except Exception as e:
             print(f"[PREDICT] IA falló: {str(e)}")
         
+        # Si la IA falla (devuelve []), usa las algorítmicas como respaldo
         all_predictions = cross_predictions if cross_predictions else algo_predictions
         seen, unique = set(), []
         for p in all_predictions:
