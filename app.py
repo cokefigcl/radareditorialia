@@ -68,7 +68,7 @@ CATEGORIES = [
     {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    {'name': 'Chile', 'icon': '🇨', 'type': 'region'},
+    {'name': 'Chile', 'icon': '🇨🇱', 'type': 'region'},
     {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
     {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
     {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
@@ -210,19 +210,15 @@ def fetch_reddit_fast():
 def fetch_youtube_fast():
     articles = []
     
-    # Intentar leer desde variables de entorno
+    # OPCIÓN A: Usar variable de entorno (Recomendado y seguro)
     api_key = os.getenv('YOUTUBE_API_KEY')
     
-    # ==========================================
-    # 🧪 PRUEBA DE FUEGO (Solo para diagnóstico)
-    # Si la variable de entorno falla, descomenta la siguiente línea 
-    # y pega tu clave entre las comillas para probar la API directamente.
-    # ¡IMPORTANTE! Bórrala o vuelve a comentarla después de probar.
-     api_key = "AIzaSyDmCcTBVmkafdPwkxypEIKJAD5lkaAr1vA" 
-    # ==========================================
+    # OPCIÓN B: Prueba de fuego (Descomenta la línea de abajo quitando el '#' para probar)
+    # ¡CUIDADO! No dejes espacios antes de "api_key". Debe estar alineado con la línea de arriba.
+    api_key = "AIzaSyDmCcTBVmkafdPwkxypEIKJAD5lkaAr1vA"
     
     if not api_key:
-        print("[YOUTUBE] ⚠️ YOUTUBE_API_KEY no configurada en el entorno.")
+        print("[YOUTUBE] ⚠️ YOUTUBE_API_KEY no configurada.")
         return []
     
     try:
@@ -812,5 +808,5 @@ def delete_history(analysis_id):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
-    print(f" Iniciando Cora en el puerto {port}...")
+    print(f"🚀 Iniciando Cora en el puerto {port}...")
     app.run(host='0.0.0.0', port=port)
