@@ -208,34 +208,43 @@ def fetch_reddit_fast():
     return articles
 
 # ==============================================================================
-# 🔍 MODO DIAGNÓSTICO EXTREMO: YOUTUBE
+# 🔍 MODO DIAGNÓSTICO AGRESIVO: YOUTUBE
 # ==============================================================================
 def fetch_youtube_fast():
     articles = []
+    
+    print("\n" + "="*70)
+    print("🔍 DIAGNÓSTICO DE VARIABLES DE ENTORNO EN RAILWAY")
+    print("="*70)
+    youtube_vars_found = False
+    for key, value in os.environ.items():
+        if 'YOUTUBE' in key.upper() or 'API' in key.upper():
+            youtube_vars_found = True
+            # Enmascaramos el valor por seguridad, pero mostramos que existe
+            masked = value[:6] + '...' + value[-6:] if len(value) > 12 else '***'
+            print(f"✅ Variable encontrada: '{key}' = {masked}")
+    
+    if not youtube_vars_found:
+        print("❌ NO SE ENCONTRÓ NINGUNA VARIABLE QUE CONTENGA 'YOUTUBE' O 'API'")
+    print("="*70 + "\n")
+    
     api_key = os.getenv('YOUTUBE_API_KEY')
     
     if not api_key:
-        print("[YOUTUBE] ⚠️ YOUTUBE_API_KEY no encontrada en variables de entorno.")
+        print("[YOUTUBE] ⚠️ YOUTUBE_API_KEY sigue sin encontrarse con os.getenv().")
+        print("[YOUTUBE] 💡 Consejo: Ve a Railway -> Variables, borra la variable, y vuélvela a crear copiando y pegando EXACTAMENTE 'YOUTUBE_API_KEY' (sin espacios al final).")
         return []
     
     try:
-        # NOTA: He quitado categoryId=25 temporalmente. A veces no hay noticias "trending" 
-        # en este preciso instante y devuelve lista vacía. Probemos todos los trending de Chile.
         url = f"https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&regionCode=CL&maxResults=10&key={api_key}"
-        
-        print(f"[YOUTUBE DEBUG] Consultando URL: {url}")
+        print(f"[YOUTUBE DEBUG] Consultando URL...")
         response = cr.get(url, timeout=15)
-        
         print(f"[YOUTUBE DEBUG] HTTP Status: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
             items = data.get('items', [])
             print(f"[YOUTUBE DEBUG] Cantidad de items recibidos: {len(items)}")
-            
-            # Si viene vacío, imprimimos el JSON completo para ver qué dice Google
-            if len(items) == 0:
-                print(f"[YOUTUBE DEBUG] Respuesta completa de Google: {json.dumps(data, indent=2)}")
             
             for item in items:
                 title = item.get('snippet', {}).get('title', '').strip()
@@ -250,15 +259,13 @@ def fetch_youtube_fast():
             print(f"[FETCH] YouTube: {len(articles)} artículos obtenidos.")
         else:
             print(f"[YOUTUBE DEBUG] ❌ ERROR HTTP {response.status_code}")
-            print(f"[YOUTUBE DEBUG] Respuesta cruda: {response.text}")
+            print(f"[YOUTUBE DEBUG] Respuesta cruda: {response.text[:300]}")
             
     except Exception as e:
         print(f"[YOUTUBE DEBUG] ❌ Excepción: {str(e)}")
     return articles
+# ==============================================================================
 
-# ==============================================================================
-# 🔍 MODO DIAGNÓSTICO EXTREMO: GOOGLE TRENDS
-# ==============================================================================
 def fetch_trends_sources():
     articles = []
     try:
@@ -296,7 +303,6 @@ def fetch_trends_sources():
     except Exception as e:
         print(f"[TRENDS DEBUG] ❌ Excepción: {str(e)}")
     return articles
-# ==============================================================================
 
 def get_cached_data(max_age_minutes=120):
     if os.path.exists(CACHE_FILE):
