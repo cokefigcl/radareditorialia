@@ -719,9 +719,24 @@ def analyze():
         articles, _ = fetch_raw_articles(force_refresh=False)
         news = []
         topic_lower = topic.lower()
+        
+        # EXTRAER PALABRAS CLAVE DE LA PREGUNTA
+        # Busca palabras de más de 4 letras que no sean stopwords (el, la, por, qué, etc.)
+        keywords = [w for w in re.findall(r'[a-zñ]{4,}', topic_lower) if w not in STOPWORDS]
+        
+        # Si la pregunta es muy corta o no tiene keywords, usa el tema completo
+        search_terms = keywords if len(keywords) >= 2 else [topic_lower]
+        
         for a in articles:
-            if topic_lower in a['title'].lower():
-                news.append({'titulo': a['title'], 'fuente': a['source'], 'url': a['url'], 'fecha': a.get('first_seen', '')[:10] if a.get('first_seen') else ''})
+            title_lower = a['title'].lower()
+            # Buscar si ALGUNA de las palabras clave está en el título
+            if any(term in title_lower for term in search_terms):
+                news.append({
+                    'titulo': a['title'],
+                    'fuente': a['source'],
+                    'url': a['url'],
+                    'fecha': a.get('first_seen', '')[:10] if a.get('first_seen') else ''
+                })
                 if len(news) >= 5:
                     break
         
