@@ -59,57 +59,6 @@ def init_db():
 
 init_db()
 
-# ==================== DIAGNÓSTICO DE YOUTUBE API ====================
-def test_youtube_api_connection():
-    """Test de conexión a YouTube API al iniciar"""
-    api_key = os.getenv('YOUTUBE_API_KEY')
-    
-    print("\n" + "="*60)
-    print("🔍 DIAGNÓSTICO YOUTUBE API")
-    print("="*60)
-    print(f"✓ YOUTUBE_API_KEY existe: {api_key is not None}")
-    if api_key:
-        print(f"✓ Longitud: {len(api_key)} caracteres")
-        print(f"✓ Primeros 10 chars: {api_key[:10]}...")
-        print(f"✓ Últimos 10 chars: ...{api_key[-10:]}")
-        
-        # Test real de conexión
-        try:
-            test_url = f"https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&regionCode=CL&maxResults=1&key={api_key}"
-            print(f"\n📡 Probando conexión a YouTube API...")
-            response = cr.get(test_url, timeout=10)
-            print(f"📊 HTTP Status: {response.status_code}")
-            
-            if response.status_code == 200:
-                print("✅ YouTube API FUNCIONA CORRECTAMENTE")
-                data = response.json()
-                print(f"   Videos disponibles: {len(data.get('items', []))}")
-            else:
-                print(f" YouTube API ERROR: {response.status_code}")
-                print(f"   Respuesta: {response.text[:200]}")
-                
-                # Diagnosticar error común
-                if response.status_code == 403:
-                    error_data = response.json()
-                    print("\n⚠️ ERROR 403 - Posibles causas:")
-                    print("   1. API no habilitada en Google Cloud")
-                    print("   2. Cuota agotada")
-                    print("   3. API Key restringida por IP/Referer")
-                    print(f"   Detalle: {error_data}")
-                elif response.status_code == 400:
-                    print("\n⚠️ ERROR 400 - API Key inválida o formato incorrecto")
-                    
-        except Exception as e:
-            print(f"❌ Error de conexión: {str(e)}")
-    else:
-        print("❌ YOUTUBE_API_KEY NO CONFIGURADA")
-        print(f"\n Variables disponibles en el sistema:")
-        for key in sorted(os.environ.keys()):
-            if 'youtube' in key.lower() or 'api' in key.lower():
-                print(f"   - {key}")
-    print("="*60 + "\n")
-# ====================================================================
-
 CATEGORIES = [
     {'name': 'Eléctrico', 'icon': '⚡', 'type': 'tema'},
     {'name': 'Automotriz', 'icon': '🚗', 'type': 'tema'},
@@ -120,13 +69,13 @@ CATEGORIES = [
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
     {'name': 'Chile', 'icon': '🇨🇱', 'type': 'region'},
-    {'name': 'Internacional', 'icon': '', 'type': 'region'},
-    {'name': 'Deportes', 'icon': '', 'type': 'otros'},
+    {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
+    {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
     {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
-    {'name': 'Cultura', 'icon': '', 'type': 'otros'},
-    {'name': 'Ocio', 'icon': '', 'type': 'otros'},
-    {'name': 'Salud', 'icon': '', 'type': 'otros'},
-    {'name': 'Sociedad', 'icon': '', 'type': 'otros'},
+    {'name': 'Cultura', 'icon': '🎭', 'type': 'otros'},
+    {'name': 'Ocio', 'icon': '🎮', 'type': 'otros'},
+    {'name': 'Salud', 'icon': '🏥', 'type': 'otros'},
+    {'name': 'Sociedad', 'icon': '👥', 'type': 'otros'},
     {'name': 'TV y Espectáculos', 'icon': '📺', 'type': 'otros'}
 ]
 
@@ -181,7 +130,7 @@ def _norm(s):
 
 def _get_fast(url, timeout=15):
     try:
-        r = cr.get(url, impersonate="chrome", timeout=timeout, headers={"User-Agent": "CoraRadar/1.0"})
+        r = cr.get(url, impersonate="chrome", timeout=timeout, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"})
         if r.status_code == 200:
             return r.text
     except Exception as e:
@@ -238,7 +187,7 @@ def fetch_reddit_fast():
     articles = []
     try:
         url = "https://www.reddit.com/r/chile/hot/.rss"
-        response = cr.get(url, impersonate="chrome", timeout=15, headers={"User-Agent": "CoraRadar/1.0"})
+        response = cr.get(url, impersonate="chrome", timeout=15, headers={"User-Agent": "Mozilla/5.0"})
         if response.status_code == 200:
             root = ET.fromstring(response.text)
             count = 0
@@ -258,21 +207,37 @@ def fetch_reddit_fast():
         print(f"[FETCH] Reddit ❌ ERROR: {str(e)}")
     return articles
 
+# ==============================================================================
+# 🔍 MODO DIAGNÓSTICO EXTREMO: YOUTUBE
+# ==============================================================================
 def fetch_youtube_fast():
     articles = []
     api_key = os.getenv('YOUTUBE_API_KEY')
     
     if not api_key:
-        print("[FETCH] YouTube ️ YOUTUBE_API_KEY no encontrada")
+        print("[YOUTUBE] ⚠️ YOUTUBE_API_KEY no encontrada en variables de entorno.")
         return []
     
     try:
-        url = f"https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&regionCode=CL&categoryId=25&maxResults=10&key={api_key}"
+        # NOTA: He quitado categoryId=25 temporalmente. A veces no hay noticias "trending" 
+        # en este preciso instante y devuelve lista vacía. Probemos todos los trending de Chile.
+        url = f"https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&regionCode=CL&maxResults=10&key={api_key}"
+        
+        print(f"[YOUTUBE DEBUG] Consultando URL: {url}")
         response = cr.get(url, timeout=15)
+        
+        print(f"[YOUTUBE DEBUG] HTTP Status: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
-            for item in data.get('items', [])[:10]:
+            items = data.get('items', [])
+            print(f"[YOUTUBE DEBUG] Cantidad de items recibidos: {len(items)}")
+            
+            # Si viene vacío, imprimimos el JSON completo para ver qué dice Google
+            if len(items) == 0:
+                print(f"[YOUTUBE DEBUG] Respuesta completa de Google: {json.dumps(data, indent=2)}")
+            
+            for item in items:
                 title = item.get('snippet', {}).get('title', '').strip()
                 if title:
                     articles.append({
@@ -282,20 +247,37 @@ def fetch_youtube_fast():
                         'first_seen': datetime.now(timezone.utc).isoformat(),
                         'is_trend': True
                     })
-            print(f"[FETCH] YouTube: {len(articles)} artículos")
+            print(f"[FETCH] YouTube: {len(articles)} artículos obtenidos.")
         else:
-            print(f"[FETCH] YouTube ❌ HTTP {response.status_code}: {response.text[:200]}")
+            print(f"[YOUTUBE DEBUG] ❌ ERROR HTTP {response.status_code}")
+            print(f"[YOUTUBE DEBUG] Respuesta cruda: {response.text}")
+            
     except Exception as e:
-        print(f"[FETCH] YouTube ❌ ERROR: {str(e)}")
+        print(f"[YOUTUBE DEBUG] ❌ Excepción: {str(e)}")
     return articles
 
+# ==============================================================================
+# 🔍 MODO DIAGNÓSTICO EXTREMO: GOOGLE TRENDS
+# ==============================================================================
 def fetch_trends_sources():
     articles = []
     try:
-        response = cr.get("https://trends.google.com/trending/rss?geo=CL", impersonate="chrome", timeout=15)
+        url = "https://trends.google.com/trending/rss?geo=CL&hl=es"
+        print(f"[TRENDS DEBUG] Consultando URL: {url}")
+        
+        response = cr.get(url, impersonate="chrome", timeout=15)
+        print(f"[TRENDS DEBUG] HTTP Status: {response.status_code}")
+        
         if response.status_code == 200:
-            root = ET.fromstring(response.text)
+            raw_text = response.text
+            print(f"[TRENDS DEBUG] Primeros 300 chars de la respuesta: {raw_text[:300]}")
+            
+            root = ET.fromstring(raw_text)
             items = list(root.iter("item"))[:10]
+            
+            if len(items) == 0:
+                print("[TRENDS DEBUG] ⚠️ El XML se parseó bien, pero no hay items <item> dentro.")
+            
             for item in items:
                 title = item.findtext("title", "").strip()
                 if title:
@@ -306,10 +288,15 @@ def fetch_trends_sources():
                         'first_seen': datetime.now(timezone.utc).isoformat(),
                         'is_trend': True
                     })
-        print(f"[FETCH] Trends: {len(articles)} artículos")
+            print(f"[FETCH] Trends: {len(articles)} artículos obtenidos.")
+        else:
+            print(f"[TRENDS DEBUG] ❌ ERROR HTTP {response.status_code}")
+            print(f"[TRENDS DEBUG] Respuesta cruda: {response.text[:500]}")
+            
     except Exception as e:
-        print(f"[FETCH] Trends ❌ ERROR: {str(e)}")
+        print(f"[TRENDS DEBUG] ❌ Excepción: {str(e)}")
     return articles
+# ==============================================================================
 
 def get_cached_data(max_age_minutes=120):
     if os.path.exists(CACHE_FILE):
@@ -852,8 +839,4 @@ def delete_history(analysis_id):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     print(f"🚀 Iniciando Cora en el puerto {port}...")
-    
-    # Ejecutar diagnóstico de YouTube API al iniciar
-    test_youtube_api_connection()
-    
     app.run(host='0.0.0.0', port=port)
