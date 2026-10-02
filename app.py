@@ -68,7 +68,7 @@ CATEGORIES = [
     {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
     {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    {'name': 'Chile', 'icon': '🇨🇱', 'type': 'region'},
+    {'name': 'Chile', 'icon': '🇨', 'type': 'region'},
     {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
     {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
     {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
@@ -207,45 +207,31 @@ def fetch_reddit_fast():
         print(f"[FETCH] Reddit ❌ ERROR: {str(e)}")
     return articles
 
-# ==============================================================================
-# 🔍 MODO DIAGNÓSTICO AGRESIVO: YOUTUBE
-# ==============================================================================
 def fetch_youtube_fast():
     articles = []
     
-    print("\n" + "="*70)
-    print("🔍 DIAGNÓSTICO DE VARIABLES DE ENTORNO EN RAILWAY")
-    print("="*70)
-    youtube_vars_found = False
-    for key, value in os.environ.items():
-        if 'YOUTUBE' in key.upper() or 'API' in key.upper():
-            youtube_vars_found = True
-            # Enmascaramos el valor por seguridad, pero mostramos que existe
-            masked = value[:6] + '...' + value[-6:] if len(value) > 12 else '***'
-            print(f"✅ Variable encontrada: '{key}' = {masked}")
-    
-    if not youtube_vars_found:
-        print("❌ NO SE ENCONTRÓ NINGUNA VARIABLE QUE CONTENGA 'YOUTUBE' O 'API'")
-    print("="*70 + "\n")
-    
+    # Intentar leer desde variables de entorno
     api_key = os.getenv('YOUTUBE_API_KEY')
     
+    # ==========================================
+    # 🧪 PRUEBA DE FUEGO (Solo para diagnóstico)
+    # Si la variable de entorno falla, descomenta la siguiente línea 
+    # y pega tu clave entre las comillas para probar la API directamente.
+    # ¡IMPORTANTE! Bórrala o vuelve a comentarla después de probar.
+    # api_key = "PEGA_TU_CLAVE_AIza_AQUI" 
+    # ==========================================
+    
     if not api_key:
-        print("[YOUTUBE] ⚠️ YOUTUBE_API_KEY sigue sin encontrarse con os.getenv().")
-        print("[YOUTUBE] 💡 Consejo: Ve a Railway -> Variables, borra la variable, y vuélvela a crear copiando y pegando EXACTAMENTE 'YOUTUBE_API_KEY' (sin espacios al final).")
+        print("[YOUTUBE] ⚠️ YOUTUBE_API_KEY no configurada en el entorno.")
         return []
     
     try:
         url = f"https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&regionCode=CL&maxResults=10&key={api_key}"
-        print(f"[YOUTUBE DEBUG] Consultando URL...")
         response = cr.get(url, timeout=15)
-        print(f"[YOUTUBE DEBUG] HTTP Status: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
             items = data.get('items', [])
-            print(f"[YOUTUBE DEBUG] Cantidad de items recibidos: {len(items)}")
-            
             for item in items:
                 title = item.get('snippet', {}).get('title', '').strip()
                 if title:
@@ -256,35 +242,21 @@ def fetch_youtube_fast():
                         'first_seen': datetime.now(timezone.utc).isoformat(),
                         'is_trend': True
                     })
-            print(f"[FETCH] YouTube: {len(articles)} artículos obtenidos.")
+            print(f"[FETCH] YouTube: {len(articles)} artículos")
         else:
-            print(f"[YOUTUBE DEBUG] ❌ ERROR HTTP {response.status_code}")
-            print(f"[YOUTUBE DEBUG] Respuesta cruda: {response.text[:300]}")
-            
+            print(f"[YOUTUBE] ❌ HTTP {response.status_code}: {response.text[:150]}")
     except Exception as e:
-        print(f"[YOUTUBE DEBUG] ❌ Excepción: {str(e)}")
+        print(f"[YOUTUBE] ❌ Error: {str(e)}")
     return articles
-# ==============================================================================
 
 def fetch_trends_sources():
     articles = []
     try:
         url = "https://trends.google.com/trending/rss?geo=CL&hl=es"
-        print(f"[TRENDS DEBUG] Consultando URL: {url}")
-        
         response = cr.get(url, impersonate="chrome", timeout=15)
-        print(f"[TRENDS DEBUG] HTTP Status: {response.status_code}")
-        
         if response.status_code == 200:
-            raw_text = response.text
-            print(f"[TRENDS DEBUG] Primeros 300 chars de la respuesta: {raw_text[:300]}")
-            
-            root = ET.fromstring(raw_text)
+            root = ET.fromstring(response.text)
             items = list(root.iter("item"))[:10]
-            
-            if len(items) == 0:
-                print("[TRENDS DEBUG] ⚠️ El XML se parseó bien, pero no hay items <item> dentro.")
-            
             for item in items:
                 title = item.findtext("title", "").strip()
                 if title:
@@ -295,13 +267,9 @@ def fetch_trends_sources():
                         'first_seen': datetime.now(timezone.utc).isoformat(),
                         'is_trend': True
                     })
-            print(f"[FETCH] Trends: {len(articles)} artículos obtenidos.")
-        else:
-            print(f"[TRENDS DEBUG] ❌ ERROR HTTP {response.status_code}")
-            print(f"[TRENDS DEBUG] Respuesta cruda: {response.text[:500]}")
-            
+        print(f"[FETCH] Trends: {len(articles)} artículos")
     except Exception as e:
-        print(f"[TRENDS DEBUG] ❌ Excepción: {str(e)}")
+        print(f"[FETCH] Trends ❌ ERROR: {str(e)}")
     return articles
 
 def get_cached_data(max_age_minutes=120):
@@ -321,7 +289,7 @@ def get_cached_data(max_age_minutes=120):
                 if articles and len(articles) > 10:
                     has_ok_source = any(v == 'ok' for v in status.values())
                     if not has_ok_source:
-                        print("[CACHE] ⚠️ Caché con artículos pero sin fuentes OK. Forzando refresh...")
+                        print("[CACHE] ⚠️ Caché sin fuentes OK. Forzando refresh...")
                         return None, None
                 
                 print(f"[CACHE] ✅ Usando caché ({len(articles)} artículos)")
@@ -498,7 +466,7 @@ Responde SOLO con un array JSON con {top} tendencias, sin markdown ni texto adic
                         'timestamp': now.isoformat()
                     } for p in predictions[:top] if isinstance(p, dict)]
                 except json.JSONDecodeError as e:
-                    print(f"[IA] ⚠️ JSONDecodeError: {e}. Texto: {match.group(0)[:300]}")
+                    print(f"[IA] ⚠️ JSONDecodeError: {e}")
                     return []
     except Exception as e:
         print(f"[IA] ❌ Error en llamada a IA: {str(e)}")
@@ -580,7 +548,7 @@ def analyze_with_qwen(prompt, mode='standard'):
                     json_str = match.group(0).replace('```json', '').replace('```', '').strip()
                     return json.loads(json_str), None
                 except json.JSONDecodeError as e:
-                    print(f"[ANALYZE] ⚠️ JSONDecodeError: {e}. Texto: {json_str[:300]}")
+                    print(f"[ANALYZE] ⚠️ JSONDecodeError: {e}")
                     return None, "JSON inválido"
             return None, "No se encontró JSON"
         else:
@@ -844,5 +812,5 @@ def delete_history(analysis_id):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
-    print(f"🚀 Iniciando Cora en el puerto {port}...")
+    print(f" Iniciando Cora en el puerto {port}...")
     app.run(host='0.0.0.0', port=port)
