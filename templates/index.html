@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Radar Editorial con IA v8.1</title>
+    <title>Cora - Radar Editorial con IA</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; }
@@ -34,10 +34,6 @@
         .module-header button:hover { background: rgba(255,255,255,0.3); }
         .module-body { padding: 15px 20px; overflow-y: auto; flex: 1; }
         .module-analysis .module-header { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-        .trend-item { padding: 10px; margin-bottom: 8px; background: #f8f9fa; border-radius: 6px; cursor: pointer; border-left: 3px solid #667eea; transition: all 0.2s; }
-        .trend-item:hover { background: #e9ecef; transform: translateX(3px); }
-        .trend-item .topic { font-size: 13px; font-weight: 600; color: #333; line-height: 1.3; }
-        .trend-item .meta { font-size: 11px; color: #666; margin-top: 4px; }
         .prediction-item { padding: 12px; margin-bottom: 10px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff; }
         .prediction-item.critical { border-left-color: #dc3545; background: #fff5f5; }
         .prediction-item.high { border-left-color: #fd7e14; background: #fff8f0; }
@@ -53,8 +49,6 @@
         .prediction-reasoning { font-size: 12px; color: #555; margin-bottom: 5px; font-style: italic; }
         .prediction-alert { background: #fff3cd; padding: 6px 10px; border-radius: 4px; font-size: 11px; color: #856404; margin-top: 8px; }
         .prediction-signals { font-size: 11px; color: #888; margin-top: 5px; }
-        .realtime-badge { display: inline-block; background: #dc3545; color: white; padding: 1px 6px; border-radius: 8px; font-size: 9px; font-weight: bold; margin-left: 6px; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         .analysis-form { display: flex; flex-direction: column; gap: 10px; }
         .analysis-form input, .analysis-form select { padding: 8px 12px; font-size: 13px; border: 1px solid #ddd; border-radius: 6px; }
         .analysis-form input { flex: 1; }
@@ -76,37 +70,35 @@
         .analysis-result p, .analysis-result li { font-size: 13px; line-height: 1.5; }
         .score-badge { display: inline-block; padding: 4px 10px; border-radius: 15px; font-weight: bold; font-size: 12px; }
         .tag { display: inline-block; background: #e9ecef; padding: 3px 8px; margin: 2px; border-radius: 4px; font-size: 11px; }
-        .gata-loader, .perro-loader, .analysis-loader { width: 80px; height: 80px; }
+        .gata-loader, .perro-loader { width: 80px; height: 80px; }
         .gata-loader { animation: gata-float 3s ease-in-out infinite; filter: drop-shadow(0 0 15px rgba(138, 43, 226, 0.6)); }
-        @keyframes gata-float { 0%, 100% { transform: translateY(0) rotate(-2deg); filter: drop-shadow(0 0 15px rgba(138, 43, 226, 0.6)); } 50% { transform: translateY(-10px) rotate(2deg); filter: drop-shadow(0 0 25px rgba(138, 43, 226, 0.9)); } }
-        .gata-loader-container, .perro-loader-container, .analysis-loader-container { text-align: center; padding: 25px 20px; position: relative; }
-        .gata-loader-text, .perro-loader-text, .analysis-loader-text { font-size: 13px; margin-top: 12px; font-weight: 600; animation: text-fade 1.5s infinite; }
+        @keyframes gata-float { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-10px) rotate(2deg); } }
+        .gata-loader-container, .perro-loader-container { text-align: center; padding: 25px 20px; }
+        .gata-loader-text, .perro-loader-text { font-size: 13px; margin-top: 12px; font-weight: 600; animation: text-fade 1.5s infinite; }
         .gata-loader-text { color: #6a1b9a; font-style: italic; }
         .perro-loader-text { color: #e65100; }
-        .analysis-loader-text { color: #c2185b; }
         .perro-loader { animation: perro-search 2s ease-in-out infinite; filter: drop-shadow(0 0 10px rgba(255, 152, 0, 0.4)); }
         @keyframes perro-search { 0%, 100% { transform: translateX(0) rotate(0deg); } 25% { transform: translateX(-5px) rotate(-5deg); } 50% { transform: translateX(0) rotate(0deg); } 75% { transform: translateX(5px) rotate(5deg); } }
-        .analysis-loader { width: 70px; height: 70px; animation: spin-pulse 2s ease-in-out infinite; }
-        @keyframes spin-pulse { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.1); } 100% { transform: rotate(360deg) scale(1); } }
         @keyframes text-fade { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         .empty-state { text-align: center; padding: 30px 20px; color: #999; font-size: 13px; }
         .footer { text-align: center; padding: 15px; color: #666; font-size: 11px; }
         .footer a { color: #007bff; text-decoration: none; }
         .nav-btn { padding: 6px 14px; background: #11998e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; text-decoration: none; font-weight: 600; }
         .nav-btn:hover { background: #0d7a6f; }
+        .trend-item { padding: 10px; margin-bottom: 8px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #4facfe; }
+        .trend-item .topic { font-size: 13px; font-weight: 600; color: #333; line-height: 1.3; }
+        .trend-item .meta { font-size: 11px; color: #666; margin-top: 4px; }
     </style>
 </head>
 <body>
     <div class="topbar">
-        <div class="topbar-title">📰 Radar <span>Editorial</span> con IA</div>
+        <div class="topbar-title">📰 Cora <span>Radar Editorial</span> con IA</div>
         <div style="display: flex; gap: 10px; align-items: center;">
             <a href="/dashboard" class="nav-btn">📊 Dashboard</a>
             <div class="status-bar" id="statusBar">
                 <div class="status-item"><span class="label">💵</span><span class="value" id="statusDolar">--</span></div>
                 <div class="status-item"><span class="label">📊</span><span class="value" id="statusUF">--</span></div>
                 <div class="status-item"><span class="label">🌡️</span><span class="value" id="statusClima">--</span></div>
-                <div class="status-item"><span class="label">🔌</span><span class="value status-ok" id="statusGdelt">●</span></div>
-                <div class="status-item"><span class="label">🤖</span><span class="value status-ok" id="statusQwen">●</span></div>
             </div>
         </div>
     </div>
@@ -131,18 +123,18 @@
             <div class="module-body" id="predictionsList">
                 <div class="gata-loader-container">
                     <img src="https://ltv.cl/x/maybisweb.png" alt="Gata vidente" class="gata-loader">
-                    <div class="gata-loader-text">🔮 La gata cruza datos y proyecta...</div>
+                    <div class="gata-loader-text">🔮 Cora cruza datos y proyecta...</div>
                 </div>
             </div>
         </div>
         
         <div class="module module-analysis">
             <div class="module-header">
-                <h3>🔍 Análisis</h3>
+                <h3> Análisis</h3>
             </div>
             <div class="module-body">
                 <div class="analysis-form">
-                    <input type="text" id="topicInput" placeholder="Tema a analizar...">
+                    <input type="text" id="topicInput" placeholder="Ej: ¿Por qué subió el dólar? o Reforma de pensiones...">
                     <input type="text" id="topic2Input" placeholder="Segundo tema (comparador)" style="display: none;">
                     <div class="form-row">
                         <select id="categorySelect"><option value="">Categoría</option></select>
@@ -151,9 +143,9 @@
                     <div>
                         <div style="font-size: 11px; color: #666; margin-bottom: 5px;">Modo:</div>
                         <div class="mode-btns">
-                            <div class="tooltip-container"><button class="mode-btn active" onclick="selectMode('standard')"> Estándar</button><span class="tooltip-text"><strong>Análisis Estándar</strong>Genera una hipótesis editorial, señales clave, ángulos periodísticos, fuentes sugeridas y titulares de ejemplo.</span></div>
-                            <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('briefing')">⚡ Briefing</button><span class="tooltip-text"><strong>Briefing Periodístico</strong>Genera un resumen ejecutivo, preguntas exactas para tu fuente, datos duros a verificar y timeline sugerido.</span></div>
-                            <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('devil')">😈 Abogado del Diablo</button><span class="tooltip-text"><strong>Abogado del Diablo</strong>Identifica lo que todos los medios ya están diciendo, revela el ángulo ciego y plantea la pregunta incómoda.</span></div>
+                            <div class="tooltip-container"><button class="mode-btn active" onclick="selectMode('standard')">📊 Estándar</button><span class="tooltip-text"><strong>Análisis Estándar</strong>Genera una hipótesis editorial, señales clave, ángulos periodísticos, fuentes sugeridas y titulares de ejemplo.</span></div>
+                            <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('briefing')"> Briefing</button><span class="tooltip-text"><strong>Briefing Periodístico</strong>Genera un resumen ejecutivo, preguntas exactas para tu fuente, datos duros a verificar y timeline sugerido.</span></div>
+                            <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('devil')"> Abogado del Diablo</button><span class="tooltip-text"><strong>Abogado del Diablo</strong>Identifica lo que todos los medios ya están diciendo, revela el ángulo ciego y plantea la pregunta incómoda.</span></div>
                             <div class="tooltip-container"><button class="mode-btn" onclick="selectMode('compare')">⚖️ Comparar</button><span class="tooltip-text"><strong>Comparador de Temas</strong>Compara dos temas: cuál tiene más recorrido, fuentes comunes y recomendación de cuál cubrir primero.</span></div>
                         </div>
                     </div>
@@ -186,21 +178,19 @@
     </div>
     
     <div class="footer">
-        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | v8.1
+        Desarrollado por <a href="https://ltv.cl" target="_blank">Joesramirez</a> - LTV.cl | Cora v13.0
     </div>
 
     <script>
-        console.log("════════════════════════════════════════╗");
-        console.log("║  RADAR EDITORIAL v8.1 CARGADO         ║");
-        console.log("╚════════════════════════════════════════╝");
+        console.log("🐾 Cora Radar Editorial v13.0 cargado");
         
         let currentCategory = 'all';
         let categories = [];
         let currentMode = 'standard';
         let currentLens = '';
 
-        const gataPhrases = ["🔮 La gata cruza datos y proyecta...", "✨ Analizando señales convergentes...", "🌙 Proyectando escenarios futuros...", " Detectando temas emergentes...", "⭐ Cruzando fuentes con IA...", "🌌 La gata anticipa tendencias...", "🔮 Maybis predice el futuro editorial...", "✨ Visionando lo que viene..."];
-        const analysisPhrases = [" Uri investiga el tema...", "🐕 Analizando pistas...", "📋 Revisando fuentes...", "🔎 Buscando ángulos...", "📰 Investigando a fondo...", "🐾 Siguiendo el rastro...", "🔍 Uri está en ello...", "📊 Cruzando datos..."];
+        const gataPhrases = [" Cora cruza datos y proyecta...", "✨ Analizando señales convergentes...", "🌙 Proyectando escenarios futuros...", "🔍 Detectando temas emergentes...", "⭐ Cruzando fuentes con IA...", "🌌 Cora anticipa tendencias...", "🔮 Visionando el futuro editorial...", "✨ Analizando lo que viene..."];
+        const analysisPhrases = [" Cora investiga el tema...", "🐕 Analizando pistas...", "📋 Revisando fuentes...", "🔎 Buscando ángulos...", " Investigando a fondo...", "🐾 Siguiendo el rastro...", "🔍 Cora está en ello...", "📊 Cruzando datos..."];
 
         function getRandomPhrase(phrases) { return phrases[Math.floor(Math.random() * phrases.length)]; }
 
@@ -211,7 +201,6 @@
             if (category && category !== 'all') parts.push('category=' + encodeURIComponent(category));
             parts.push('_t=' + Date.now());
             url += parts.join('&');
-            console.log('[URL BUILDER] URL generada:', url);
             return url;
         }
 
@@ -269,12 +258,6 @@
                 if (status.weather && status.weather.status === 'ok') {
                     document.getElementById('statusClima').textContent = status.weather.temperature + '°C';
                 }
-                const gdeltEl = document.getElementById('statusGdelt');
-                gdeltEl.textContent = '●';
-                gdeltEl.className = 'value ' + (status.apis.scraping === 'ok' ? 'status-ok' : 'status-error');
-                const qwenEl = document.getElementById('statusQwen');
-                qwenEl.textContent = '●';
-                qwenEl.className = 'value ' + (status.apis.qwen === 'ok' ? 'status-ok' : 'status-error');
             } catch (err) { console.error('[STATUS] Error:', err); }
         }
 
@@ -284,26 +267,11 @@
             
             try {
                 const url = buildPredictionsUrl(force, currentCategory);
-                console.log('[PREDICTIONS] Fetching:', url);
+                const res = await fetch(url, { method: 'GET', cache: 'no-store' });
                 
-                const res = await fetch(url, {
-                    method: 'GET',
-                    cache: 'no-store',
-                    headers: {
-                        'Cache-Control': 'no-cache, no-store, must-revalidate',
-                        'Pragma': 'no-cache'
-                    }
-                });
-                
-                console.log('[PREDICTIONS] Response status:', res.status);
-                
-                if (!res.ok) {
-                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-                }
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 
                 const data = await res.json();
-                console.log('[PREDICTIONS] Data received:', data);
-                
                 const predictions = data.predictions || [];
                 
                 if (!predictions || predictions.length === 0) {
@@ -328,16 +296,15 @@
                             <span style="color: ${getImpactColor(p.impact)}; font-weight: 600;">Impacto: ${p.impact || 'medio'}</span>
                         </div>
                         ${p.signals && p.signals.length > 0 ? `<div class="prediction-signals">📡 Señales: ${p.signals.join(' • ')}</div>` : ''}
-                        ${p.alert_level ? `<div class="prediction-alert">${p.alert_level === 'critical' ? '🚨 ALERTA CRÍTICA' : '⚠️ ALERTA'}</div>` : ''}
+                        ${p.alert_level ? `<div class="prediction-alert">${p.alert_level === 'critical' ? ' ALERTA CRÍTICA' : '⚠️ ALERTA'}</div>` : ''}
                     </div>`;
                 });
                 
                 list.innerHTML = html;
-                console.log('[PREDICTIONS] ✅ Rendered', predictions.length, 'predictions');
                 
             } catch (err) { 
-                console.error('[PREDICTIONS] ❌ Error:', err);
-                list.innerHTML = `<div class="empty-state" style="color:red;">Error: ${err.message}<br><small>Revisa la consola (F12)</small></div>`; 
+                console.error('[PREDICTIONS] Error:', err);
+                list.innerHTML = `<div class="empty-state" style="color:red;">Error: ${err.message}</div>`; 
             }
         }
 
@@ -345,8 +312,6 @@
             const colors = {'bajo': '#28a745', 'medio': '#ffc107', 'alto': '#fd7e14', 'crítico': '#dc3545'};
             return colors[impact?.toLowerCase()] || '#6c757d';
         }
-
-        function useTrend(topic) { document.getElementById('topicInput').value = topic; }
 
         document.addEventListener('click', function(e) {
             const tooltipContainer = e.target.closest('.tooltip-container');
@@ -381,7 +346,7 @@
             const category = document.getElementById('categorySelect').value;
             const region = document.getElementById('regionSelect').value;
             
-            if (!topic) { alert('Ingresa un tema'); return; }
+            if (!topic) { alert('Ingresa un tema o pregunta'); return; }
             if (currentMode === 'compare' && !topic2) { alert('Ingresa el segundo tema'); return; }
 
             const btn = document.getElementById('analyzeBtn');
@@ -419,12 +384,12 @@
             
             if (data.mode === 'standard' && score > 0) {
                 const scoreClass = score >= 7 ? 'score-high' : (score >= 4 ? 'score-medium' : 'score-low');
-                const scoreLabel = score >= 9 ? '🔴 CRÍTICA' : (score >= 7 ? '✅ ALTA' : (score >= 4 ? '️ MEDIA' : '🔵 BAJA'));
+                const scoreLabel = score >= 9 ? '🔴 CRÍTICA' : (score >= 7 ? '✅ ALTA' : (score >= 4 ? '🟡 MEDIA' : '🔵 BAJA'));
                 html += `<div style="margin-bottom: 10px;"><span class="score-badge ${scoreClass}">${score}/10 - ${scoreLabel}</span></div>`;
             }
             if (a.resumen_ejecutivo) html += `<h4>📝 Resumen</h4><p>${a.resumen_ejecutivo}</p>`;
             if (a.hipotesis) html += `<h4>🎯 Hipótesis</h4><p>${a.hipotesis}</p>`;
-            if (a.cobertura_mainstream) html += `<h4>📰 Cobertura actual</h4><p>${a.cobertura_mainstream}</p>`;
+            if (a.cobertura_mainstream) html += `<h4> Cobertura actual</h4><p>${a.cobertura_mainstream}</p>`;
             if (a.angulo_ciego) html += `<h4>💡 Ángulo ciego</h4><p style="color: #28a745; font-weight: 600;">${a.angulo_ciego}</p>`;
             if (a.pregunta_incomoda) html += `<h4>🔥 Pregunta incómoda</h4><p style="color: #dc3545; font-weight: 600;">${a.pregunta_incomoda}</p>`;
             if (a.mas_recorrido) html += `<h4>📊 Más recorrido</h4><p>${a.mas_recorrido}</p>`;
@@ -432,16 +397,16 @@
             if (a.preguntas_fuente && a.preguntas_fuente.length) { html += '<h4>❓ Preguntas para fuente</h4><ul>'; a.preguntas_fuente.forEach(q => { html += `<li>${q}</li>`; }); html += '</ul>'; }
             if (a.senales_clave && a.senales_clave.length) { html += '<h4>🔍 Señales clave</h4><div>'; a.senales_clave.forEach(s => { html += `<span class="tag">${s}</span>`; }); html += '</div>'; }
             if (a.angulos_periodisticos && a.angulos_periodisticos.length) { html += '<h4>📝 Ángulos</h4><ul>'; a.angulos_periodisticos.forEach(ang => { html += `<li>${ang}</li>`; }); html += '</ul>'; }
-            if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) { html += '<h4>📚 Fuentes</h4><ul>'; a.fuentes_sugeridas.forEach(f => { html += `<li>${f}</li>`; }); html += '</ul>'; }
+            if (a.fuentes_sugeridas && a.fuentes_sugeridas.length) { html += '<h4> Fuentes</h4><ul>'; a.fuentes_sugeridas.forEach(f => { html += `<li>${f}</li>`; }); html += '</ul>'; }
             if (a.titulares_ejemplo && a.titulares_ejemplo.length) { html += '<h4>📝 Titulares sugeridos</h4><ul>'; a.titulares_ejemplo.forEach(t => { html += `<li>📌 ${t}</li>`; }); html += '</ul>'; }
-            if (a.datos_duros && a.datos_duros.length) { html += '<h4> Datos a verificar</h4><div>'; a.datos_duros.forEach(d => { html += `<span class="tag">${d}</span>`; }); html += '</div>'; }
+            if (a.datos_duros && a.datos_duros.length) { html += '<h4>📊 Datos a verificar</h4><div>'; a.datos_duros.forEach(d => { html += `<span class="tag">${d}</span>`; }); html += '</div>'; }
             if (a.timeline_sugerido) html += `<h4>⏰ Timeline</h4><p>${a.timeline_sugerido}</p>`;
             if (a.angulo_conector) html += `<h4>💡 Ángulo conector</h4><p>${a.angulo_conector}</p>`;
             if (a.fuentes_comunes && a.fuentes_comunes.length) { html += '<h4>🔗 Fuentes comunes</h4><div>'; a.fuentes_comunes.forEach(f => { html += `<span class="tag">${f}</span>`; }); html += '</div>'; }
             if (a.riesgos_sesgos && a.riesgos_sesgos.length) { html += '<h4>⚠️ Riesgos</h4><div>'; a.riesgos_sesgos.forEach(r => { html += `<span class="tag">${r}</span>`; }); html += '</div>'; }
             
             if (a.noticias_reales && a.noticias_reales.length > 0) {
-                html += '<h4>📰 Noticias</h4>';
+                html += '<h4>📰 Noticias relacionadas</h4>';
                 a.noticias_reales.forEach(n => {
                     if (n.url) html += `<div style="font-size: 12px; margin: 4px 0;"><a href="${n.url}" target="_blank" style="color: #007bff;">📰 ${n.titulo}</a> <span style="color: #666;">- ${n.fuente}</span></div>`;
                     else html += `<div style="font-size: 12px; margin: 4px 0;">📰 ${n.titulo} <span style="color: #666;">- ${n.fuente}</span></div>`;
@@ -463,9 +428,9 @@
                     const score = item.score || 0;
                     const date = item.created_at ? new Date(item.created_at).toLocaleString('es-CL') : '';
                     const modeLabels = {'standard': '📊', 'briefing': '⚡', 'devil': '😈', 'compare': '⚖️'};
-                    html += `<div class="trend-item" style="border-left-color: #4facfe;">
+                    html += `<div class="trend-item">
                         <div class="topic">${modeLabels[item.mode] || ''} ${item.topic}${item.topic2 ? ' vs ' + item.topic2 : ''}</div>
-                        <div class="meta">📂 ${item.category || 'General'} | 📅 ${date} ${score > 0 ? '| Score: ' + score + '/10' : ''}</div>
+                        <div class="meta">📂 ${item.category || 'General'} |  ${date} ${score > 0 ? '| Score: ' + score + '/10' : ''}</div>
                         <div style="margin-top: 6px;">
                             <button class="cat-btn" style="font-size: 10px; padding: 3px 8px;" onclick="reAnalyze('${item.topic.replace(/'/g, "\\'")}', '${item.category || ''}', '${item.mode}')">🔄 Re-analizar</button>
                             <button class="cat-btn" style="font-size: 10px; padding: 3px 8px; background: #dc3545; color: white; border-color: #dc3545;" onclick="deleteAnalysis(${item.id})">🗑️</button>
