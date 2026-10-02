@@ -118,11 +118,9 @@ SOURCES_ES = {
 }
 
 SOURCES_EN = {
-    "reuters": {"rss": "https://feeds.reuters.com/reuters/worldNews", "name": "Reuters"},
     "guardian": {"rss": "https://www.theguardian.com/world/rss", "name": "The Guardian"},
     "aljazeera": {"rss": "https://www.aljazeera.com/xml/rss/all.xml", "name": "Al Jazeera"},
     "techcrunch": {"rss": "https://techcrunch.com/feed/", "name": "TechCrunch"},
-    "ap_news": {"rss": "https://rsshub.app/apnews/topics/apf-topnews", "name": "AP News"},
 }
 
 STOPWORDS = {'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'al', 'y', 'o', 'que', 'por', 'para', 'con', 'en', 'a', 'se', 'su', 'chile', 'santiago', 'hoy', 'más', 'the', 'and', 'for', 'that', 'this', 'es', 'son', 'como', 'pero', 'también', 'sin', 'sobre', 'entre'}
@@ -243,7 +241,9 @@ def fetch_trends_sources():
         response = cr.get("https://trends.google.com/trending/rss?geo=CL", impersonate="chrome", timeout=15)
         if response.status_code == 200:
             root = ET.fromstring(response.text)
-            for item in root.iter("item")[:10]:
+            # FIX: Convertir iterador a lista antes de hacer slicing
+            items = list(root.iter("item"))[:10]
+            for item in items:
                 title = item.findtext("title", "").strip()
                 if title:
                     articles.append({
@@ -255,7 +255,7 @@ def fetch_trends_sources():
                     })
         print(f"[FETCH] Trends: {len(articles)} artículos")
     except Exception as e:
-        print(f"[FETCH] Trends ❌ ERROR REAL: {str(e)}")
+        print(f"[FETCH] Trends  ERROR REAL: {str(e)}")
     return articles
 
 def get_cached_data(max_age_minutes=120):
@@ -721,7 +721,6 @@ def analyze():
         topic_lower = topic.lower()
         
         # EXTRAER PALABRAS CLAVE DE LA PREGUNTA
-        # Busca palabras de más de 4 letras que no sean stopwords (el, la, por, qué, etc.)
         keywords = [w for w in re.findall(r'[a-zñ]{4,}', topic_lower) if w not in STOPWORDS]
         
         # Si la pregunta es muy corta o no tiene keywords, usa el tema completo
@@ -729,7 +728,6 @@ def analyze():
         
         for a in articles:
             title_lower = a['title'].lower()
-            # Buscar si ALGUNA de las palabras clave está en el título
             if any(term in title_lower for term in search_terms):
                 news.append({
                     'titulo': a['title'],
