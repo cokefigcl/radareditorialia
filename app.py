@@ -218,7 +218,7 @@ def fetch_youtube_fast():
     # Si la variable de entorno falla, descomenta la siguiente línea 
     # y pega tu clave entre las comillas para probar la API directamente.
     # ¡IMPORTANTE! Bórrala o vuelve a comentarla después de probar.
-    # api_key = "AIzaSyDmCcTBVmkafdPwkxypEIKJAD5lkaAr1vA" 
+     api_key = "AIzaSyDmCcTBVmkafdPwkxypEIKJAD5lkaAr1vA" 
     # ==========================================
     
     if not api_key:
