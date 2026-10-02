@@ -211,14 +211,14 @@ def fetch_youtube_fast():
     articles = []
     
     # Intentar leer desde variables de entorno
-    api_key = os.getenv('AIzaSyDmCcTBVmkafdPwkxypEIKJAD5lkaAr1vA')
+    api_key = os.getenv('YOUTUBE_API_KEY')
     
     # ==========================================
     # 🧪 PRUEBA DE FUEGO (Solo para diagnóstico)
     # Si la variable de entorno falla, descomenta la siguiente línea 
     # y pega tu clave entre las comillas para probar la API directamente.
     # ¡IMPORTANTE! Bórrala o vuelve a comentarla después de probar.
-    # api_key = "PEGA_TU_CLAVE_AIza_AQUI" 
+    # api_key = "AIzaSyDmCcTBVmkafdPwkxypEIKJAD5lkaAr1vA" 
     # ==========================================
     
     if not api_key:
