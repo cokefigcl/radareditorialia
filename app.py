@@ -211,7 +211,7 @@ def fetch_youtube_fast():
     articles = []
     
     # Intentar leer desde variables de entorno
-    api_key = os.getenv('YOUTUBE_API_KEY')
+    api_key = os.getenv('AIzaSyDmCcTBVmkafdPwkxypEIKJAD5lkaAr1vA')
     
     # ==========================================
     # 🧪 PRUEBA DE FUEGO (Solo para diagnóstico)
