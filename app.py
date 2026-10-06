@@ -59,21 +59,21 @@ init_db()
 
 CATEGORIES = [
     {'name': 'Eléctrico', 'icon': '⚡', 'type': 'tema'},
-    {'name': 'Automotriz', 'icon': '', 'type': 'tema'},
-    {'name': 'Belleza', 'icon': '', 'type': 'tema'},
-    {'name': 'Minería', 'icon': '️', 'type': 'tema'},
-    {'name': 'IA', 'icon': '', 'type': 'tema'},
-    {'name': 'Tendencias', 'icon': '', 'type': 'tema'},
+    {'name': 'Automotriz', 'icon': '🚗', 'type': 'tema'},
+    {'name': 'Belleza', 'icon': '💄', 'type': 'tema'},
+    {'name': 'Minería', 'icon': '⛏️', 'type': 'tema'},
+    {'name': 'IA', 'icon': '🤖', 'type': 'tema'},
+    {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
-    {'name': 'Economía', 'icon': '', 'type': 'tema'},
-    {'name': 'Chile', 'icon': '🇱', 'type': 'region'},
+    {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
+    {'name': 'Chile', 'icon': '🇨', 'type': 'region'},
     {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
-    {'name': 'Deportes', 'icon': '', 'type': 'otros'},
+    {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
     {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
-    {'name': 'Cultura', 'icon': '', 'type': 'otros'},
+    {'name': 'Cultura', 'icon': '🎭', 'type': 'otros'},
     {'name': 'Ocio', 'icon': '🎮', 'type': 'otros'},
-    {'name': 'Salud', 'icon': '', 'type': 'otros'},
-    {'name': 'Sociedad', 'icon': '', 'type': 'otros'},
+    {'name': 'Salud', 'icon': '🏥', 'type': 'otros'},
+    {'name': 'Sociedad', 'icon': '👥', 'type': 'otros'},
     {'name': 'TV y Espectáculos', 'icon': '📺', 'type': 'otros'}
 ]
 
@@ -208,13 +208,9 @@ def fetch_reddit_fast():
 def fetch_youtube_fast():
     articles = []
     api_key = os.getenv('YOUTUBE_API_KEY')
-    # Prueba de fuego (descomentar si la variable de entorno falla)
-    # api_key = "AIzaSyDmCcTBVmkafdPwkxypEIKJAD5lkaAr1vA"
-    
     if not api_key:
-        print("[YOUTUBE] ⚠️ YOUTUBE_API_KEY no configurada.")
+        print("[YOUTUBE] ️ YOUTUBE_API_KEY no configurada.")
         return []
-    
     try:
         url = f"https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&regionCode=CL&maxResults=10&key={api_key}"
         response = cr.get(url, timeout=15)
@@ -341,10 +337,10 @@ def fetch_raw_articles(force_refresh=False):
     return unique, status
 
 # ============================================================
-# 🕒 NUEVO: Filtrar artículos de las últimas 24 horas
+# 🕒 FILTRO DE ACTUALIDAD CORREGIDO (más permisivo)
 # ============================================================
-def filter_recent_articles(articles, max_hours=24):
-    """Filtra artículos para mantener solo los de las últimas N horas"""
+def filter_recent_articles(articles, max_hours=48):
+    """Filtra artículos manteniendo los recientes. Si no hay fecha válida, los mantiene."""
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(hours=max_hours)
     recent = []
@@ -353,19 +349,22 @@ def filter_recent_articles(articles, max_hours=24):
             fs = a.get('first_seen', '')
             if isinstance(fs, str):
                 fs = datetime.fromisoformat(fs.replace('Z', '+00:00'))
-            if fs >= cutoff:
+            # Si la fecha es válida y reciente, o si no se puede parsear, lo mantenemos
+            if fs >= cutoff or fs.year == 1900:
                 recent.append(a)
         except Exception:
-            # Si no se puede parsear la fecha, lo mantenemos por seguridad
+            # Si no se puede parsear, lo mantenemos por seguridad
             recent.append(a)
     return recent
 
 def group_related_articles(articles, top=8):
+    """Agrupa artículos relacionados y cruza datos de múltiples fuentes"""
     if not articles:
         return []
     now = datetime.now(timezone.utc)
     groups = defaultdict(list)
     
+    # Agrupar por palabras clave significativas
     for a in articles:
         norm = _norm(a['title'])
         words = re.findall(r'[a-zñ]{4,}', norm)
@@ -374,6 +373,7 @@ def group_related_articles(articles, top=8):
             key = ' '.join(sorted(significant[:5]))
             groups[key].append(a)
         else:
+            # Si no hay suficientes palabras clave, usar el título completo
             groups[a['title']].append(a)
     
     scored = []
@@ -383,6 +383,7 @@ def group_related_articles(articles, top=8):
         viral_sources = {'reddit_chile', 'youtube_trending', 'google_trends'}
         has_viral = len(sources & viral_sources)
         
+        # Score: más fuentes = más relevancia, más artículos = más trending
         score = len(sources) * 20 + min(30, len(items) * 5) + (has_viral * 15)
         representative = max(items, key=lambda x: len(x['title']))
         
@@ -416,14 +417,14 @@ def group_related_articles(articles, top=8):
     return result
 
 # ============================================================
-# 🧠 NUEVO: Prompt con fecha actual y contexto temporal
+# 🧠 PREDICCIONES CON IA (filtro de 24h + fecha actual)
 # ============================================================
 def cross_predictions_func(articles, category='all', top=6):
     if not articles or len(articles) < 3:
         return []
     
-    # Filtrar solo artículos de las últimas 24 horas
-    recent_articles = filter_recent_articles(articles, max_hours=24)
+    # Filtrar solo artículos de las últimas 48 horas (más permisivo)
+    recent_articles = filter_recent_articles(articles, max_hours=48)
     if len(recent_articles) < 3:
         recent_articles = articles[:15]  # Fallback si no hay suficientes recientes
     
@@ -436,7 +437,7 @@ def cross_predictions_func(articles, category='all', top=6):
     
     prompt = f"""Hoy es {fecha_actual}. Eres un analista de tendencias editoriales experto.
 
-Analiza estos titulares RECENTES (últimas 24 horas) y detecta PATRONES o TEMAS EMERGENTES que sean RELEVANTES AHORA:
+Analiza estos titulares RECENTES y detecta PATRONES o TEMAS EMERGENTES que sean RELEVANTES AHORA:
 
 {headlines}
 
@@ -444,6 +445,7 @@ Responde SOLO con un array JSON con {top} tendencias. Cada tendencia debe:
 - Ser un tema ACTUAL y vigente (no del pasado)
 - Tener proyección hacia el futuro inmediato
 - Estar fundamentada en los titulares proporcionados
+- Cruzar información de múltiples fuentes cuando sea posible
 
 Formato:
 [{{"topic": "Tema claro y específico", "score": 72, "reasoning": "Por qué es tendencia AHORA (2-3 oraciones)", "signals": ["Señal 1", "Señal 2"], "impact": "alto", "timeframe": "próximas horas", "category": "Categoría"}}]"""
@@ -589,7 +591,6 @@ def analyze_with_qwen(prompt, mode='standard'):
 def generate_analysis(topic, topic2, category, region, mode, lens, news):
     news_text = "\n\nNoticias:\n" + "\n".join([f"- {n['titulo']}" for n in news[:5]]) if news else ""
     
-    # Fecha actual para contexto
     now = datetime.now(timezone.utc)
     fecha_actual = now.strftime('%A %d de %B de %Y, %H:%M UTC')
     
@@ -648,7 +649,11 @@ def get_predictions_route():
         if not articles:
             return jsonify({'predictions': [], 'source_status': status, 'category': category})
         
+        # Generar predicciones algorítmicas (cruce de datos)
         algo_predictions = group_related_articles(articles, top=8)
+        print(f"[PREDICT] Algorítmicas: {len(algo_predictions)}")
+        
+        # Generar predicciones con IA
         cross_predictions = []
         try:
             if category != 'all':
@@ -661,9 +666,11 @@ def get_predictions_route():
                     cross_predictions = cross_predictions_func(articles, category=category, top=6)
             else:
                 cross_predictions = cross_predictions_func(articles, category='all', top=6)
+            print(f"[PREDICT] Cruzadas IA: {len(cross_predictions)}")
         except Exception as e:
             print(f"[PREDICT] IA falló: {str(e)}")
         
+        # Combinar ambas (IA primero si existe, luego algorítmicas)
         all_predictions = cross_predictions if cross_predictions else algo_predictions
         seen, unique = set(), []
         for p in all_predictions:
