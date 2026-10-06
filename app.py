@@ -7,9 +7,7 @@ import unicodedata
 import sqlite3
 from datetime import datetime, timezone, timedelta
 from collections import defaultdict
-from email.utils import parsedate_to_datetime
 import xml.etree.ElementTree as ET
-import traceback
 
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
@@ -61,21 +59,21 @@ init_db()
 
 CATEGORIES = [
     {'name': 'Eléctrico', 'icon': '⚡', 'type': 'tema'},
-    {'name': 'Automotriz', 'icon': '🚗', 'type': 'tema'},
-    {'name': 'Belleza', 'icon': '💄', 'type': 'tema'},
-    {'name': 'Minería', 'icon': '⛏️', 'type': 'tema'},
-    {'name': 'IA', 'icon': '🤖', 'type': 'tema'},
-    {'name': 'Tendencias', 'icon': '📈', 'type': 'tema'},
+    {'name': 'Automotriz', 'icon': '', 'type': 'tema'},
+    {'name': 'Belleza', 'icon': '', 'type': 'tema'},
+    {'name': 'Minería', 'icon': '️', 'type': 'tema'},
+    {'name': 'IA', 'icon': '', 'type': 'tema'},
+    {'name': 'Tendencias', 'icon': '', 'type': 'tema'},
     {'name': 'Tecnología', 'icon': '💻', 'type': 'tema'},
-    {'name': 'Economía', 'icon': '💰', 'type': 'tema'},
-    {'name': 'Chile', 'icon': '🇨🇱', 'type': 'region'},
+    {'name': 'Economía', 'icon': '', 'type': 'tema'},
+    {'name': 'Chile', 'icon': '🇱', 'type': 'region'},
     {'name': 'Internacional', 'icon': '🌍', 'type': 'region'},
-    {'name': 'Deportes', 'icon': '⚽', 'type': 'otros'},
+    {'name': 'Deportes', 'icon': '', 'type': 'otros'},
     {'name': 'Ciencia y Tecnología', 'icon': '🔬', 'type': 'otros'},
-    {'name': 'Cultura', 'icon': '🎭', 'type': 'otros'},
+    {'name': 'Cultura', 'icon': '', 'type': 'otros'},
     {'name': 'Ocio', 'icon': '🎮', 'type': 'otros'},
-    {'name': 'Salud', 'icon': '🏥', 'type': 'otros'},
-    {'name': 'Sociedad', 'icon': '👥', 'type': 'otros'},
+    {'name': 'Salud', 'icon': '', 'type': 'otros'},
+    {'name': 'Sociedad', 'icon': '', 'type': 'otros'},
     {'name': 'TV y Espectáculos', 'icon': '📺', 'type': 'otros'}
 ]
 
@@ -130,7 +128,7 @@ def _norm(s):
 
 def _get_fast(url, timeout=15):
     try:
-        r = cr.get(url, impersonate="chrome", timeout=timeout, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"})
+        r = cr.get(url, impersonate="chrome", timeout=timeout, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"})
         if r.status_code == 200:
             return r.text
     except Exception as e:
@@ -209,13 +207,9 @@ def fetch_reddit_fast():
 
 def fetch_youtube_fast():
     articles = []
-    
-    # OPCIÓN A: Usar variable de entorno (Recomendado y seguro)
     api_key = os.getenv('YOUTUBE_API_KEY')
-    
-    # OPCIÓN B: Prueba de fuego (Descomenta la línea de abajo quitando el '#' para probar)
-    # ¡CUIDADO! No dejes espacios antes de "api_key". Debe estar alineado con la línea de arriba.
-    api_key = "AIzaSyDmCcTBVmkafdPwkxypEIKJAD5lkaAr1vA"
+    # Prueba de fuego (descomentar si la variable de entorno falla)
+    # api_key = "AIzaSyDmCcTBVmkafdPwkxypEIKJAD5lkaAr1vA"
     
     if not api_key:
         print("[YOUTUBE] ⚠️ YOUTUBE_API_KEY no configurada.")
@@ -224,11 +218,9 @@ def fetch_youtube_fast():
     try:
         url = f"https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&regionCode=CL&maxResults=10&key={api_key}"
         response = cr.get(url, timeout=15)
-        
         if response.status_code == 200:
             data = response.json()
-            items = data.get('items', [])
-            for item in items:
+            for item in data.get('items', []):
                 title = item.get('snippet', {}).get('title', '').strip()
                 if title:
                     articles.append({
@@ -240,7 +232,7 @@ def fetch_youtube_fast():
                     })
             print(f"[FETCH] YouTube: {len(articles)} artículos")
         else:
-            print(f"[YOUTUBE] ❌ HTTP {response.status_code}: {response.text[:150]}")
+            print(f"[YOUTUBE] ❌ HTTP {response.status_code}")
     except Exception as e:
         print(f"[YOUTUBE] ❌ Error: {str(e)}")
     return articles
@@ -275,19 +267,15 @@ def get_cached_data(max_age_minutes=120):
                 cache = json.load(f)
                 timestamp = datetime.fromisoformat(cache['timestamp'])
                 age = datetime.now(timezone.utc) - timestamp.replace(tzinfo=timezone.utc)
-                
                 if age >= timedelta(minutes=max_age_minutes):
                     return None, None
-                
                 articles = cache.get('articles', [])
                 status = cache.get('status', {})
-                
                 if articles and len(articles) > 10:
                     has_ok_source = any(v == 'ok' for v in status.values())
                     if not has_ok_source:
                         print("[CACHE] ⚠️ Caché sin fuentes OK. Forzando refresh...")
                         return None, None
-                
                 print(f"[CACHE] ✅ Usando caché ({len(articles)} artículos)")
                 return articles, status
         except Exception as e:
@@ -352,6 +340,26 @@ def fetch_raw_articles(force_refresh=False):
     save_to_cache(unique, status)
     return unique, status
 
+# ============================================================
+# 🕒 NUEVO: Filtrar artículos de las últimas 24 horas
+# ============================================================
+def filter_recent_articles(articles, max_hours=24):
+    """Filtra artículos para mantener solo los de las últimas N horas"""
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=max_hours)
+    recent = []
+    for a in articles:
+        try:
+            fs = a.get('first_seen', '')
+            if isinstance(fs, str):
+                fs = datetime.fromisoformat(fs.replace('Z', '+00:00'))
+            if fs >= cutoff:
+                recent.append(a)
+        except Exception:
+            # Si no se puede parsear la fecha, lo mantenemos por seguridad
+            recent.append(a)
+    return recent
+
 def group_related_articles(articles, top=8):
     if not articles:
         return []
@@ -371,7 +379,11 @@ def group_related_articles(articles, top=8):
     scored = []
     for key, items in groups.items():
         sources = set(item['source'] for item in items)
-        score = len(sources) * 20 + min(30, len(items) * 5)
+        # Priorizar fuentes virales (Reddit, YouTube, Trends) sobre RSS
+        viral_sources = {'reddit_chile', 'youtube_trending', 'google_trends'}
+        has_viral = len(sources & viral_sources)
+        
+        score = len(sources) * 20 + min(30, len(items) * 5) + (has_viral * 15)
         representative = max(items, key=lambda x: len(x['title']))
         
         scored.append({
@@ -403,18 +415,38 @@ def group_related_articles(articles, top=8):
             })
     return result
 
+# ============================================================
+# 🧠 NUEVO: Prompt con fecha actual y contexto temporal
+# ============================================================
 def cross_predictions_func(articles, category='all', top=6):
     if not articles or len(articles) < 3:
         return []
     
-    recent = articles[:15]
+    # Filtrar solo artículos de las últimas 24 horas
+    recent_articles = filter_recent_articles(articles, max_hours=24)
+    if len(recent_articles) < 3:
+        recent_articles = articles[:15]  # Fallback si no hay suficientes recientes
+    
+    recent = recent_articles[:15]
     headlines = "\n".join([f"- [{a['source']}] {a['title']}" for a in recent])
     
-    prompt = f"""Analiza estos titulares y detecta tendencias emergentes:
+    # Fecha actual en español
+    now = datetime.now(timezone.utc)
+    fecha_actual = now.strftime('%A %d de %B de %Y, %H:%M UTC')
+    
+    prompt = f"""Hoy es {fecha_actual}. Eres un analista de tendencias editoriales experto.
+
+Analiza estos titulares RECENTES (últimas 24 horas) y detecta PATRONES o TEMAS EMERGENTES que sean RELEVANTES AHORA:
+
 {headlines}
 
-Responde SOLO con un array JSON con {top} tendencias, sin markdown ni texto adicional. Formato:
-[{{"topic": "Tema", "score": 72, "reasoning": "Por qué", "signals": ["Señal 1"], "impact": "alto", "timeframe": "próximas horas", "category": "Categoría"}}]"""
+Responde SOLO con un array JSON con {top} tendencias. Cada tendencia debe:
+- Ser un tema ACTUAL y vigente (no del pasado)
+- Tener proyección hacia el futuro inmediato
+- Estar fundamentada en los titulares proporcionados
+
+Formato:
+[{{"topic": "Tema claro y específico", "score": 72, "reasoning": "Por qué es tendencia AHORA (2-3 oraciones)", "signals": ["Señal 1", "Señal 2"], "impact": "alto", "timeframe": "próximas horas", "category": "Categoría"}}]"""
 
     api_key = os.getenv('QWEN_API_KEY')
     if not api_key:
@@ -462,7 +494,7 @@ Responde SOLO con un array JSON con {top} tendencias, sin markdown ni texto adic
                         'timestamp': now.isoformat()
                     } for p in predictions[:top] if isinstance(p, dict)]
                 except json.JSONDecodeError as e:
-                    print(f"[IA] ⚠️ JSONDecodeError: {e}")
+                    print(f"[IA] ️ JSONDecodeError: {e}")
                     return []
     except Exception as e:
         print(f"[IA] ❌ Error en llamada a IA: {str(e)}")
@@ -556,18 +588,23 @@ def analyze_with_qwen(prompt, mode='standard'):
 
 def generate_analysis(topic, topic2, category, region, mode, lens, news):
     news_text = "\n\nNoticias:\n" + "\n".join([f"- {n['titulo']}" for n in news[:5]]) if news else ""
+    
+    # Fecha actual para contexto
+    now = datetime.now(timezone.utc)
+    fecha_actual = now.strftime('%A %d de %B de %Y, %H:%M UTC')
+    
     if mode == 'briefing':
-        return f"""Eres editor experto. BRIEFING sobre: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}
+        return f"""Hoy es {fecha_actual}. Eres editor experto. BRIEFING sobre: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}
 Responde SOLO JSON: {{"resumen_ejecutivo": "Párrafo claro", "preguntas_fuente": ["¿Qué pasó?", "¿Quiénes afectan?", "¿Qué sigue?"], "datos_duros": ["Dato 1", "Dato 2"], "timeline_sugerido": "Esta semana", "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
     elif mode == 'devil':
-        return f"""Editor crítico. ABOGADO DEL DIABLO: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}
+        return f"""Hoy es {fecha_actual}. Editor crítico. ABOGADO DEL DIABLO: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}
 Responde SOLO JSON: {{"cobertura_mainstream": "Lo que todos dicen", "angulo_ciego": "Lo que NADIE pregunta", "riesgos_sesgos": ["Sesgo 1", "Sesgo 2"], "pregunta_incomoda": "Pregunta incómoda", "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
     elif mode == 'compare' and topic2:
-        return f"""Editor estratégico. COMPARA: TEMA A: {topic} | TEMA B: {topic2} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}
+        return f"""Hoy es {fecha_actual}. Editor estratégico. COMPARA: TEMA A: {topic} | TEMA B: {topic2} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}
 Responde SOLO JSON: {{"tema_a": "{topic}", "tema_b": "{topic2}", "mas_recorrido": "Cuál tiene más recorrido", "fuentes_comunes": ["Fuente 1", "Fuente 2"], "angulo_conector": "Ángulo conector", "recomendacion": "Cuál cubrir primero", "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
     else:
         lens_instruction = {"data": "\nENFOQUE: Estadísticas.", "controversy": "\nENFOQUE: Conflictos.", "human": "\nENFOQUE: Personas.", "economic": "\nENFOQUE: Finanzas."}.get(lens, "")
-        return f"""Analiza tendencia: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}{lens_instruction}
+        return f"""Hoy es {fecha_actual}. Analiza tendencia: TEMA: {topic} | CATEGORÍA: {category or 'General'} | REGIÓN: {region or 'Chile'}{news_text}{lens_instruction}
 Responde SOLO JSON: {{"puntaje_relevancia": 7, "justificacion_puntaje": "Explicación del puntaje", "hipotesis": "Hipótesis editorial", "senales_clave": ["Señal 1", "Señal 2"], "angulos_periodisticos": ["Ángulo 1", "Ángulo 2"], "fuentes_sugeridas": ["Fuente 1", "Fuente 2"], "titulares_ejemplo": ["Titular 1", "Titular 2"], "noticias_reales": {json.dumps(news if news else [], ensure_ascii=False)}}}"""
 
 @app.route('/')
@@ -730,6 +767,7 @@ def analyze():
         news = []
         topic_lower = topic.lower()
         
+        # Búsqueda inteligente por palabras clave
         keywords = [w for w in re.findall(r'[a-zñ]{4,}', topic_lower) if w not in STOPWORDS]
         search_terms = keywords if len(keywords) >= 2 else [topic_lower]
         
